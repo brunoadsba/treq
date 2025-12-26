@@ -16,13 +16,14 @@ langchain-community>=0.3.27,<0.4.0
 
 # LLM e APIs
 groq>=0.36.0,<1.0.0
-google-generativeai>=0.3.0,<1.0.0
+google-genai>=0.2.0,<1.0.0  # Nova biblioteca para Gemini (inclui TTS)
 
 # Utilitários
 python-dotenv>=1.0.0
 httpx>=0.24.0,<0.25.0  # Compatível com supabase (requer <0.25.0)
 loguru>=0.7.0
 slowapi>=0.1.0
+python-multipart>=0.0.6  # Necessário para UploadFile no FastAPI
 
 # Audio (se necessário)
 pydub>=0.25.0

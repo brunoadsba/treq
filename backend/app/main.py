@@ -48,3 +48,9 @@ async def health_check():
     """Health check endpoint."""
     return {"status": "ok", "service": "treq-assistente-backend"}
 
+
+# Incluir rotas
+from app.api.routes import chat, audio
+app.include_router(chat.router)
+app.include_router(audio.router)
+

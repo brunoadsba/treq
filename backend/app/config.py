@@ -22,10 +22,15 @@ class Settings(BaseSettings):
     supabase_url: str = ""
     supabase_key: str = ""  # Service role key
     supabase_anon_key: str = ""
+    database_password: str = ""  # Database password (backup local, não usada no código inicialmente)
     
     # APIs
     groq_api_key: str = ""
     gemini_api_key: str = ""
+    
+    # Audio
+    audio_max_duration_seconds: int = 60  # Máximo 60 segundos de áudio
+    audio_supported_formats: list = ["webm", "wav", "mp3", "ogg"]
     
     # Embeddings
     embedding_model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
@@ -33,8 +38,8 @@ class Settings(BaseSettings):
     
     # LLM
     llm_model: str = "llama-3.1-8b-instant"
-    llm_temperature: float = 0.3
-    llm_max_tokens: int = 500
+    llm_temperature: float = 0.4  # Aumentado de 0.3 para menos conservador (análise consolidada)
+    llm_max_tokens: int = 800  # Aumentado de 500 para respostas mais completas (análise consolidada)
     
     # Rate Limiting
     rate_limit_per_minute: int = 60

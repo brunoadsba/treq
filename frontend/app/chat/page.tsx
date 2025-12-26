@@ -1,16 +1,57 @@
+"use client";
+
+import { useChat } from "../hooks/useChat";
+import { Header } from "../components/Header";
+import { MessageList } from "../components/MessageList";
+import { InputArea } from "../components/InputArea";
+import { QuickActions } from "../components/QuickActions";
+import { Toast } from "../components/Toast";
+import { useToast } from "../hooks/useToast";
+import { useEffect } from "react";
+
 export default function ChatPage() {
+  const { messages, isLoading, error, sendMessage, conversationId } = useChat();
+  const { toasts, showToast, removeToast } = useToast();
+
+  // Mostrar toast de erro
+  useEffect(() => {
+    if (error) {
+      showToast(error, "error");
+    }
+  }, [error, showToast]);
+
+  const handleSendMessage = async (message: string) => {
+    try {
+      await sendMessage(message);
+    } catch (err) {
+      // Toast já é mostrado pelo useEffect acima
+      console.error("Erro ao enviar mensagem:", err);
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-50">
-      <header className="bg-sotreq-black text-white p-4">
-        <h1 className="text-xl font-semibold">Treq Assistente Operacional</h1>
-      </header>
+      <Header />
       
-      <main className="flex-1 flex flex-col items-center justify-center p-4">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">Bem-vindo ao Assistente Operacional</h2>
-          <p className="text-gray-600">Interface de chat será implementada aqui</p>
-        </div>
-      </main>
+      <QuickActions onActionClick={handleSendMessage} disabled={isLoading} />
+      
+      <MessageList messages={messages} isLoading={isLoading} />
+      
+      <InputArea 
+        onSend={handleSendMessage} 
+        isLoading={isLoading}
+        conversationId={conversationId || undefined}
+      />
+
+      {/* Toasts */}
+      {toasts.map((toast) => (
+        <Toast
+          key={toast.id}
+          message={toast.message}
+          type={toast.type}
+          onClose={() => removeToast(toast.id)}
+        />
+      ))}
     </div>
   );
 }
