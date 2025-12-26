@@ -1,0 +1,118 @@
+# ============================================
+# Arquivos Essenciais - Treq Assistente
+# Apenas código fonte e configurações vão para o repositório
+# ============================================
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+treq-venv/
+env/
+ENV/
+.venv
+*.egg-info/
+dist/
+build/
+
+# Environment Variables (sempre ignorar)
+.env
+.env.local
+.env*.local
+.env.production
+
+# Next.js
+.next/
+out/
+node_modules/
+.swc/
+
+# IDEs e Editores
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-*
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# ============================================
+# Documentação e Planejamento (NÃO versionar)
+# ============================================
+
+# Documentação de execução/planejamento
+execucao/
+Docs/
+
+# Scripts auxiliares de desenvolvimento
+backend/scripts/
+frontend/scripts/
+
+# Dados de desenvolvimento/testes
+backend/data/
+frontend/public/test-data/
+
+# Análises e documentação técnica
+*.md
+!README.md
+!backend/README.md
+!frontend/README.md
+
+# ============================================
+# Build e Cache
+# ============================================
+
+# Python
+*.pyc
+*.pyo
+*.pyd
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+
+# TypeScript
+*.tsbuildinfo
+
+# ============================================
+# Arquivos Temporários
+# ============================================
+*.tmp
+*.temp
+*.bak
+*.backup
+*~
+
+# ============================================
+# Arquivos Específicos do Projeto
+# ============================================
+
+# Modelos ML locais (se houver)
+*.bin
+*.onnx
+*.pkl
+models/
+
+# Certificados e keys (NUNCA versionar)
+*.pem
+*.key
+*.crt
+*.cert
+secrets/
+
+# Database local (se houver)
+*.db
+*.sqlite
+*.sqlite3
+
