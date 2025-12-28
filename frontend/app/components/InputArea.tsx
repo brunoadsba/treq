@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, FormEvent } from "react";
-import { Mic, Send, Loader2 } from "lucide-react";
+import { useState, FormEvent, useRef } from "react";
+import { Mic, Send, Loader2, Paperclip } from "lucide-react";
 import { useAudioRecorder } from "../hooks/useAudioRecorder";
 import { useAudioTranscription } from "../hooks/useAudioTranscription";
+import { useDocumentUpload } from "../hooks/useDocumentUpload";
 
 interface InputAreaProps {
   onSend: (message: string) => void;
@@ -11,6 +12,8 @@ interface InputAreaProps {
   placeholder?: string;
   userId?: string;
   conversationId?: string;
+  onDocumentUploaded?: (fileName: string, chunksIndexed: number) => void;
+  onDocumentUploadError?: (error: string) => void;
 }
 
 export function InputArea({
@@ -19,10 +22,14 @@ export function InputArea({
   placeholder = "Digite sua mensagem...",
   userId = "default-user",
   conversationId,
+  onDocumentUploaded,
+  onDocumentUploadError,
 }: InputAreaProps) {
   const [message, setMessage] = useState("");
   const { isRecording, audioBlob, startRecording, stopRecording, clearRecording } = useAudioRecorder();
   const { isTranscribing, transcribeAudio } = useAudioTranscription();
+  const { isUploading, uploadDocument } = useDocumentUpload();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -58,7 +65,30 @@ export function InputArea({
     }
   };
 
-  const isProcessing = isLoading || isTranscribing;
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const result = await uploadDocument(file);
+      if (onDocumentUploaded) {
+        onDocumentUploaded(file.name, result.chunksIndexed);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Erro desconhecido ao fazer upload";
+      if (onDocumentUploadError) {
+        onDocumentUploadError(errorMessage);
+      }
+      console.error("Erro ao fazer upload:", error);
+    } finally {
+      // Limpar input para permitir selecionar o mesmo arquivo novamente
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const isProcessing = isLoading || isTranscribing || isUploading;
 
   return (
     <div className="border-t border-gray-200 bg-white">
@@ -87,6 +117,28 @@ export function InputArea({
       {/* Área de input */}
       <form onSubmit={handleSubmit} className="p-4">
         <div className="flex gap-2">
+          {/* Input de arquivo oculto */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.docx,.pptx,.xlsx,.xls"
+            onChange={handleFileSelect}
+            disabled={isProcessing}
+            className="hidden"
+            id="file-upload"
+          />
+
+          {/* Botão de anexar documento */}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isProcessing || !!audioBlob}
+            className="px-4 py-2 rounded-lg font-medium transition-colors bg-gray-100 hover:bg-gray-200 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Anexar documento (PDF, DOCX, PPTX, Excel)"
+          >
+            <Paperclip className="w-5 h-5" />
+          </button>
+
           {/* Botão de gravação */}
           <button
             type="button"
@@ -121,7 +173,7 @@ export function InputArea({
             {isProcessing ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                {isTranscribing ? "Transcrevendo..." : "Enviando..."}
+                {isUploading ? "Enviando..." : isTranscribing ? "Transcrevendo..." : "Enviando..."}
               </>
             ) : (
               <>

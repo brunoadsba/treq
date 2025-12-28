@@ -2,9 +2,11 @@
 Rotas da API para chat.
 """
 from fastapi import APIRouter, HTTPException, Depends
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from loguru import logger
+import json
 
 from app.services.llm_service import LLMService
 from app.core.rag_service import RAGService
@@ -79,6 +81,7 @@ class ChatRequest(BaseModel):
     user_id: str = Field(..., description="ID do usuário")
     conversation_id: Optional[str] = Field(None, description="ID da conversa (opcional)")
     context: Optional[Dict[str, Any]] = Field(None, description="Contexto adicional (unidade, período, etc.)")
+    stream: Optional[bool] = Field(False, description="Se True, retorna streaming SSE")
 
 
 class ChatResponse(BaseModel):
@@ -91,7 +94,98 @@ class ChatResponse(BaseModel):
     tool_data: Optional[Dict[str, Any]] = Field(None, description="Dados retornados por tools (se aplicável)")
 
 
-@router.post("/", response_model=ChatResponse)
+async def _generate_stream_response(
+    request: ChatRequest,
+    llm_service: LLMService,
+    rag_service: RAGService,
+    context_manager: ContextManager,
+    query_type: str,
+    combined_context: List[str],
+    tool_result: Optional[Any],
+    is_follow_up: bool,
+    sources: List[Dict[str, Any]],
+    strategy: str
+):
+    """
+    Generator para streaming de respostas via SSE.
+    
+    Yields:
+        str: Eventos SSE formatados
+    """
+    try:
+        # Construir mensagens para LLM
+        messages = []
+        
+        # Selecionar prompt do sistema
+        if query_type in llm_service.SYSTEM_PROMPTS:
+            system_content = llm_service.SYSTEM_PROMPTS[query_type]
+        else:
+            system_content = llm_service.DEFAULT_PROMPT
+        
+        messages.append({"role": "system", "content": system_content})
+        
+        # Adicionar histórico se follow-up
+        if is_follow_up:
+            messages.extend(context_manager.get_recent_messages(n=3))
+        
+        # Construir conteúdo do usuário com contexto
+        if combined_context:
+            context_text = "\n\n---\n\n".join([
+                f"Documento {i+1}:\n{ctx}"
+                for i, ctx in enumerate(combined_context)
+            ])
+            user_content = f"""CONTEXTO DOS DOCUMENTOS:
+{context_text}
+
+---
+
+PERGUNTA DO USUÁRIO:
+{request.message}
+
+Responda usando APENAS as informações do contexto acima."""
+        else:
+            user_content = request.message
+        
+        messages.append({"role": "user", "content": user_content})
+        
+        # Gerar stream
+        full_response = ""
+        for chunk in llm_service.generate_response(
+            messages=messages,
+            query_type=query_type,
+            query_text=request.message,
+            stream=True
+        ):
+            full_response += chunk
+            # Enviar chunk via SSE
+            yield f"data: {json.dumps({'chunk': chunk, 'done': False})}\n\n"
+        
+        # Adicionar mensagens ao histórico
+        context_manager.add_message("user", request.message)
+        context_manager.add_message("assistant", full_response)
+        
+        # Enviar evento final com metadados
+        final_data = {
+            "chunk": "",
+            "done": True,
+            "conversation_id": request.conversation_id,
+            "context_summary": context_manager.get_context_summary(),
+            "sources": sources,
+            "strategy": strategy,
+            "tool_data": tool_result.data if tool_result and tool_result.success else None
+        }
+        yield f"data: {json.dumps(final_data)}\n\n"
+        
+    except Exception as e:
+        logger.error(f"Erro no stream: {e}")
+        error_data = {
+            "error": str(e),
+            "done": True
+        }
+        yield f"data: {json.dumps(error_data)}\n\n"
+
+
+@router.post("/")
 async def chat(
     request: ChatRequest,
     llm_service: LLMService = Depends(get_llm_service),
@@ -105,8 +199,123 @@ async def chat(
     2. Busca contexto relevante no RAG
     3. Gera resposta com LLM usando contexto
     4. Retorna resposta e fontes
+    
+    Se request.stream=True, retorna Server-Sent Events (SSE) streaming.
     """
     try:
+        # Verificar se é streaming
+        if request.stream:
+            # Processar até o ponto de gerar resposta (mesma lógica não-streaming)
+            # mas retornar via SSE
+            
+            # 1. DETECÇÃO DE INTERAÇÕES SOCIAIS
+            social_response = detect_social_interaction(request.message)
+            if social_response:
+                logger.info(f"Interação social detectada - resposta direta sem RAG")
+                # Para streaming, enviar resposta completa de uma vez
+                async def social_stream():
+                    yield f"data: {json.dumps({'chunk': social_response, 'done': False})}\n\n"
+                    yield f"data: {json.dumps({'chunk': '', 'done': True, 'conversation_id': request.conversation_id})}\n\n"
+                return StreamingResponse(social_stream(), media_type="text/event-stream")
+            
+            # 2. Obter context manager
+            cache_key = f"{request.user_id}:{request.conversation_id or 'default'}"
+            if cache_key not in _context_cache:
+                _context_cache[cache_key] = ContextManager(user_id=request.user_id)
+            context_manager = _context_cache[cache_key]
+            
+            # 3-12. Mesma lógica de processamento (classificação, RAG, tools, etc.)
+            entities = context_manager.extract_entities(request.message)
+            if entities.get("unit"):
+                context_manager.update_unit(entities["unit"])
+            if entities.get("period"):
+                context_manager.update_period(
+                    entities["period"]["month"],
+                    entities["period"]["year"]
+                )
+            
+            if request.context:
+                if "unit" in request.context:
+                    context_manager.update_unit(request.context["unit"])
+                if "period" in request.context:
+                    period = request.context["period"]
+                    context_manager.update_period(period.get("month", 12), period.get("year", 2024))
+            
+            is_follow_up = detect_follow_up(request.message, context_manager)
+            query_type = context_manager.classify_query(request.message)
+            strategy, strategy_params = route_query(request.message, query_type)
+            
+            search_query = request.message
+            if is_follow_up:
+                search_query = expand_query_with_context(request.message, context_manager)
+            
+            should_use_rag = should_use_rag_first(query_type, strategy)
+            should_use_tool = should_use_tool_first(query_type, strategy)
+            
+            tool_result = None
+            if should_use_tool:
+                if query_type in ["metrica_temporal", "status_temporal"] or "metric" in strategy_params.get("type", ""):
+                    metrics_tool = MetricsTool()
+                    tool_params = extract_tool_params(
+                        query=request.message,
+                        query_type=query_type,
+                        entities=entities
+                    )
+                    tool_result = await metrics_tool.execute(**tool_params)
+                    if not tool_result.success:
+                        should_use_rag = True
+            
+            rag_results = []
+            context_texts = []
+            if should_use_rag:
+                top_k = 5 if query_type in ["procedimento", "detalhamento"] else 3
+                rag_results, used_threshold = search_with_fallback(
+                    query=search_query,
+                    query_type=query_type,
+                    rag_service=rag_service,
+                    top_k=top_k,
+                    min_docs=2,
+                    filters=None
+                )
+                context_texts = [result["content"] for result in rag_results]
+            
+            sources = [
+                {
+                    "content": result["content"][:200] + "..." if len(result["content"]) > 200 else result["content"],
+                    "similarity": round(result["similarity"], 3),
+                    "metadata": result.get("metadata", {})
+                }
+                for result in rag_results
+            ]
+            
+            combined_context = context_texts.copy() if context_texts else []
+            if tool_result and tool_result.success and tool_result.data:
+                tool_context = f"DADOS EM TEMPO REAL:\n{_format_tool_result(tool_result.data)}"
+                combined_context.append(tool_context)
+            
+            # Retornar streaming
+            return StreamingResponse(
+                _generate_stream_response(
+                    request=request,
+                    llm_service=llm_service,
+                    rag_service=rag_service,
+                    context_manager=context_manager,
+                    query_type=query_type,
+                    combined_context=combined_context,
+                    tool_result=tool_result,
+                    is_follow_up=is_follow_up,
+                    sources=sources,
+                    strategy=strategy
+                ),
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "X-Accel-Buffering": "no"
+                }
+            )
+        
+        # Modo não-streaming (código original)
         # 1. DETECÇÃO DE INTERAÇÕES SOCIAIS (antes de qualquer processamento)
         social_response = detect_social_interaction(request.message)
         if social_response:
@@ -281,27 +490,34 @@ async def chat(
             )
         else:
             # Usar conhecimento geral do LLM (sem contexto RAG/Tool)
-            response_text = llm_service.generate_response([
-                {
-                    "role": "system",
-                    "content": (
-                        "Você é o Assistente Operacional da Treq. "
-                        "Responda de forma útil e profissional. "
-                        "Se a pergunta for sobre operações da Treq, "
-                        "informe que precisa de mais contexto específico."
-                    )
-                },
-                {
-                    "role": "user",
-                    "content": request.message
-                }
-            ])
+            response_text = llm_service.generate_response(
+                [
+                    {
+                        "role": "system",
+                        "content": (
+                            "Você é o Assistente Operacional da Treq. "
+                            "Responda de forma útil e profissional. "
+                            "Se a pergunta for sobre operações da Treq, "
+                            "informe que precisa de mais contexto específico."
+                        )
+                    },
+                    {
+                        "role": "user",
+                        "content": request.message
+                    }
+                ],
+                query_type=query_type,
+                query_text=request.message  # Passar query_text para detecção de tarefas pesadas
+            )
         
         # 14. Adicionar mensagens ao histórico
         context_manager.add_message("user", request.message)
         context_manager.add_message("assistant", response_text)
         
-        # 15. Retornar resposta
+        # 15. Logging do nível usado (para rastreabilidade no endpoint)
+        logger.info(f"Resposta gerada - Query Type: {query_type}, Strategy: {strategy}")
+        
+        # 16. Retornar resposta
         return ChatResponse(
             response=response_text,
             conversation_id=request.conversation_id,

@@ -90,14 +90,20 @@ def classify_query(query: str, message_history: List = None) -> str:
         return "metrica"
     
     # 3. Detectar PROCEDIMENTOS (antes de alertas - "como fazer" tem prioridade)
-    if "como fazer" in query_lower:
-        # Verificar se menciona ação específica
-        action_keywords = [
-            "contenção", "resolver", "corrigir", "implementar",
-            "procedimento", "passo", "instrução", "processo"
-        ]
-        if any(keyword in query_lower for keyword in action_keywords):
-            logger.debug(f"Query classificada como PROCEDIMENTO: '{query}'")
+    # Padrões mais amplos para detectar procedimentos
+    import re
+    procedimento_patterns = [
+        r"como\s+(fazer|executar|realizar|implementar|aplicar)",
+        r"qual\s+(o|a)\s+(procedimento|processo|passo|método|forma)",
+        r"(passo\s+a\s+passo|passos\s+para|instruções\s+para)",
+        r"como\s+(devo|devemos|posso|podemos)\s+",
+        r"(procedimento|protocolo|processo)\s+(de|para|para fazer)",
+        r"como\s+(fazer|executar|realizar)\s+\w+",  # "como fazer X" - captura qualquer ação
+    ]
+    
+    for pattern in procedimento_patterns:
+        if re.search(pattern, query_lower):
+            logger.debug(f"Query classificada como PROCEDIMENTO (pattern: {pattern}): '{query}'")
             return "procedimento"
     
     # 4. Detectar queries sobre unidades específicas (deve ser status executivo)
@@ -148,9 +154,9 @@ def classify_query(query: str, message_history: List = None) -> str:
         "crítico"
     ]
     # Não classificar como alerta se for claramente um procedimento
-    if "emergência" in query_lower and "como fazer" in query_lower:
-        # "como fazer contenção de emergência" é procedimento, não alerta
-        logger.debug(f"Query classificada como PROCEDIMENTO (emergência + como fazer): '{query}'")
+    # Verificar padrões de procedimento antes de classificar como alerta
+    if any(re.search(pattern, query_lower) for pattern in procedimento_patterns):
+        logger.debug(f"Query classificada como PROCEDIMENTO (antes de alerta): '{query}'")
         return "procedimento"
     
     if any(keyword in query_lower for keyword in alert_keywords):

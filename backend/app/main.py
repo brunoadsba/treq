@@ -50,7 +50,8 @@ async def health_check():
 
 
 # Incluir rotas
-from app.api.routes import chat, audio
+from app.api.routes import chat, audio, documents
 app.include_router(chat.router)
 app.include_router(audio.router)
+app.include_router(documents.router)
 

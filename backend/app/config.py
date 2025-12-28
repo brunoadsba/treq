@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     # APIs
     groq_api_key: str = ""
     gemini_api_key: str = ""
+    zhipu_api_key: str = ""  # API Key para Zhipu AI (GLM 4)
     
     # Audio
     audio_max_duration_seconds: int = 60  # Máximo 60 segundos de áudio
@@ -37,7 +38,11 @@ class Settings(BaseSettings):
     embedding_dimension: int = 384
     
     # LLM
-    llm_model: str = "llama-3.1-8b-instant"
+    llm_model: str = "llama-3.1-8b-instant"  # Nível 1: Modelo padrão (rápido)
+    llm_model_complex: str = "llama-3.3-70b-versatile"  # Nível 2: Modelo para queries complexas
+    glm_model: str = "glm-4.7"  # Nível 3: Modelo GLM 4 para tarefas pesadas
+    use_dynamic_model: bool = True  # Ativar seleção dinâmica
+    use_3_level_routing: bool = True  # Ativar roteamento em 3 níveis (8B → 70B → GLM 4)
     llm_temperature: float = 0.4  # Aumentado de 0.3 para menos conservador (análise consolidada)
     llm_max_tokens: int = 800  # Aumentado de 500 para respostas mais completas (análise consolidada)
     

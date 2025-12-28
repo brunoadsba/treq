@@ -2,8 +2,8 @@
 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { CheckCircle2, AlertTriangle, XCircle, Lightbulb } from "lucide-react";
-import { ReactNode } from "react";
+import { CheckCircle2, AlertTriangle, XCircle, Lightbulb, ChevronDown, ChevronUp, Brain } from "lucide-react";
+import { ReactNode, useState } from "react";
 
 interface FormattedMessageProps {
   content: string;
@@ -22,7 +22,66 @@ function extractText(node: ReactNode): string {
   return "";
 }
 
+// Interface para conteúdo parseado do Chain of Thought
+interface ParsedCoT {
+  hasCoT: boolean;
+  thinking?: string;
+  answer: string;
+}
+
+// Parser para Chain of Thought - extrai <pensamento> e <resposta>
+function parseChainOfThought(text: string): ParsedCoT {
+  // Buscar tags <pensamento>
+  const thinkingMatch = text.match(/<pensamento>([\s\S]*?)<\/pensamento>/i);
+  const thinking = thinkingMatch ? thinkingMatch[1].trim() : undefined;
+  
+  // Buscar tags <resposta>
+  const answerMatch = text.match(/<resposta>([\s\S]*?)<\/resposta>/i);
+  const answer = answerMatch ? answerMatch[1].trim() : text.trim();
+  
+  return {
+    hasCoT: !!(thinking || answerMatch),
+    thinking,
+    answer,
+  };
+}
+
+// Componente para renderizar pensamento (collapsible)
+function ThinkingSection({ thinking }: { thinking: string }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
+  return (
+    <div className="mb-4 border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between px-4 py-2.5 text-left hover:bg-gray-100 transition-colors"
+      >
+        <div className="flex items-center gap-2 text-sm text-gray-600">
+          <Brain className="w-4 h-4 text-gray-500" />
+          <span className="font-medium">Raciocínio do Assistente</span>
+        </div>
+        {isExpanded ? (
+          <ChevronUp className="w-4 h-4 text-gray-500" />
+        ) : (
+          <ChevronDown className="w-4 h-4 text-gray-500" />
+        )}
+      </button>
+      
+      {isExpanded && (
+        <div className="px-4 pb-3 pt-2 border-t border-gray-200">
+          <p className="text-sm text-gray-600 italic leading-relaxed whitespace-pre-wrap">
+            {thinking}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function FormattedMessage({ content }: FormattedMessageProps) {
+  // Parsear Chain of Thought
+  const parsed = parseChainOfThought(content);
+  
   const components = {
     // Títulos (h2, h3)
     h2: ({ children, ...props }: any) => {
@@ -163,11 +222,17 @@ export function FormattedMessage({ content }: FormattedMessageProps) {
 
   return (
     <div className="prose prose-sm max-w-none prose-headings:mt-0 prose-headings:mb-0 prose-p:my-0">
+      {/* Renderizar pensamento se existir */}
+      {parsed.hasCoT && parsed.thinking && (
+        <ThinkingSection thinking={parsed.thinking} />
+      )}
+      
+      {/* Renderizar resposta */}
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={components}
       >
-        {content}
+        {parsed.answer}
       </ReactMarkdown>
     </div>
   );

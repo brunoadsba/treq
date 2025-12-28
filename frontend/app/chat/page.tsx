@@ -41,6 +41,15 @@ export default function ChatPage() {
         onSend={handleSendMessage} 
         isLoading={isLoading}
         conversationId={conversationId || undefined}
+        onDocumentUploaded={(fileName, chunksIndexed) => {
+          showToast(
+            `✅ Documento "${fileName}" enviado com sucesso! ${chunksIndexed} chunks indexados.`,
+            "success"
+          );
+        }}
+        onDocumentUploadError={(error) => {
+          showToast(`❌ Erro ao enviar documento: ${error}`, "error");
+        }}
       />
 
       {/* Toasts */}

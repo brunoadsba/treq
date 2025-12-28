@@ -5,7 +5,7 @@ pydantic>=2.7.0,<3.0.0  # Breaking changes entre v2 e v3
 pydantic-settings>=2.1.0,<3.0.0
 
 # Database
-supabase>=2.0.0,<3.0.0
+supabase>=2.27.0,<3.0.0  # Versão compatível com httpx 0.27.x
 pgvector>=0.2.0,<0.3.0
 psycopg2-binary>=2.9.0,<3.0.0
 
@@ -17,14 +17,25 @@ langchain-community>=0.3.27,<0.4.0
 # LLM e APIs
 groq>=0.36.0,<1.0.0
 google-genai>=0.2.0,<1.0.0  # Nova biblioteca para Gemini (inclui TTS)
+zai-sdk>=0.2.0  # SDK oficial Zhipu AI (GLM 4)
 
 # Utilitários
 python-dotenv>=1.0.0
-httpx>=0.24.0,<0.25.0  # Compatível com supabase (requer <0.25.0)
+httpx>=0.26.0,<0.28.0  # Compatível com supabase 2.x (0.28.0+ tem breaking changes)
 loguru>=0.7.0
 slowapi>=0.1.0
 python-multipart>=0.0.6  # Necessário para UploadFile no FastAPI
 
 # Audio (se necessário)
 pydub>=0.25.0
+
+# Document Processing (MVP 100% FREE - Fase 2)
+PyPDF2>=3.0.0      # Extração de texto de PDFs (texto nativo apenas)
+pdfplumber>=0.11.0 # Extração melhorada de PDFs com suporte a tabelas (opcional)
+openpyxl>=3.1.0    # Para leitura/escrita de Excel
+pandas>=2.0.0      # Para processamento de dados Excel
+
+# TODO FUTURO (quando necessário):
+# - OCR para PDFs escaneados: Google Document AI (1k páginas/mês free) ou solução paga
+# - DOCX/PPTX: python-docx, python-pptx
 
