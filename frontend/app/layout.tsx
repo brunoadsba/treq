@@ -13,9 +13,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR">
-      <body>
-        <NuqsAdapter>{children}</NuqsAdapter>
+    <html lang="pt-BR" className="h-full overflow-hidden">
+      <body className="h-full overflow-hidden">
+        <div className="h-full overflow-hidden">
+          <NuqsAdapter>{children}</NuqsAdapter>
+        </div>
       </body>
     </html>
   );

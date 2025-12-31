@@ -3,13 +3,22 @@ Serviço LLM usando Groq API (Llama 3.1 8B Instant) e Zhipu AI (GLM 4).
 Roteamento em 3 níveis: 8B (simples) → 70B (complexas) → GLM 4 (tarefas pesadas).
 Suporta streaming de respostas para melhor UX.
 """
-from typing import List, Dict, Optional, Any, Tuple, Generator, Union
-from loguru import logger
 import time
-import re
+from typing import List, Dict, Optional, Generator, Union
+from loguru import logger
 from groq import Groq
 from app.config import get_settings
 from app.services.prompts import SYSTEM_PROMPTS, DEFAULT_PROMPT
+from app.services.llm_model_selector import select_model
+from app.services.llm_clients import (
+    call_glm4,
+    call_groq,
+    stream_groq,
+    stream_glm4,
+    fallback_to_groq
+)
+from app.utils.debug import trace_generator
+from app.utils.technical_term_filter import filter_technical_terms
 
 # Importar Zhipu AI SDK (pode não estar instalado inicialmente)
 try:
@@ -60,263 +69,9 @@ class LLMService:
                 logger.warning("zai-sdk não disponível - GLM 4 desabilitado")
         
         self.model = settings.llm_model  # Fallback padrão
-        # Ajustes conforme análise consolidada: temperatura 0.4, max_tokens 800
-        self.temperature = 0.3  # Reduzido para respostas mais determinísticas
-        self.max_tokens = 400  # Reduzido para respostas executivas concisas (gestores)
-    
-    def _is_heavy_task(self, query_text: Optional[str], query_type: Optional[str]) -> bool:
-        """
-        Detecta se query requer GLM 4 (tarefa pesada).
-        
-        Tarefas pesadas:
-        - Análise multi-dimensional (compare, relacione, correlação)
-        - Cálculos complexos (calcule, equação, porcentagem, projeção)
-        - Síntese executiva (resumo executivo, visão geral, dashboard)
-        - Raciocínio profundo (por que múltiplos, causa raiz de múltiplos)
-        
-        Args:
-            query_text: Texto da query do usuário
-            query_type: Tipo da query classificada
-            
-        Returns:
-            bool: True se é tarefa pesada
-        """
-        if not query_text or not self.use_3_level or not self.zhipu_client:
-            return False
-        
-        query_lower = query_text.lower()
-        
-        # Padrões de tarefas pesadas
-        heavy_patterns = {
-            "analise_multi": [
-                "compare", "comparar", "relacione", "relacionar", "correlação", "correlacionar",
-                "padrão", "padrões", "tendência", "tendências", "análise de", "análise dos",
-                "síntese", "comparação", "relação entre", "correlação entre"
-            ],
-            "calculo_complexo": [
-                "calcule", "calcular", "equação", "equações", "porcentagem", "percentual",
-                "projeção", "projete", "se então", "impacto de", "impacto se",
-                "redução de", "aumento de", "crescimento de", "diminuição de",
-                "quanto será", "qual será", "se reduzirmos", "se aumentarmos"
-            ],
-            "sintese_executiva": [
-                "resumo executivo", "visão geral", "dashboard", "múltiplos documentos",
-                "consolidação", "consolidado", "panorama", "visão consolidada",
-                "resumo geral", "visão estratégica", "análise consolidada"
-            ],
-            "raciocínio_profundo": [
-                "por que múltiplos", "causa raiz de múltiplos", "análise profunda",
-                "investigação", "investigar", "raiz do problema", "origem do problema",
-                "por que vários", "motivos múltiplos", "fatores múltiplos"
-            ]
-        }
-        
-        # Padrões específicos do domínio Sotreq (operacional/logística)
-        sotreq_specific_patterns = [
-            r"compare.*unidades", r"comparar.*unidades", r"todas as unidades",
-            r"todas unidades", r"múltiplas unidades", r"várias unidades",
-            r"análise.*múltiplas", r"síntese.*operacional", r"visão geral.*operações",
-            r"calcule.*impacto", r"projeção.*performance", r"tendência.*operacional",
-            r"consolida.*unidades", r"dashboard.*operações", r"panorama.*operacional",
-            r"análise.*consolidada", r"resumo.*todas.*unidades", r"performance.*todas",
-            r"problemas.*múltiplas", r"alertas.*todas", r"status.*todas.*unidades"
-        ]
-        
-        # Verificar padrões gerais
-        for category, patterns in heavy_patterns.items():
-            if any(pattern in query_lower for pattern in patterns):
-                logger.info(f"🔷 Tarefa pesada detectada (categoria: {category})")
-                return True
-        
-        # Verificar padrões específicos Sotreq usando regex
-        for pattern in sotreq_specific_patterns:
-            if re.search(pattern, query_lower, re.IGNORECASE):
-                logger.info(f"🔷 Tarefa pesada detectada (padrão Sotreq: {pattern})")
-                return True
-        
-        return False
-    
-    def _select_model(self, query_type: Optional[str], query_text: Optional[str] = None) -> Tuple[str, str]:
-        """
-        Seleção em 3 níveis:
-        - Nível 1 (8B): Queries simples
-        - Nível 2 (70B): Queries complexas padrão
-        - Nível 3 (GLM 4): Tarefas pesadas
-        
-        Args:
-            query_type: Tipo da query (detalhamento, causa, procedimento, etc.)
-            query_text: Texto da query (para detecção de tarefas pesadas)
-            
-        Returns:
-            tuple: (model_name, provider) - provider: "groq" ou "zhipu"
-        """
-        if not self.use_dynamic:
-            return (self.model_8b, "groq")
-        
-        # Nível 3: Detectar tarefas pesadas (GLM 4)
-        if self._is_heavy_task(query_text, query_type):
-            logger.info(f"🔷 Usando GLM 4 para tarefa pesada")
-            return (self.glm_model, "zhipu")
-        
-        # Nível 2: Complexas padrão (Llama 70B)
-        complex_queries = ["detalhamento", "causa", "procedimento"]
-        if query_type in complex_queries:
-            logger.debug(f"Usando modelo 70B para query complexa: {query_type}")
-            return (self.model_70b, "groq")
-        
-        # Nível 1: Simples (Llama 8B)
-        return (self.model_8b, "groq")
-    
-    def _call_glm4(
-        self,
-        messages: List[Dict[str, str]],
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None
-    ) -> str:
-        """
-        Chama GLM 4 via Zhipu AI SDK.
-        
-        Args:
-            messages: Lista de mensagens no formato OpenAI
-            temperature: Temperatura (padrão 0.3 para precisão)
-            max_tokens: Máximo de tokens (padrão 1500 para análises longas)
-        
-        Returns:
-            str: Resposta do GLM 4
-        """
-        if not self.zhipu_client:
-            raise ValueError("Cliente GLM 4 não configurado")
-        
-        try:
-            start_time = time.time()
-            response = self.zhipu_client.chat.completions.create(
-                model=self.glm_model,
-                messages=messages,
-                temperature=temperature or 0.3,  # Menor temperatura para precisão
-                max_tokens=max_tokens or 1500  # Mais tokens para análises longas
-            )
-            
-            elapsed = time.time() - start_time
-            content = response.choices[0].message.content
-            logger.info(f"✅ GLM 4 resposta gerada: {len(content)} caracteres (tempo: {elapsed:.2f}s)")
-            return content
-            
-        except Exception as e:
-            logger.error(f"Erro ao chamar GLM 4: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
-            raise
-    
-    def _stream_groq(
-        self,
-        model: str,
-        messages: List[Dict[str, str]],
-        temperature: float,
-        max_tokens: int
-    ) -> Generator[str, None, None]:
-        """
-        Stream de respostas do Groq.
-        
-        Args:
-            model: Nome do modelo (8B ou 70B)
-            messages: Lista de mensagens
-            temperature: Temperatura
-            max_tokens: Máximo de tokens
-            
-        Yields:
-            str: Chunks de texto conforme são gerados
-        """
-        try:
-            logger.debug(f"📡 Iniciando stream Groq: {model}")
-            stream = self.client.chat.completions.create(
-                model=model,
-                messages=messages,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                stream=True
-            )
-            
-            for chunk in stream:
-                if chunk.choices[0].delta.content:
-                    yield chunk.choices[0].delta.content
-            
-            logger.debug("✅ Stream Groq concluído")
-            
-        except Exception as e:
-            logger.error(f"Erro no stream Groq: {e}")
-            raise
-    
-    def _stream_glm4(
-        self,
-        messages: List[Dict[str, str]],
-        temperature: Optional[float],
-        max_tokens: Optional[int]
-    ) -> Generator[str, None, None]:
-        """
-        Stream de respostas do GLM 4 (Zhipu AI).
-        
-        Args:
-            messages: Lista de mensagens
-            temperature: Temperatura
-            max_tokens: Máximo de tokens
-            
-        Yields:
-            str: Chunks de texto conforme são gerados
-        """
-        if not self.zhipu_client:
-            raise ValueError("Cliente GLM 4 não configurado")
-        
-        try:
-            logger.debug("📡 Iniciando stream GLM 4")
-            # Zhipu AI SDK suporta streaming via stream=True
-            stream = self.zhipu_client.chat.completions.create(
-                model=self.glm_model,
-                messages=messages,
-                temperature=temperature or 0.3,
-                max_tokens=max_tokens or 1500,
-                stream=True
-            )
-            
-            for chunk in stream:
-                if hasattr(chunk, 'choices') and chunk.choices:
-                    delta = chunk.choices[0].delta
-                    if hasattr(delta, 'content') and delta.content:
-                        yield delta.content
-            
-            logger.debug("✅ Stream GLM 4 concluído")
-            
-        except Exception as e:
-            logger.error(f"Erro no stream GLM 4: {e}")
-            # Fallback para Groq 70B em modo streaming
-            logger.warning("Fallback para Groq 70B em modo streaming")
-            yield from self._stream_groq(
-                model=self.model_70b,
-                messages=messages,
-                temperature=temperature or 0.3,
-                max_tokens=max_tokens or 1500
-            )
-    
-    def _fallback_to_groq(
-        self,
-        messages: List[Dict[str, str]],
-        model: str,
-        temperature: Optional[float],
-        max_tokens: Optional[int]
-    ) -> str:
-        """Fallback para Groq se GLM 4 falhar."""
-        try:
-            logger.info(f"🔄 Executando fallback para Groq {model}")
-            response = self.client.chat.completions.create(
-                model=model,
-                messages=messages,
-                temperature=temperature or self.temperature,
-                max_tokens=max_tokens or self.max_tokens
-            )
-            logger.info(f"✅ Fallback Groq executado com sucesso")
-            return response.choices[0].message.content
-        except Exception as e:
-            logger.error(f"Erro no fallback Groq: {e}")
-            raise
+        # Usar valores do config para garantir respostas completas
+        self.temperature = settings.llm_temperature  # Usar temperatura do config (0.4)
+        self.max_tokens = settings.llm_max_tokens  # Usar max_tokens do config (800) para respostas completas
     
     def _generate_response_non_stream(
         self,
@@ -334,39 +89,95 @@ class LLMService:
         
         try:
             if provider == "zhipu":
-                content = self._call_glm4(messages, temperature, max_tokens)
+                try:
+                    content = call_glm4(
+                        self.zhipu_client,
+                        self.glm_model,
+                        messages,
+                        temperature,
+                        max_tokens
+                    )
+                    # Verificar novamente se conteúdo não está vazio após retorno
+                    if not content or not content.strip():
+                        raise ValueError("GLM 4 retornou conteúdo vazio após validação")
+                    
+                    # Aplicar filtro de termos técnicos (pós-processamento obrigatório)
+                    content = filter_technical_terms(content)
+                    
+                    return content
+                except (ValueError, Exception) as glm_error:
+                    # Fallback automático para Groq 70B se GLM 4 falhar ou retornar vazio
+                    logger.warning(f"🔄 GLM 4 falhou ou retornou vazio: {glm_error}")
+                    logger.info("🔄 Tentando fallback automático com Groq 70B...")
+                    try:
+                        fallback_content = fallback_to_groq(
+                            self.client,
+                            self.model_70b,
+                            messages,
+                            temperature,
+                            max_tokens,
+                            self.temperature,
+                            self.max_tokens
+                        )
+                        if not fallback_content or not fallback_content.strip():
+                            raise ValueError("Fallback Groq 70B também retornou vazio")
+                        
+                        # Aplicar filtro de termos técnicos
+                        fallback_content = filter_technical_terms(fallback_content)
+                        
+                        logger.info("✅ Fallback Groq 70B bem-sucedido")
+                        return fallback_content
+                    except Exception as fallback_error:
+                        logger.warning(f"⚠️ Fallback Groq 70B falhou: {fallback_error}")
+                        # Último fallback com 8B
+                        logger.info("🔄 Tentando último fallback com Groq 8B...")
+                        try:
+                            final_content = fallback_to_groq(
+                                self.client,
+                                self.model_8b,
+                                messages,
+                                temperature,
+                                max_tokens,
+                                self.temperature,
+                                self.max_tokens
+                            )
+                            if not final_content or not final_content.strip():
+                                raise ValueError("Fallback Groq 8B também retornou vazio")
+                            
+                            # Aplicar filtro de termos técnicos
+                            final_content = filter_technical_terms(final_content)
+                            
+                            logger.info("✅ Fallback Groq 8B bem-sucedido")
+                            return final_content
+                        except Exception as final_error:
+                            logger.error(f"❌ Todos os fallbacks falharam. Último erro: {final_error}")
+                            raise ValueError(f"Falha em GLM 4 e todos os fallbacks: {final_error}")
             else:
-                # Groq (8B ou 70B)
-                response = self.client.chat.completions.create(
-                    model=selected_model,
-                    messages=messages,
-                    temperature=temperature or self.temperature,
-                    max_tokens=max_tokens or self.max_tokens,
-                    stream=False
+                # Groq (8B ou 70B) - protegido por circuit breaker
+                content = call_groq(
+                    self.client,
+                    selected_model,
+                    messages,
+                    temperature,
+                    max_tokens,
+                    self.temperature,
+                    self.max_tokens
                 )
-                content = response.choices[0].message.content
+                
+                # Aplicar filtro de termos técnicos (pós-processamento obrigatório)
+                content = filter_technical_terms(content)
+                
                 elapsed = time.time() - start_time
                 logger.debug(f"Resposta LLM gerada: {len(content)} caracteres (tempo: {elapsed:.2f}s)")
-            
-            return content
+                return content
             
         except Exception as e:
-            # Fallback: tentar com Groq 70B se GLM 4 falhar
-            if provider == "zhipu":
-                logger.warning(f"GLM 4 falhou, tentando fallback com Groq 70B: {e}")
-                try:
-                    return self._fallback_to_groq(messages, self.model_70b, temperature, max_tokens)
-                except Exception as fallback_error:
-                    logger.error(f"Fallback também falhou: {fallback_error}")
-                    # Tentar último fallback com 8B
-                    logger.warning("Tentando último fallback com Groq 8B")
-                    return self._fallback_to_groq(messages, self.model_8b, temperature, max_tokens)
-            
             logger.error(f"Erro ao gerar resposta do LLM: {e}")
             import traceback
             logger.error(traceback.format_exc())
             raise
     
+    @trace_generator("Response_Stream")
     def _generate_response_stream(
         self,
         messages: List[Dict[str, str]],
@@ -380,26 +191,56 @@ class LLMService:
         Método privado separado para streaming.
         """
         try:
+            logger.debug(f"🔄 _generate_response_stream chamado (provider: {provider})")
             if provider == "zhipu":
-                yield from self._stream_glm4(messages, temperature, max_tokens)
+                logger.debug("🔄 Delegando para stream_glm4")
+                # Preparar fallback stream para GLM4
+                fallback_gen = stream_groq(
+                    self.client,
+                    self.model_70b,
+                    messages,
+                    temperature or self.temperature,
+                    max_tokens or self.max_tokens
+                )
+                yield from stream_glm4(
+                    self.zhipu_client,
+                    self.glm_model,
+                    messages,
+                    temperature,
+                    max_tokens,
+                    fallback_gen
+                )
+                logger.debug("✅ stream_glm4 concluído (todos os chunks yieldados)")
             else:
                 # Groq (8B ou 70B)
-                yield from self._stream_groq(
-                    model=selected_model,
-                    messages=messages,
-                    temperature=temperature or self.temperature,
-                    max_tokens=max_tokens or self.max_tokens
+                logger.debug(f"🔄 Delegando para stream_groq (model: {selected_model})")
+                yield from stream_groq(
+                    self.client,
+                    selected_model,
+                    messages,
+                    temperature or self.temperature,
+                    max_tokens or self.max_tokens
                 )
         except Exception as e:
-            logger.error(f"Erro no streaming: {e}")
+            logger.error(f"❌ Erro no streaming: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             # Fallback para Groq em modo não-streaming (converter para stream)
-            logger.warning("Fallback para Groq 70B (modo não-streaming convertido)")
+            logger.warning("🔄 Fallback para Groq 70B (modo não-streaming convertido)")
             try:
-                fallback_result = self._fallback_to_groq(messages, self.model_70b, temperature, max_tokens)
+                fallback_result = fallback_to_groq(
+                    self.client,
+                    self.model_70b,
+                    messages,
+                    temperature,
+                    max_tokens,
+                    self.temperature,
+                    self.max_tokens
+                )
                 # Enviar resultado completo como único chunk
                 yield fallback_result
             except Exception as fallback_error:
-                logger.error(f"Fallback falhou: {fallback_error}")
+                logger.error(f"❌ Fallback falhou: {fallback_error}")
                 yield f"Erro ao gerar resposta: {str(e)}"
     
     def generate_response(
@@ -430,7 +271,16 @@ class LLMService:
         
         try:
             # Selecionar modelo e provider dinamicamente
-            selected_model, provider = self._select_model(query_type, query_text)
+            selected_model, provider = select_model(
+                query_type,
+                query_text,
+                self.model_8b,
+                self.model_70b,
+                self.glm_model,
+                self.use_dynamic,
+                self.use_3_level,
+                self.zhipu_client is not None
+            )
             
             # Determinar nível para logging
             if provider == "zhipu":
@@ -444,9 +294,12 @@ class LLMService:
             
             # Chamar método apropriado baseado em stream
             if stream:
-                return self._generate_response_stream(
+                logger.debug(f"🔄 generate_response: retornando generator para streaming (provider: {provider})")
+                generator = self._generate_response_stream(
                     messages, selected_model, provider, temperature, max_tokens
                 )
+                logger.debug(f"🔄 generate_response: generator criado, retornando")
+                return generator
             else:
                 return self._generate_response_non_stream(
                     messages, selected_model, provider, temperature, max_tokens
@@ -496,10 +349,17 @@ class LLMService:
         logger.debug(f"Usando prompt do tipo: {query_type} (histórico: {len(conversation_history) if conversation_history else 0} mensagens)")
         
         # Ajustar max_tokens por tipo de query
-        # Status: respostas executivas concisas (gestores)
+        # Usar valores adequados para garantir respostas completas
         max_tokens_override = None
         if query_type == "status":
-            max_tokens_override = 250  # Reduzido para forçar agregação e evitar redundâncias
+            # Status pode ser mais conciso, mas ainda precisa ser completo
+            max_tokens_override = 600  # Aumentado de 250 para permitir respostas completas
+        elif query_type == "consultoria":
+            # Consultorias precisam de mais espaço para análises detalhadas
+            max_tokens_override = 2000  # Aumentado para análises completas
+        elif query_type in ["procedimento", "metrica_temporal"]:
+            # Procedimentos e métricas podem ser longos
+            max_tokens_override = 1500  # Espaço adequado para respostas completas
         
         # Construir mensagens com formato melhorado
         messages = [

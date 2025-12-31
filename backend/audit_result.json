@@ -1,0 +1,169 @@
+{
+  "timestamp": "2025-12-28T21:04:33.383579",
+  "statistics": {
+    "total_chunks": 142,
+    "total_unique_documents": 14,
+    "avg_chunk_size": 613.112676056338,
+    "min_chunk_size": 161,
+    "max_chunk_size": 2353,
+    "documents_by_source": {
+      "/home/brunoadsba/estagio/treq/backend/data/docs/synthetic/manual_procedimentos_operacionais_completo.md": 28,
+      "/home/brunoadsba/estagio/treq/backend/data/docs/playbook_contencao.md": 17,
+      "/home/brunoadsba/estagio/treq/backend/data/docs/analise_causas_observacoes.md": 14,
+      "/home/brunoadsba/estagio/treq/backend/data/docs/synthetic/procedimentos_vendas.md": 12,
+      "/home/brunoadsba/estagio/treq/backend/data/docs/synthetic/procedimentos_atendimento_cliente.md": 12,
+      "/home/brunoadsba/estagio/treq/backend/data/docs/synthetic/manual_procedimentos_operacionais.md": 10,
+      "/home/brunoadsba/estagio/treq/backend/data/docs/synthetic/procedimentos_logistica.md": 10,
+      "/home/brunoadsba/estagio/treq/backend/data/docs/synthetic/procedimentos_manutencao.md": 10,
+      "/home/brunoadsba/estagio/treq/backend/data/docs/synthetic/manual_manutencao_preventiva.md": 8,
+      "/home/brunoadsba/estagio/treq/backend/data/docs/synthetic/procedimentos_seguranca.md": 7
+    },
+    "chunks_by_type": {
+      "playbook": 17,
+      "analise": 14,
+      "documento": 2,
+      "procedimento": 51,
+      "manual": 46,
+      "faq": 6,
+      "guia": 6
+    }
+  },
+  "chunk_quality": {
+    "small_chunks_count": 0,
+    "small_chunks": [],
+    "large_chunks_count": 2,
+    "large_chunks": [
+      {
+        "id": "5330b166-ebbf-4337-887c-37b7efb1d4e0",
+        "size": 2353,
+        "source": "/home/brunoadsba/estagio/treq/backend/data/docs/synthetic/manual_procedimentos_operacionais_completo.md"
+      },
+      {
+        "id": "8bb5bc02-df9c-4ff0-975f-b84e374046ba",
+        "size": 2353,
+        "source": "/home/brunoadsba/estagio/treq/backend/data/docs/synthetic/manual_procedimentos_operacionais_completo.md"
+      }
+    ],
+    "empty_chunks_count": 0,
+    "empty_chunks": [],
+    "noisy_chunks_count": 0,
+    "noisy_chunks": []
+  },
+  "metadata": {
+    "missing_source": 0,
+    "missing_type": 0,
+    "incomplete_metadata": 0,
+    "total_with_metadata": 142
+  },
+  "duplicates": {
+    "duplicates_count": 16,
+    "duplicates": [
+      {
+        "id": "a67db1fc-9289-4da0-801b-772f4c9aef49",
+        "duplicate_of": "e51b4e69-fa41-44c3-8213-d08759609d86",
+        "similarity": 1.0,
+        "source": "/home/brunoadsba/estagio/treq/backend/data/docs/synthetic/manual_procedimentos_operacionais_completo.md"
+      },
+      {
+        "id": "7eda8cd5-7475-42bf-a3c4-eec5b422bf14",
+        "duplicate_of": "80610185-6c22-437a-aebe-a7db6fdfdacf",
+        "similarity": 1.0,
+        "source": "/home/brunoadsba/estagio/treq/backend/data/docs/synthetic/manual_procedimentos_operacionais_completo.md"
+      },
+      {
+        "id": "1fba6127-29ec-4a12-b170-15cd9816c733",
+        "duplicate_of": "10c68d34-7989-4ae8-a4a7-bf07cfbc3b58",
+        "similarity": 1.0,
+        "source": "/home/brunoadsba/estagio/treq/backend/data/docs/synthetic/manual_procedimentos_operacionais_completo.md"
+      },
+      {
+        "id": "c16012a1-8ac4-4df5-a823-dc5fb81a5898",
+        "duplicate_of": "d3babc31-3c78-4b68-9013-24819537fa4b",
+        "similarity": 1.0,
+        "source": "/home/brunoadsba/estagio/treq/backend/data/docs/synthetic/manual_procedimentos_operacionais_completo.md"
+      },
+      {
+        "id": "023c664e-296d-43ac-9ee8-dd6d31520778",
+        "duplicate_of": "5af6cd4e-c9f4-4792-a093-b9fa4f956ce3",
+        "similarity": 1.0,
+        "source": "/home/brunoadsba/estagio/treq/backend/data/docs/synthetic/manual_procedimentos_operacionais_completo.md"
+      },
+      {
+        "id": "b39cd01c-c05f-4b74-a069-23e8ebdd8587",
+        "duplicate_of": "c7990965-ff35-4adf-ab8a-febc1e46a437",
+        "similarity": 1.0,
+        "source": "/home/brunoadsba/estagio/treq/backend/data/docs/synthetic/manual_procedimentos_operacionais_completo.md"
+      },
+      {
+        "id": "276951b4-e22d-4cf7-b501-aecb04261ffe",
+        "duplicate_of": "8286a787-27ba-4aa0-8911-645e9a0a8b94",
+        "similarity": 1.0,
+        "source": "/home/brunoadsba/estagio/treq/backend/data/docs/synthetic/manual_procedimentos_operacionais_completo.md"
+      },
+      {
+        "id": "eaf15df8-1b48-4813-a5d5-e4b1018f0594",
+        "duplicate_of": "e6225207-0e5c-4e0b-bb4c-d22e3364d294",
+        "similarity": 1.0,
+        "source": "/home/brunoadsba/estagio/treq/backend/data/docs/synthetic/manual_procedimentos_operacionais_completo.md"
+      },
+      {
+        "id": "d702f5d9-fbd5-4e67-bbf0-01e272d6804c",
+        "duplicate_of": "99f08fa5-1d26-4ebd-94fe-761bbc4a1f69",
+        "similarity": 1.0,
+        "source": "/home/brunoadsba/estagio/treq/backend/data/docs/synthetic/manual_procedimentos_operacionais_completo.md"
+      },
+      {
+        "id": "45c8fcc3-4342-4f50-99ce-fd6602062149",
+        "duplicate_of": "24370d7a-7241-4592-947c-2d7980133a06",
+        "similarity": 1.0,
+        "source": "/home/brunoadsba/estagio/treq/backend/data/docs/synthetic/manual_procedimentos_operacionais_completo.md"
+      },
+      {
+        "id": "8bb5bc02-df9c-4ff0-975f-b84e374046ba",
+        "duplicate_of": "5330b166-ebbf-4337-887c-37b7efb1d4e0",
+        "similarity": 1.0,
+        "source": "/home/brunoadsba/estagio/treq/backend/data/docs/synthetic/manual_procedimentos_operacionais_completo.md"
+      },
+      {
+        "id": "edc77acf-9b69-4928-8457-85f48db6d591",
+        "duplicate_of": "c5ef02be-5b50-40e3-bc21-b7b939308d81",
+        "similarity": 1.0,
+        "source": "/home/brunoadsba/estagio/treq/backend/data/docs/synthetic/manual_procedimentos_operacionais_completo.md"
+      },
+      {
+        "id": "29f73a7b-3db7-48ea-9d58-e73b9b6a67fe",
+        "duplicate_of": "8985a716-f543-4cb7-8b17-49bf134b3a89",
+        "similarity": 1.0,
+        "source": "/home/brunoadsba/estagio/treq/backend/data/docs/synthetic/manual_procedimentos_operacionais_completo.md"
+      },
+      {
+        "id": "1b8d6df7-1393-454a-b393-772558775e6a",
+        "duplicate_of": "0cbacc14-563f-46fb-b848-f2a21aca9e50",
+        "similarity": 1.0,
+        "source": "/home/brunoadsba/estagio/treq/backend/data/docs/synthetic/manual_procedimentos_operacionais_completo.md"
+      },
+      {
+        "id": "7479f34e-6e14-48fb-8e05-f9999f8724f4",
+        "duplicate_of": "ddf69864-f97e-4d6f-ac24-656c4c6a3184",
+        "similarity": 1.0,
+        "source": "/home/brunoadsba/estagio/treq/backend/data/docs/synthetic/procedimentos_vendas.md"
+      },
+      {
+        "id": "fefaef16-f0c8-45dc-8dfc-675357dccd36",
+        "duplicate_of": "1e035a68-7070-4389-88a9-9c39ff8530a0",
+        "similarity": 1.0,
+        "source": "/home/brunoadsba/estagio/treq/backend/data/docs/synthetic/procedimentos_vendas.md"
+      }
+    ]
+  },
+  "embeddings": {
+    "invalid_embeddings_count": 0,
+    "wrong_dimension_count": 0,
+    "missing_embeddings_count": 0,
+    "wrong_dimension_samples": []
+  },
+  "quality_score": 97.54,
+  "recommendations": [
+    "⚠️ 11.3% dos chunks são duplicatas. Considere remover documentos duplicados."
+  ]
+}

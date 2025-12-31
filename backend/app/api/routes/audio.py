@@ -134,9 +134,13 @@ async def synthesize_audio(
             raise HTTPException(status_code=400, detail="Texto não pode estar vazio")
         
         start_time = time.time()
-        logger.info(f"Sintetizando áudio para texto: {len(request.text)} caracteres")
+        original_length = len(request.text)
+        logger.info(f"Sintetizando áudio para texto: {original_length} caracteres")
         
-        # Sintetizar áudio usando Gemini TTS
+        # Nota: O truncamento já é aplicado dentro do TTSService.synthesize_speech
+        # Não precisa aplicar aqui, mas mantemos log para monitoramento
+        
+        # Sintetizar áudio usando Gemini TTS (com truncamento interno)
         audio_data = await tts_service.synthesize_speech(
             text=request.text,
             language=request.language,

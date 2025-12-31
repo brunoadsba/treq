@@ -17,14 +17,24 @@ langchain-community>=0.3.27,<0.4.0
 # LLM e APIs
 groq>=0.36.0,<1.0.0
 google-genai>=0.2.0,<1.0.0  # Nova biblioteca para Gemini (inclui TTS)
-zai-sdk>=0.2.0  # SDK oficial Zhipu AI (GLM 4)
+# DEPENDÊNCIA OPCIONAL: Para usar GLM 4 (Zhipu AI), instale manualmente:
+# pip install "zai-sdk==0.3.1"
+# zai-sdk==0.3.1  # Versão testada e estável (descomente se necessário)
 
 # Utilitários
 python-dotenv>=1.0.0
+
+# Ferramentas de Desenvolvimento e Qualidade
+pytest>=8.0.0
+pytest-asyncio>=0.21.0
+ruff>=0.1.0
+bandit>=1.7.5
+requests>=2.31.0  # Para scripts de teste (test_sistema_completo.py)
 httpx>=0.26.0,<0.28.0  # Compatível com supabase 2.x (0.28.0+ tem breaking changes)
 loguru>=0.7.0
 slowapi>=0.1.0
 python-multipart>=0.0.6  # Necessário para UploadFile no FastAPI
+pybreaker>=1.0.0,<2.0.0  # Circuit breakers para serviços externos
 
 # Audio (se necessário)
 pydub>=0.25.0
@@ -35,7 +45,11 @@ pdfplumber>=0.11.0 # Extração melhorada de PDFs com suporte a tabelas (opciona
 openpyxl>=3.1.0    # Para leitura/escrita de Excel
 pandas>=2.0.0      # Para processamento de dados Excel
 
+# Document Processing - DOCX/PPTX (Fase 2)
+python-docx>=1.1.0    # Para leitura de arquivos DOCX
+python-pptx>=0.6.23   # Para leitura de arquivos PPTX
+
 # TODO FUTURO (quando necessário):
 # - OCR para PDFs escaneados: Google Document AI (1k páginas/mês free) ou solução paga
-# - DOCX/PPTX: python-docx, python-pptx
+# - OCR básico: pytesseract, pdf2image (requer Tesseract instalado no sistema)
 

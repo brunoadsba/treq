@@ -10,6 +10,7 @@ from loguru import logger
 from google import genai
 from google.genai import types
 from app.config import get_settings
+from app.utils.text_utils import truncate_for_tts
 
 settings = get_settings()
 
@@ -45,6 +46,12 @@ class TTSService:
             if not text or len(text.strip()) == 0:
                 logger.warning("Texto vazio para síntese de voz")
                 return None
+            
+            # Truncar texto se muito longo para otimizar tempo de síntese
+            original_length = len(text)
+            text = truncate_for_tts(text)
+            if len(text) < original_length:
+                logger.info(f"Texto truncado para TTS: {original_length} → {len(text)} caracteres")
             
             logger.info(f"Sintetizando áudio: {len(text)} caracteres, voz: {voice}")
             

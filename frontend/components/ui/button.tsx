@@ -11,9 +11,9 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const baseStyles = "inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
     
     const variants = {
-      default: "bg-sotreq-yellow text-sotreq-black hover:bg-sotreq-yellow-dark",
-      outline: "border border-sotreq-gray-300 bg-transparent hover:bg-sotreq-gray-50",
-      ghost: "hover:bg-sotreq-gray-100",
+      default: "bg-treq-yellow text-treq-black hover:bg-treq-yellow-dark",
+      outline: "border border-treq-gray-300 bg-transparent hover:bg-treq-gray-50",
+      ghost: "hover:bg-treq-gray-100",
     }
     
     const sizes = {

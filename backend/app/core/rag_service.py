@@ -26,16 +26,16 @@ class RAGService:
         filters: Optional[Dict[str, Any]] = None
     ) -> List[Dict[str, Any]]:
         """
-        Busca documentos similares usando busca vetorial.
+        Busca documentos similares usando busca vetorial nativa do PostgreSQL (pgvector).
         
-        Nota: Para MVP, busca todos e calcula similaridade em memória.
-        Futuro: Criar função SQL no Supabase para busca otimizada.
+        Usa função RPC match_documents no Supabase para busca otimizada.
+        Isso é muito mais eficiente que calcular similaridade em memória.
         
         Args:
             query: Texto da consulta
             top_k: Número de documentos a retornar
             similarity_threshold: Limite mínimo de similaridade (0-1)
-            filters: Filtros opcionais por metadata
+            filters: Filtros opcionais por metadata (dict com chave-valor)
             
         Returns:
             List[Dict]: Lista de documentos encontrados com metadata
@@ -44,6 +44,83 @@ class RAGService:
             # Gerar embedding da query
             query_embedding = generate_embedding(query)
             
+            # Preparar filtros de metadata para formato JSONB
+            filter_metadata = None
+            if filters:
+                filter_metadata = filters
+            
+            # Chamar função RPC do Supabase para busca vetorial nativa
+            try:
+                result = self.supabase.rpc(
+                    'match_documents',
+                    {
+                        'query_embedding': query_embedding,
+                        'match_threshold': similarity_threshold,
+                        'match_count': top_k,
+                        'filter_metadata': filter_metadata
+                    }
+                ).execute()
+                
+                if not result.data:
+                    logger.info(f"Nenhum documento encontrado com threshold {similarity_threshold}")
+                    return []
+                
+                # Converter resultado para formato esperado
+                documents = []
+                for row in result.data:
+                    documents.append({
+                        'id': row.get('id'),
+                        'content': row.get('content', ''),
+                        'metadata': row.get('metadata', {}),
+                        'similarity': float(row.get('similarity', 0.0)),
+                        'created_at': row.get('created_at')
+                    })
+                
+                logger.info(
+                    f"Busca RAG retornou {len(documents)} documentos para query: {query[:50]}... "
+                    f"(threshold: {similarity_threshold}, similarity range: "
+                    f"{min(d['similarity'] for d in documents):.3f}-{max(d['similarity'] for d in documents):.3f})"
+                )
+                return documents
+                
+            except Exception as rpc_error:
+                # Fallback: Se função RPC não existir ou falhar, usar método antigo com warning
+                logger.warning(
+                    f"Erro ao chamar função RPC match_documents: {rpc_error}. "
+                    "Usando fallback (cálculo em memória). "
+                    "Execute o script SQL create_match_documents_function.sql no Supabase."
+                )
+                return self._search_similar_fallback(query, query_embedding, top_k, similarity_threshold, filters)
+            
+        except Exception as e:
+            logger.error(f"Erro na busca RAG: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return []
+    
+    def _search_similar_fallback(
+        self,
+        query: str,
+        query_embedding: List[float],
+        top_k: int,
+        similarity_threshold: float,
+        filters: Optional[Dict[str, Any]] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Fallback: cálculo de similaridade em memória (método antigo).
+        Usado apenas se função RPC não estiver disponível.
+        
+        Args:
+            query: Texto da consulta (para logging)
+            query_embedding: Embedding já gerado da query
+            top_k: Número de documentos a retornar
+            similarity_threshold: Limite mínimo de similaridade
+            filters: Filtros opcionais por metadata
+            
+        Returns:
+            List[Dict]: Lista de documentos encontrados
+        """
+        try:
             # Buscar documentos do banco
             query_builder = self.supabase.table('knowledge_base').select('*')
             
@@ -55,10 +132,10 @@ class RAGService:
             result = query_builder.execute()
             
             if not result.data:
-                logger.info("Nenhum documento encontrado")
+                logger.info("Nenhum documento encontrado (fallback)")
                 return []
             
-            # Calcular similaridade em memória (para MVP)
+            # Calcular similaridade em memória
             import numpy as np
             from numpy.linalg import norm
             
@@ -71,9 +148,8 @@ class RAGService:
                 
                 doc_embedding = row['embedding']
                 
-                # Converter embedding para array numpy (pode vir como string ou lista)
+                # Converter embedding para array numpy
                 if isinstance(doc_embedding, str):
-                    # Se for string, tentar parsear como JSON
                     import json
                     try:
                         doc_embedding = json.loads(doc_embedding)
@@ -82,7 +158,7 @@ class RAGService:
                 
                 doc_vec = np.array(doc_embedding, dtype=np.float32)
                 
-                # Verificar se dimensões são compatíveis
+                # Verificar dimensões
                 if len(doc_vec) != len(query_vec):
                     logger.warning(f"Dimensões incompatíveis: query={len(query_vec)}, doc={len(doc_vec)}")
                     continue
@@ -99,15 +175,15 @@ class RAGService:
                         'created_at': row.get('created_at')
                     })
             
-            # Ordenar por similaridade (maior primeiro) e retornar top_k
+            # Ordenar e retornar top_k
             documents_with_similarity.sort(key=lambda x: x['similarity'], reverse=True)
             documents = documents_with_similarity[:top_k]
             
-            logger.info(f"Busca RAG retornou {len(documents)} documentos para query: {query[:50]}...")
+            logger.info(f"Busca RAG (fallback) retornou {len(documents)} documentos")
             return documents
             
         except Exception as e:
-            logger.error(f"Erro na busca RAG: {e}")
+            logger.error(f"Erro no fallback de busca RAG: {e}")
             import traceback
             logger.error(traceback.format_exc())
             return []

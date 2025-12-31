@@ -2,21 +2,318 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #000000;
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
+    --background: #ffffff;
+    --foreground: #000000;
+    
+    /* Escala Tipográfica - Manual de Identidade Visual */
+    --font-size-h1: 2rem;      /* 32px - Título principal */
+    --font-size-h2: 1.5rem;   /* 24px - Subtítulos */
+    --font-size-h3: 1.25rem;  /* 20px - Seções */
+    --font-size-base: 1rem;   /* 16px - Texto padrão */
+    --font-size-lg: 1.125rem; /* 18px - Texto destacado */
+    --font-size-sm: 0.875rem; /* 14px - Texto secundário */
+    --font-size-xs: 0.75rem;  /* 12px - Labels, timestamps */
+    
+    /* Line Heights */
+    --line-height-tight: 1.25;   /* Títulos */
+    --line-height-normal: 1.5;    /* Corpo padrão */
+    --line-height-relaxed: 1.75; /* Texto longo, mensagens */
+  }
+
+  html {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  body {
+    @apply font-sans text-treq-gray-900 bg-treq-gray-50;
+    font-size: var(--font-size-base);
+    line-height: var(--line-height-relaxed);
+    height: 100%;
+    overflow: hidden;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  #__next {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  /* Títulos */
+  h1 {
+    @apply text-[2rem] font-bold;
+    line-height: var(--line-height-tight);
+  }
+
+  h2 {
+    @apply text-[1.5rem] font-semibold;
+    line-height: var(--line-height-tight);
+  }
+
+  h3 {
+    @apply text-[1.25rem] font-medium;
+    line-height: var(--line-height-normal);
+  }
+
+  /* Foco visível para acessibilidade - WCAG 2.1 AA */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-treq-yellow ring-offset-2;
+  }
+
+  /* Botões e elementos interativos */
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    @apply ring-2 ring-treq-yellow ring-offset-2;
+  }
+
+  /* Modo Alto Contraste */
+  [data-high-contrast="true"] {
     --background: #000000;
-    --foreground: #ffffff;
+    --foreground: #FFFFFF;
+  }
+
+  [data-high-contrast="true"] body {
+    @apply bg-black text-white;
+  }
+
+  [data-high-contrast="true"] .bg-white {
+    @apply bg-black text-white;
+  }
+
+  [data-high-contrast="true"] .bg-treq-gray-50,
+  [data-high-contrast="true"] .bg-treq-gray-100 {
+    @apply bg-black;
+  }
+
+  [data-high-contrast="true"] .text-treq-gray-600,
+  [data-high-contrast="true"] .text-treq-gray-700 {
+    @apply text-white;
+  }
+
+  [data-high-contrast="true"] .border-treq-gray-200,
+  [data-high-contrast="true"] .border-treq-gray-300 {
+    @apply border-white;
+  }
+
+  /* Tema Escuro */
+  [data-theme="dark"] {
+    --background: #111827;
+    --foreground: #F9FAFB;
+  }
+
+  [data-theme="dark"] body {
+    @apply bg-treq-gray-900 text-treq-gray-50;
+  }
+
+  [data-theme="dark"] .bg-white {
+    @apply bg-treq-gray-800 text-treq-gray-50;
+  }
+
+  [data-theme="dark"] .bg-treq-gray-50 {
+    @apply bg-treq-gray-900;
+  }
+
+  [data-theme="dark"] .bg-treq-gray-100 {
+    @apply bg-treq-gray-800;
+  }
+
+  [data-theme="dark"] .text-treq-gray-900,
+  [data-theme="dark"] .text-treq-gray-700 {
+    @apply text-treq-gray-50;
+  }
+
+  [data-theme="dark"] .border-treq-gray-200,
+  [data-theme="dark"] .border-treq-gray-300 {
+    @apply border-treq-gray-700;
+  }
+
+  /* Tema escuro + alto contraste (prioridade ao alto contraste) */
+  [data-high-contrast="true"][data-theme="dark"] {
+    --background: #000000;
+    --foreground: #FFFFFF;
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  /* Utilitários de tipografia */
+  .text-h1 {
+    font-size: var(--font-size-h1);
+    line-height: var(--line-height-tight);
+  }
+
+  .text-h2 {
+    font-size: var(--font-size-h2);
+    line-height: var(--line-height-tight);
+  }
+
+  .text-h3 {
+    font-size: var(--font-size-h3);
+    line-height: var(--line-height-normal);
+  }
+}
+
+@layer utilities {
+  /* Animações suaves */
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slide-in-right {
+    from {
+      opacity: 0;
+      transform: translateX(100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes slide-in-left {
+    from {
+      opacity: 0;
+      transform: translateX(-100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+
+  @keyframes bounce {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-4px);
+    }
+  }
+
+  @keyframes scale-in {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  /* Classes de animação */
+  .animate-fade-in {
+    animation: fade-in 0.2s ease-out;
+  }
+
+  .animate-slide-in-right {
+    animation: slide-in-right 0.3s ease-out;
+  }
+
+  .animate-slide-in-left {
+    animation: slide-in-left 0.3s ease-out;
+  }
+
+  .animate-spin {
+    animation: spin 1s linear infinite;
+  }
+
+  .animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .animate-bounce {
+    animation: bounce 1s infinite;
+  }
+
+  .animate-scale-in {
+    animation: scale-in 0.2s ease-out;
+  }
+
+  /* Transições suaves globais */
+  * {
+    transition-property: color, background-color, border-color, opacity, transform;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+  }
+
+  /* Scrollbar customizada */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  @media (min-width: 640px) {
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #9CA3AF;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #6B7280;
+  }
+
+  /* Modo alto contraste - scrollbar */
+  [data-high-contrast="true"] ::-webkit-scrollbar-thumb {
+    background: #FFFFFF;
+  }
+
+  [data-high-contrast="true"] ::-webkit-scrollbar-thumb:hover {
+    background: #FFCD00;
+  }
+
+  /* Utilitário para ocultar scrollbar mas manter funcionalidade */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }
 

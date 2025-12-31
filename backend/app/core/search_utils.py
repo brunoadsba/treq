@@ -1,7 +1,7 @@
 """
 Utilitários para busca RAG com threshold adaptativo e fallback.
 """
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from loguru import logger
 from app.core.rag_service import RAGService
 
@@ -37,6 +37,49 @@ def get_adaptive_threshold(query_type: str, corpus_size: int = 45) -> float:
         return base_threshold + procedimento_boost
     
     return base_threshold
+
+
+def get_adaptive_top_k(query_type: str, initial_results: Optional[List] = None) -> int:
+    """
+    Calcula top_k adaptativo baseado no tipo de query.
+    
+    Fase 2: Top-k dinâmico ajustado conforme tipo de query.
+    Queries mais complexas precisam de mais contexto.
+    
+    Args:
+        query_type: Tipo da query (procedimento, detalhamento, etc.)
+        initial_results: Resultados iniciais (opcional) para ajuste dinâmico
+        
+    Returns:
+        int: Número de documentos a retornar
+    """
+    # Base top_k por tipo de query
+    base_top_k = {
+        "procedimento": 8,  # Precisa de mais contexto (passos completos)
+        "detalhamento": 6,  # Precisa de contexto detalhado
+        "causa": 6,  # Análise precisa de múltiplos documentos
+        "status": 5,  # Status precisa de informações atuais
+        "alerta": 4,  # Alertas são mais específicos
+        "metrica": 3,  # Métricas são pontuais
+        "geral": 5   # Padrão para queries genéricas
+    }
+    
+    # Top-k base para o tipo de query
+    top_k = base_top_k.get(query_type, 5)
+    
+    # Ajuste dinâmico: se similaridade inicial é baixa, aumentar top_k
+    # para compensar e aumentar chance de encontrar documentos relevantes
+    if initial_results and len(initial_results) > 0:
+        first_similarity = initial_results[0].get('similarity', 1.0)
+        if first_similarity < 0.75:
+            # Se primeira similaridade é baixa, aumentar top_k
+            top_k = min(top_k + 2, 10)  # Máximo 10 documentos
+            logger.debug(
+                f"Ajuste dinâmico: similaridade inicial baixa ({first_similarity:.2f}), "
+                f"aumentando top_k de {base_top_k.get(query_type, 5)} para {top_k}"
+            )
+    
+    return top_k
 
 
 def search_with_fallback(

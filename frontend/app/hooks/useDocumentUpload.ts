@@ -5,7 +5,7 @@ import { useState, useCallback } from "react";
 export interface UseDocumentUploadReturn {
   isUploading: boolean;
   error: string | null;
-  uploadDocument: (file: File, documentType?: string) => Promise<{ success: boolean; chunksIndexed: number; message: string }>;
+  uploadDocument: (file: File, documentType?: string, userMessage?: string) => Promise<{ success: boolean; chunksIndexed: number; message: string }>;
 }
 
 export function useDocumentUpload(): UseDocumentUploadReturn {
@@ -15,7 +15,7 @@ export function useDocumentUpload(): UseDocumentUploadReturn {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
   const uploadDocument = useCallback(
-    async (file: File, documentType?: string): Promise<{ success: boolean; chunksIndexed: number; message: string }> => {
+    async (file: File, documentType?: string, userMessage?: string): Promise<{ success: boolean; chunksIndexed: number; message: string }> => {
       setIsUploading(true);
       setError(null);
 
@@ -24,6 +24,9 @@ export function useDocumentUpload(): UseDocumentUploadReturn {
         formData.append("file", file);
         if (documentType) {
           formData.append("document_type", documentType);
+        }
+        if (userMessage && userMessage.trim()) {
+          formData.append("user_message", userMessage.trim());
         }
 
         const response = await fetch(`${apiUrl}/documents/upload`, {

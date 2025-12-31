@@ -2,6 +2,7 @@
 Configurações da aplicação usando Pydantic Settings.
 """
 from pydantic_settings import BaseSettings
+from pydantic import HttpUrl, Field
 from functools import lru_cache
 
 
@@ -12,14 +13,14 @@ class Settings(BaseSettings):
     app_name: str = "Treq Assistente Operacional"
     environment: str = "development"
     debug: bool = True
-    secret_key: str = "change-this-in-production"  # Valor padrão para desenvolvimento
+    secret_key: str = Field(..., env="SECRET_KEY", description="Secret key obrigatória para segurança")
     
     # Backend
     host: str = "0.0.0.0"
     port: int = 8000
     
     # Supabase
-    supabase_url: str = ""
+    supabase_url: HttpUrl = Field(..., description="URL do Supabase (deve ser HTTPS)")
     supabase_key: str = ""  # Service role key
     supabase_anon_key: str = ""
     database_password: str = ""  # Database password (backup local, não usada no código inicialmente)
@@ -44,7 +45,7 @@ class Settings(BaseSettings):
     use_dynamic_model: bool = True  # Ativar seleção dinâmica
     use_3_level_routing: bool = True  # Ativar roteamento em 3 níveis (8B → 70B → GLM 4)
     llm_temperature: float = 0.4  # Aumentado de 0.3 para menos conservador (análise consolidada)
-    llm_max_tokens: int = 800  # Aumentado de 500 para respostas mais completas (análise consolidada)
+    llm_max_tokens: int = 1200  # Aumentado de 800 para 1200 para garantir respostas completas (pode ser sobrescrito por .env)
     
     # Rate Limiting
     rate_limit_per_minute: int = 60

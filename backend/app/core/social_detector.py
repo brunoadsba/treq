@@ -19,6 +19,11 @@ def detect_social_interaction(query: str) -> Optional[str]:
     """
     query_lower = query.lower().strip()
     
+    # PRIORIDADE: Se a query começa com "consultoria:", NÃO é interação social
+    # Deve ser processada como consultoria normal
+    if query_lower.startswith("consultoria:"):
+        return None
+    
     # Cumprimentos
     greetings = [
         "oi", "olá", "olá", "e aí", "hey", "hello",
@@ -29,7 +34,35 @@ def detect_social_interaction(query: str) -> Optional[str]:
         logger.info(f"Interação social detectada: cumprimento - '{query}'")
         return "Olá! Sou o Assistente Operacional da Treq. Como posso ajudar você hoje?"
     
-    # Perguntas sobre o assistente
+    # Perguntas sobre capacidades do assistente (análise de documentos, tipos de arquivo)
+    capability_keywords = [
+        "arquivo", "documento", "pdf", "docx", "pptx", "excel", "xlsx",
+        "extrair", "ler", "le", "analisar", "processar", "aceitar",
+        "suporta", "trabalha com", "formato", "tipo de arquivo"
+    ]
+    capability_questions = [
+        r"você\s+(é|está|pode|consegue|faz|realiza|analisa|extrai|lê|le)",
+        r"(você|vc)\s+(pode|consegue|faz|realiza|analisa|extrai|lê|le)",
+        r"que\s+tipo\s+(de\s+)?(arquivo|documento|formato)",
+        r"quais\s+(tipos|formatos)\s+(de\s+)?(arquivo|documento)",
+        r"você\s+(aceita|suporta|trabalha\s+com)",
+        r"(é|está)\s+capaz\s+(de|de\s+extrair|de\s+ler|de\s+analisar)",
+        r"capaz\s+(de|de\s+extrair|de\s+ler|de\s+analisar)",
+    ]
+    
+    import re
+    has_capability_keyword = any(keyword in query_lower for keyword in capability_keywords)
+    matches_capability_pattern = any(re.search(pattern, query_lower) for pattern in capability_questions)
+    
+    if has_capability_keyword or matches_capability_pattern:
+        logger.info(f"Interação detectada: pergunta sobre capacidades - '{query}'")
+        return (
+            "Sim, consigo analisar arquivos PDF, DOCX, PPTX e Excel (.xlsx, .xls). "
+            "Meu foco é em informações operacionais como procedimentos, métricas e alertas. "
+            "Por favor, envie o arquivo usando o botão de anexo na interface e me diga qual informação específica você gostaria de extrair."
+        )
+    
+    # Perguntas sobre o assistente (genéricas)
     about_assistant = [
         "qual seu nome", "quem é você", "o que você faz", "você é",
         "qual é seu nome", "como você se chama", "quem é você",
@@ -40,6 +73,7 @@ def detect_social_interaction(query: str) -> Optional[str]:
         return (
             "Sou o Assistente Operacional da Treq. "
             "Posso ajudar com alertas operacionais, procedimentos, métricas e análise de causas. "
+            "Também consigo analisar documentos (PDF, DOCX, PPTX, Excel) para extrair informações operacionais. "
             "O que você gostaria de saber?"
         )
     

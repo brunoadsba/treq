@@ -91,7 +91,9 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 - `POST /audio/synthesize` - Síntese de voz
 
 ### Health
-- `GET /health` - Health check
+- `GET /health` - Health check geral
+- `GET /health/llm` - Health check detalhado dos serviços LLM
+- `GET /health/llm/providers` - Status dos providers LLM (mais leve)
 - `GET /chat/health` - Health check do chat
 - `GET /documents/health` - Health check de documentos
 
@@ -122,10 +124,12 @@ python scripts/test_marker.py
 Principais variáveis necessárias no `.env`:
 
 ```bash
-# APIs
-GROQ_API_KEY=your_key
-GEMINI_API_KEY=your_key
-ZHIPU_API_KEY=your_key  # Para GLM 4
+# APIs (OBRIGATÓRIAS)
+GROQ_API_KEY=your_key  # OBRIGATÓRIA - Sem isso, sistema não inicia
+
+# APIs (OPCIONAIS)
+GEMINI_API_KEY=your_key  # Opcional - Para TTS (Google Gemini)
+ZHIPU_API_KEY=your_key   # Opcional - Para GLM 4 (Zhipu AI)
 
 # Supabase
 SUPABASE_URL=your_url
@@ -136,6 +140,40 @@ SUPABASE_ANON_KEY=your_anon_key
 ENVIRONMENT=development
 DEBUG=True
 ```
+
+## Dependências Opcionais
+
+### GLM 4 (Zhipu AI) - Opcional
+
+Para usar o modelo GLM 4.7 (Nível 3 do roteamento), você precisa:
+
+1. **Instalar o SDK manualmente:**
+   ```bash
+   pip install "zai-sdk==0.3.1"
+   ```
+
+2. **Configurar a API Key no `.env`:**
+   ```bash
+   ZHIPU_API_KEY=your_zhipu_api_key
+   ```
+
+3. **Verificar se está funcionando:**
+   ```bash
+   curl http://localhost:8000/health/llm
+   ```
+
+**Nota:** O sistema funciona normalmente sem GLM 4. Se não configurado, o roteamento usa apenas Groq 8B e 70B, com fallback automático.
+
+### Circuit Breakers - Opcional
+
+O sistema usa `pybreaker` para proteção contra cascata de falhas. Se não instalado, os circuit breakers são desabilitados mas o sistema continua funcionando.
+
+**Instalação:**
+```bash
+pip install pybreaker
+```
+
+**Status:** Já incluído no `requirements.txt` com versão fixa (`>=1.0.0,<2.0.0`).
 
 ## Arquitetura LLM
 

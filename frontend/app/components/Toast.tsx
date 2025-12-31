@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
-import { X, CheckCircle, AlertCircle, Info } from "lucide-react";
+import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from "lucide-react";
 
-export type ToastType = "success" | "error" | "info";
+export type ToastType = "success" | "error" | "warning" | "info";
 
 interface ToastProps {
   message: string;
@@ -12,37 +12,55 @@ interface ToastProps {
   onClose: () => void;
 }
 
-export function Toast({ message, type = "info", duration = 3000, onClose }: ToastProps) {
+// Duração padrão por tipo (em milissegundos)
+const DEFAULT_DURATIONS: Record<ToastType, number> = {
+  success: 5000,
+  error: 7000,
+  warning: 6000,
+  info: 5000,
+};
+
+export function Toast({ message, type = "info", duration, onClose }: ToastProps) {
+  // Usar duração padrão se não especificada
+  const toastDuration = duration ?? DEFAULT_DURATIONS[type];
+
   useEffect(() => {
-    if (duration > 0) {
-      const timer = setTimeout(onClose, duration);
+    if (toastDuration > 0) {
+      const timer = setTimeout(onClose, toastDuration);
       return () => clearTimeout(timer);
     }
-  }, [duration, onClose]);
+  }, [toastDuration, onClose]);
 
-  const icons = {
-    success: <CheckCircle className="w-5 h-5 text-green-600" />,
-    error: <AlertCircle className="w-5 h-5 text-red-600" />,
-    info: <Info className="w-5 h-5 text-blue-600" />,
+  const iconConfig = {
+    success: { icon: CheckCircle, color: "text-treq-success" },
+    error: { icon: AlertCircle, color: "text-treq-error" },
+    warning: { icon: AlertTriangle, color: "text-treq-warning" },
+    info: { icon: Info, color: "text-treq-info" },
   };
 
-  const styles = {
-    success: "bg-green-50 border-green-200 text-green-800",
-    error: "bg-red-50 border-red-200 text-red-800",
-    info: "bg-blue-50 border-blue-200 text-blue-800",
+  const styleConfig = {
+    success: "bg-treq-success-light border-treq-success text-treq-success-dark",
+    error: "bg-treq-error-light border-treq-error text-treq-error-dark",
+    warning: "bg-treq-warning-light border-treq-warning text-treq-warning-dark",
+    info: "bg-treq-info-light border-treq-info text-treq-info-dark",
   };
+
+  const { icon: IconComponent, color: iconColor } = iconConfig[type];
 
   return (
     <div
-      className={`fixed bottom-4 right-4 px-4 py-3 rounded-lg border shadow-lg flex items-center gap-3 min-w-[300px] max-w-md z-50 ${styles[type]}`}
+      className={`px-3 sm:px-4 py-2 sm:py-3 rounded-lg border shadow-lg flex items-center gap-2 sm:gap-3 min-w-[260px] sm:min-w-[280px] md:min-w-[300px] max-w-[calc(100vw-2rem)] sm:max-w-md animate-slide-in-right ${styleConfig[type]}`}
+      role="alert"
+      aria-live={type === "error" ? "assertive" : "polite"}
     >
-      {icons[type]}
-      <p className="flex-1 text-sm font-medium">{message}</p>
+      <IconComponent className={`w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 ${iconColor}`} aria-hidden="true" />
+      <p className="flex-1 text-sm font-medium break-words">{message}</p>
       <button
         onClick={onClose}
-        className="text-gray-400 hover:text-gray-600 transition-colors"
+        className="text-treq-gray-400 hover:text-treq-gray-600 transition-colors p-1 rounded focus:outline-none focus:ring-2 focus:ring-treq-yellow focus:ring-offset-2 flex-shrink-0 min-w-[28px] min-h-[28px] sm:min-w-[32px] sm:min-h-[32px] flex items-center justify-center"
+        aria-label="Fechar notificação"
       >
-        <X className="w-4 h-4" />
+        <X className="w-3 h-3 sm:w-4 sm:h-4" />
       </button>
     </div>
   );
