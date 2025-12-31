@@ -7,11 +7,14 @@ from pydantic import BaseModel
 from typing import Optional
 from pathlib import Path
 from loguru import logger
-from datetime import datetime
 
 from app.services.document_converter import DocumentConverterService
 from app.core.chunking_service import ChunkingService
 from app.core.rag_service import RAGService
+from app.api.routes.documents_helpers import (
+    prepare_document_metadata,
+    index_document_chunks
+)
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -25,7 +28,8 @@ def get_converter_service() -> DocumentConverterService:
     """Retorna instância singleton do DocumentConverterService."""
     global _converter_service
     if _converter_service is None:
-        _converter_service = DocumentConverterService()
+        # Habilitar OCR por padrão para suportar PDFs escaneados e imagens
+        _converter_service = DocumentConverterService(enable_ocr=True)
     return _converter_service
 
 
@@ -33,7 +37,8 @@ def get_chunking_service() -> ChunkingService:
     """Retorna instância singleton do ChunkingService."""
     global _chunking_service
     if _chunking_service is None:
-        _chunking_service = ChunkingService(chunk_size=500, chunk_overlap=100)
+        # Fase 2: Aumentado de 500 para 1200 para preservar mais contexto
+        _chunking_service = ChunkingService(chunk_size=1200, chunk_overlap=250)
     return _chunking_service
 
 
@@ -53,8 +58,8 @@ class DocumentUploadResponse(BaseModel):
 
 
 # Formatos suportados
-SUPPORTED_EXTENSIONS = {'.pdf', '.docx', '.pptx', '.xlsx', '.xls'}
-MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+SUPPORTED_EXTENSIONS = {'.pdf', '.docx', '.pptx', '.xlsx', '.xls', '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.webp'}
+MAX_FILE_SIZE = 25 * 1024 * 1024  # 25MB (aumentado de 10MB para permitir documentos maiores)
 
 
 def validate_file(file: UploadFile) -> None:
@@ -64,6 +69,9 @@ def validate_file(file: UploadFile) -> None:
     Raises:
         HTTPException: Se arquivo inválido
     """
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Nome do arquivo não fornecido")
+    
     # Validar extensão
     file_extension = Path(file.filename).suffix.lower()
     if file_extension not in SUPPORTED_EXTENSIONS:
@@ -72,12 +80,20 @@ def validate_file(file: UploadFile) -> None:
             detail=f"Formato não suportado: {file_extension}. "
                    f"Formatos aceitos: {', '.join(SUPPORTED_EXTENSIONS)}"
         )
+    
+    # Validar nome do arquivo (prevenir path traversal)
+    if '..' in file.filename or '/' in file.filename or '\\' in file.filename:
+        raise HTTPException(
+            status_code=400,
+            detail="Nome do arquivo inválido (contém caracteres não permitidos)"
+        )
 
 
 @router.post("/upload", response_model=DocumentUploadResponse)
 async def upload_document(
     file: UploadFile = File(...),
     document_type: Optional[str] = Form(None),
+    user_message: Optional[str] = Form(None),
     converter: DocumentConverterService = Depends(get_converter_service),
     chunking: ChunkingService = Depends(get_chunking_service),
     rag: RAGService = Depends(get_rag_service)
@@ -85,19 +101,22 @@ async def upload_document(
     """
     Endpoint para upload e indexação automática de documentos.
     
-    Aceita PDF, DOCX, PPTX e Excel (.xlsx, .xls).
+    Aceita PDF, DOCX, PPTX, Excel (.xlsx, .xls) e imagens (JPEG, PNG, GIF, BMP, TIFF, WEBP).
     O documento é convertido para Markdown, dividido em chunks
     e indexado automaticamente no RAG.
     
     Args:
         file: Arquivo a ser enviado
         document_type: Tipo do documento (opcional, ex: "manual", "procedimento", "planilha")
+        user_message: Mensagem do usuário explicando o que fazer com o arquivo (opcional)
         
     Returns:
         DocumentUploadResponse: Estatísticas da indexação
     """
     try:
         logger.info(f"📄 Upload recebido: {file.filename} (tipo: {document_type or 'unknown'})")
+        if user_message:
+            logger.info(f"💬 Mensagem do usuário: {user_message[:100]}...")
         
         # Validar arquivo
         validate_file(file)
@@ -117,6 +136,54 @@ async def upload_document(
         if file_size == 0:
             raise HTTPException(status_code=400, detail="Arquivo vazio")
         
+        # Extrair extensão do arquivo para validações adicionais
+        file_extension = Path(file.filename).suffix.lower()
+        
+        # Validação básica de segurança: verificar conteúdo suspeito
+        # (apenas para arquivos de texto, não binários)
+        if file_extension in ['.docx', '.pptx']:
+            # Verificar se não é um arquivo malicioso disfarçado
+            # DOCX/PPTX são ZIPs, então verificamos o magic number
+            if file_content[:2] != b'PK':  # ZIP magic number
+                raise HTTPException(
+                    status_code=400,
+                    detail="Arquivo inválido: formato não corresponde à extensão"
+                )
+        
+        # Validação de imagens: verificar magic numbers
+        if file_extension in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.tif', '.webp']:
+            # Verificar magic numbers comuns de imagens
+            image_magic_numbers = {
+                '.jpg': [b'\xff\xd8\xff'],  # JPEG
+                '.jpeg': [b'\xff\xd8\xff'],  # JPEG
+                '.png': [b'\x89PNG\r\n\x1a\n'],  # PNG
+                '.gif': [b'GIF87a', b'GIF89a'],  # GIF
+                '.bmp': [b'BM'],  # BMP
+                '.tiff': [b'II*\x00', b'MM\x00*'],  # TIFF (little-endian e big-endian)
+                '.tif': [b'II*\x00', b'MM\x00*'],  # TIFF
+                '.webp': [b'RIFF'],  # WEBP (precisa verificar mais adiante)
+            }
+            
+            magic_numbers = image_magic_numbers.get(file_extension, [])
+            is_valid = False
+            
+            if magic_numbers:
+                for magic in magic_numbers:
+                    if file_content.startswith(magic):
+                        is_valid = True
+                        break
+                    # WEBP precisa verificar após RIFF
+                    if file_extension == '.webp' and file_content.startswith(b'RIFF'):
+                        if len(file_content) > 8 and file_content[8:12] == b'WEBP':
+                            is_valid = True
+                            break
+                
+                if not is_valid:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Arquivo inválido: {file_extension} não corresponde ao conteúdo real da imagem"
+                    )
+        
         logger.info(f"Arquivo lido: {file_size} bytes")
         
         # Converter para Markdown
@@ -132,14 +199,11 @@ async def upload_document(
         logger.info(f"Documento convertido: {len(markdown_content)} caracteres")
         
         # Preparar metadata base
-        base_metadata = {
-            'document_type': document_type or 'unknown',
-            'filename': file.filename,
-            'file_size': file_size,
-            'original_filename': file.filename,
-            'file_format': Path(file.filename).suffix.lower(),
-            'uploaded_at': datetime.now().isoformat(),
-        }
+        base_metadata = prepare_document_metadata(
+            file.filename,
+            document_type,
+            file_size
+        )
         
         # Fazer chunking semântico
         logger.info("Dividindo documento em chunks...")
@@ -151,37 +215,12 @@ async def upload_document(
         
         logger.info(f"Documento dividido em {len(chunks)} chunks")
         
-        # Indexar cada chunk no RAG
-        indexed_count = 0
-        failed_count = 0
-        
-        for i, chunk in enumerate(chunks, 1):
-            try:
-                # Combinar metadata base com metadata do chunk
-                chunk_metadata = {
-                    **base_metadata,
-                    **chunk['metadata'],  # Metadata do chunking (section, hierarchy, etc.)
-                    'chunk_index': i,
-                    'total_chunks': len(chunks)
-                }
-                
-                doc_id = rag.index_document(
-                    content=chunk['content'],
-                    metadata=chunk_metadata
-                )
-                
-                if doc_id:
-                    indexed_count += 1
-                    logger.debug(f"✅ Chunk {i}/{len(chunks)} indexado: {doc_id[:8]}...")
-                else:
-                    failed_count += 1
-                    logger.warning(f"⚠️ Falha ao indexar chunk {i}/{len(chunks)}")
-                    
-            except Exception as e:
-                failed_count += 1
-                logger.error(f"Erro ao indexar chunk {i}/{len(chunks)}: {e}")
-                import traceback
-                logger.error(traceback.format_exc())
+        # Indexar chunks no RAG
+        indexed_count, failed_count = index_document_chunks(
+            chunks,
+            base_metadata,
+            rag
+        )
         
         # Resposta
         if indexed_count == 0:
@@ -223,4 +262,84 @@ async def health_check():
         "supported_formats": list(SUPPORTED_EXTENSIONS),
         "max_file_size_mb": MAX_FILE_SIZE / 1024 / 1024
     }
+
+
+@router.get("/stats")
+async def get_documents_stats(
+    rag: RAGService = Depends(get_rag_service)
+):
+    """
+    Retorna estatísticas da base de conhecimento.
+    
+    Returns:
+        Dict com estatísticas da base indexada
+    """
+    try:
+        from app.services.supabase_service import get_supabase_client
+        from collections import Counter
+        
+        supabase = get_supabase_client()
+        
+        # Buscar todos documentos
+        result = supabase.table('knowledge_base').select('*').execute()
+        all_documents = result.data
+        
+        if not all_documents:
+            return {
+                "total_chunks": 0,
+                "total_unique_documents": 0,
+                "empty": True
+            }
+        
+        # Calcular estatísticas
+        total_chunks = len(all_documents)
+        
+        # Agrupar por documento original (source)
+        sources = Counter(
+            doc.get('metadata', {}).get('source', 'unknown')
+            for doc in all_documents
+        )
+        
+        # Agrupar por tipo
+        types = Counter(
+            doc.get('metadata', {}).get('document_type', 'unknown')
+            for doc in all_documents
+        )
+        
+        # Tamanhos dos chunks
+        sizes = [len(doc.get('content', '')) for doc in all_documents]
+        avg_size = sum(sizes) / len(sizes) if sizes else 0
+        
+        # Chunks problemáticos
+        small_chunks = sum(1 for s in sizes if s < 100)
+        large_chunks = sum(1 for s in sizes if s > 2000)
+        empty_chunks = sum(1 for doc in all_documents if not doc.get('content', '').strip())
+        
+        # Metadata
+        missing_source = sum(
+            1 for doc in all_documents 
+            if not doc.get('metadata', {}).get('source')
+        )
+        
+        return {
+            "total_chunks": total_chunks,
+            "total_unique_documents": len(sources),
+            "avg_chunk_size": round(avg_size, 0),
+            "min_chunk_size": min(sizes) if sizes else 0,
+            "max_chunk_size": max(sizes) if sizes else 0,
+            "small_chunks_count": small_chunks,
+            "large_chunks_count": large_chunks,
+            "empty_chunks_count": empty_chunks,
+            "missing_source_count": missing_source,
+            "documents_by_source": dict(sources.most_common(10)),
+            "chunks_by_type": dict(types),
+            "empty": False
+        }
+        
+    except Exception as e:
+        logger.error(f"Erro ao buscar estatísticas: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao buscar estatísticas: {str(e)}"
+        )
 

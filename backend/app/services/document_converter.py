@@ -1,26 +1,37 @@
 """
-Serviço para converter documentos (PDF simples/Excel) para Markdown.
+Serviço para converter documentos (PDF/Excel/DOCX/PPTX/Imagens) para Markdown.
 MVP 100% FREE: Usa apenas soluções leves e gratuitas.
 
 - PDF (texto nativo): PyPDF2/pdfplumber - Extrai texto de PDFs com texto nativo
 - Excel: pandas/openpyxl - Conversão completa de planilhas
-- PDF (escaneado/OCR): Não suportado no MVP (TODO futuro)
+- DOCX: python-docx - Conversão preservando estrutura
+- PPTX: python-pptx - Conversão com estrutura de slides
+- PDF (escaneado/OCR): Suporte básico via OCR Service (opcional)
+- Imagens (JPEG, PNG, GIF, BMP, TIFF, WEBP): OCR via pytesseract (opcional)
 
-LIMITAÇÕES MVP:
-- PDFs escaneados não funcionam (sem OCR)
-- PDFs com imagens não extraem texto das imagens
-- DOCX/PPTX não são suportados
-
-FUTURO:
-- OCR para PDFs escaneados: Google Document AI (1k páginas/mês free) ou solução paga
-- DOCX/PPTX: python-docx/python-pptx ou conversão via API
+LIMITAÇÕES:
+- PDFs escaneados requerem OCR (biblioteca opcional)
+- PDFs com imagens não extraem texto das imagens automaticamente
+- Imagens requerem OCR (biblioteca opcional)
 """
 from typing import Optional
 from pathlib import Path
-import io
+from io import BytesIO
 from loguru import logger
+import re
 
-# Importar bibliotecas PDF (leves, gratuitas)
+from app.services.pdf_converter import convert_pdf_to_markdown
+from app.services.excel_converter import convert_excel_to_markdown
+
+# Importar OCR Service (opcional)
+try:
+    from app.services.ocr_service import OCRService
+    OCR_AVAILABLE = True
+except ImportError:
+    OCR_AVAILABLE = False
+    OCRService = None
+
+# Verificar disponibilidade de bibliotecas
 try:
     import PyPDF2
     PYPDF2_AVAILABLE = True
@@ -29,39 +40,80 @@ except ImportError:
     logger.warning("PyPDF2 não instalado. PDF não será suportado.")
 
 try:
-    import pdfplumber
-    PDFPLUMBER_AVAILABLE = True
-except ImportError:
-    PDFPLUMBER_AVAILABLE = False
-    logger.debug("pdfplumber não instalado. Usando apenas PyPDF2.")
-
-# Importar bibliotecas Excel (podem não estar instaladas)
-try:
-    import pandas as pd
-    from openpyxl import load_workbook
     EXCEL_AVAILABLE = True
+    import pandas as pd
 except ImportError:
     EXCEL_AVAILABLE = False
     logger.warning("pandas/openpyxl não instalados. Excel não será suportado.")
+
+try:
+    from docx import Document
+    DOCX_AVAILABLE = True
+except ImportError:
+    DOCX_AVAILABLE = False
+    logger.warning("python-docx não instalado. DOCX não será suportado.")
+
+try:
+    from pptx import Presentation
+    PPTX_AVAILABLE = True
+except ImportError:
+    PPTX_AVAILABLE = False
+    logger.warning("python-pptx não instalado. PPTX não será suportado.")
 
 
 class DocumentConverterService:
     """Serviço para converter documentos para Markdown (MVP 100% FREE)."""
     
-    def __init__(self):
+    def __init__(self, enable_ocr: bool = False):
+        """
+        Inicializa o conversor de documentos.
+        
+        Args:
+            enable_ocr: Se True, tenta usar OCR para PDFs escaneados (requer bibliotecas)
+        """
         """Inicializa o conversor de documentos."""
+        supported_formats = []
+        
+        if PYPDF2_AVAILABLE:
+            supported_formats.append("PDF")
+        if EXCEL_AVAILABLE:
+            supported_formats.append("Excel")
+        if DOCX_AVAILABLE:
+            supported_formats.append("DOCX")
+        if PPTX_AVAILABLE:
+            supported_formats.append("PPTX")
+        if self.enable_ocr and self.ocr_service and self.ocr_service.is_ocr_available():
+            supported_formats.append("Imagens (JPEG/PNG/GIF/BMP/TIFF/WEBP)")
+        
+        if supported_formats:
+            logger.info(f"✅ DocumentConverterService inicializado - Formatos suportados: {', '.join(supported_formats)}")
+        else:
+            logger.warning("DocumentConverterService inicializado - Nenhum formato suportado (instale dependências)")
+        
+        # Logs de avisos para formatos não disponíveis
         if not PYPDF2_AVAILABLE:
             logger.warning("PDF não disponível - PyPDF2 não instalado")
-        
-        if PDFPLUMBER_AVAILABLE:
-            logger.info("✅ DocumentConverterService inicializado (PDF: pdfplumber, Excel: pandas/openpyxl)")
-        elif PYPDF2_AVAILABLE:
-            logger.info("✅ DocumentConverterService inicializado (PDF: PyPDF2, Excel: pandas/openpyxl)")
-        else:
-            logger.warning("DocumentConverterService inicializado (sem suporte a PDF)")
-        
         if not EXCEL_AVAILABLE:
             logger.warning("Excel não disponível - pandas/openpyxl não instalados")
+        if not DOCX_AVAILABLE:
+            logger.warning("DOCX não disponível - python-docx não instalado")
+        if not PPTX_AVAILABLE:
+            logger.warning("PPTX não disponível - python-pptx não instalado")
+        
+        # Inicializar OCR Service se solicitado e disponível
+        self.enable_ocr = enable_ocr and OCR_AVAILABLE
+        self.ocr_service = None
+        if self.enable_ocr:
+            try:
+                self.ocr_service = OCRService()
+                if self.ocr_service.is_ocr_available():
+                    logger.info("✅ OCR habilitado para PDFs escaneados e imagens")
+                else:
+                    logger.warning("OCR solicitado mas não disponível (bibliotecas faltando)")
+                    self.enable_ocr = False
+            except Exception as e:
+                logger.warning(f"Erro ao inicializar OCR: {e}")
+                self.enable_ocr = False
     
     def convert_file(self, file_path: str) -> Optional[str]:
         """
@@ -86,14 +138,14 @@ class DocumentConverterService:
             if not EXCEL_AVAILABLE:
                 logger.error("Excel não suportado - pandas/openpyxl não instalados")
                 return None
-            return self._convert_excel_to_markdown(path.read_bytes(), path.name)
+            return convert_excel_to_markdown(path.read_bytes(), path.name)
         
         # Verificar se é PDF
         if suffix == '.pdf':
             if not PYPDF2_AVAILABLE:
                 logger.error("PDF não suportado - PyPDF2 não instalado")
                 return None
-            return self._convert_pdf_to_markdown(path.read_bytes(), path.name)
+            return convert_pdf_to_markdown(path.read_bytes(), path.name)
         
         # Formatos não suportados
         logger.warning(f"Formato {suffix} não suportado no MVP (apenas PDF texto nativo e Excel)")
@@ -117,240 +169,229 @@ class DocumentConverterService:
             if not EXCEL_AVAILABLE:
                 logger.error("Excel não suportado - pandas/openpyxl não instalados")
                 return None
-            return self._convert_excel_to_markdown(file_content, filename)
+            return convert_excel_to_markdown(file_content, filename)
         
         # PDF
         if suffix == '.pdf':
             if not PYPDF2_AVAILABLE:
                 logger.error("PDF não suportado - PyPDF2 não instalado")
                 return None
-            return self._convert_pdf_to_markdown(file_content, filename)
+            
+            # Tentar conversão normal primeiro
+            markdown_content = convert_pdf_to_markdown(file_content, filename)
+            
+            # Se falhou e OCR está habilitado, tentar OCR
+            if not markdown_content and self.enable_ocr and self.ocr_service:
+                logger.info(f"Conversão PDF normal falhou, tentando OCR para: {filename}")
+                markdown_content = self.ocr_service.process_scanned_pdf(file_content, filename)
+            
+            return markdown_content
+        
+        # DOCX
+        if suffix == '.docx':
+            if not DOCX_AVAILABLE:
+                logger.error("DOCX não suportado - python-docx não instalado")
+                return None
+            return self.convert_docx_to_markdown(file_content, filename)
+        
+        # PPTX
+        if suffix == '.pptx':
+            if not PPTX_AVAILABLE:
+                logger.error("PPTX não suportado - python-pptx não instalado")
+                return None
+            return self.convert_pptx_to_markdown(file_content, filename)
+        
+        # Imagens (JPEG, PNG, GIF, BMP, TIFF, WEBP)
+        if suffix in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.tif', '.webp']:
+            if not self.enable_ocr or not self.ocr_service:
+                logger.error("Imagens não suportadas - OCR não habilitado ou não disponível")
+                return None
+            return self.convert_image_to_markdown(file_content, filename)
         
         # Formatos não suportados
-        logger.warning(f"Formato {suffix} não suportado no MVP (apenas PDF texto nativo e Excel)")
+        logger.warning(f"Formato {suffix} não suportado")
         return None
     
-    def _convert_pdf_to_markdown(
-        self,
-        file_content: bytes,
-        filename: str
-    ) -> Optional[str]:
+    def convert_docx_to_markdown(self, file_content: bytes, filename: str) -> Optional[str]:
         """
-        Converte PDF para Markdown usando PyPDF2/pdfplumber.
-        
-        IMPORTANTE: Apenas extrai texto nativo. PDFs escaneados (imagens) não funcionam.
+        Converte DOCX para Markdown preservando estrutura básica.
         
         Args:
-            file_content: Conteúdo do arquivo PDF em bytes
-            filename: Nome do arquivo
+            file_content: Conteúdo do arquivo em bytes
+            filename: Nome do arquivo (para logging)
             
         Returns:
-            str: Markdown ou None se erro
+            str: Conteúdo Markdown ou None se erro
         """
-        try:
-            pdf_io = io.BytesIO(file_content)
-            text_parts = []
-            
-            # Tentar pdfplumber primeiro (melhor extração de tabelas)
-            if PDFPLUMBER_AVAILABLE:
-                try:
-                    with pdfplumber.open(pdf_io) as pdf:
-                        for i, page in enumerate(pdf.pages, 1):
-                            # Extrair texto
-                            page_text = page.extract_text()
-                            if page_text:
-                                text_parts.append(f"## Página {i}\n\n{page_text}\n\n")
-                            
-                            # Tentar extrair tabelas
-                            tables = page.extract_tables()
-                            if tables:
-                                for j, table in enumerate(tables, 1):
-                                    if table:
-                                        # Converter tabela para Markdown
-                                        markdown_table = self._table_to_markdown(table)
-                                        text_parts.append(f"### Tabela {j} (Página {i})\n\n{markdown_table}\n\n")
-                    
-                    if text_parts:
-                        markdown = "".join(text_parts)
-                        # Calcular tamanho do texto real (removendo cabeçalhos e estrutura markdown)
-                        text_content = markdown
-                        # Remover cabeçalhos de página e tabelas (linhas que começam com #)
-                        lines = text_content.split('\n')
-                        content_lines = [line for line in lines if not line.strip().startswith('## Página') and not line.strip().startswith('### Tabela')]
-                        text_content_clean = '\n'.join(content_lines)
-                        text_length = len(text_content_clean.replace('#', '').replace('|', '').replace('-', '').strip())
-                        
-                        if text_length < 50:
-                            logger.warning(
-                                f"PDF {filename} retornou pouco texto ({text_length} caracteres). "
-                                "Pode ser um PDF escaneado (imagem). OCR não está disponível no MVP. "
-                                "Para PDFs escaneados, use uma solução com OCR (futuro)."
-                            )
-                        
-                        logger.info(f"✅ PDF convertido: {filename} ({text_length} caracteres, {len(pdf.pages)} páginas)")
-                        return markdown
-                except Exception as e:
-                    logger.debug(f"pdfplumber falhou, tentando PyPDF2: {e}")
-                    pdf_io.seek(0)  # Resetar
-            
-            # Fallback para PyPDF2
-            if PYPDF2_AVAILABLE:
-                pdf_reader = PyPDF2.PdfReader(pdf_io)
-                
-                for i, page in enumerate(pdf_reader.pages, 1):
-                    page_text = page.extract_text()
-                    if page_text:
-                        text_parts.append(f"## Página {i}\n\n{page_text}\n\n")
-                
-                if text_parts:
-                    markdown = "".join(text_parts)
-                    # Calcular tamanho do texto real (removendo cabeçalhos e estrutura markdown)
-                    text_content = markdown
-                    # Remover cabeçalhos de página
-                    lines = text_content.split('\n')
-                    content_lines = [line for line in lines if not line.strip().startswith('## Página')]
-                    text_content_clean = '\n'.join(content_lines)
-                    text_length = len(text_content_clean.replace('#', '').strip())
-                    
-                    if text_length < 50:
-                        logger.warning(
-                            f"PDF {filename} retornou pouco texto ({text_length} caracteres). "
-                            "Pode ser um PDF escaneado (imagem). OCR não está disponível no MVP."
-                        )
-                    
-                    logger.info(f"✅ PDF convertido: {filename} ({text_length} caracteres, {len(pdf_reader.pages)} páginas)")
-                    return markdown
-            
-            # Se chegou aqui, não conseguiu extrair texto
-            logger.error(
-                f"Não foi possível extrair texto do PDF {filename}. "
-                "O PDF pode estar escaneado (imagem) ou corrompido. "
-                "OCR não está disponível no MVP (100% FREE)."
-            )
+        if not DOCX_AVAILABLE:
+            logger.error("DOCX não suportado - python-docx não instalado")
             return None
+        
+        try:
+            doc = Document(BytesIO(file_content))
+            markdown_lines = []
+            
+            # Processar parágrafos
+            for para in doc.paragraphs:
+                text = para.text.strip()
+                if not text:
+                    continue
+                
+                # Detectar cabeçalhos baseado no estilo
+                style_name = para.style.name.lower()
+                if 'heading' in style_name or 'title' in style_name:
+                    # Extrair nível do cabeçalho (Heading 1, Heading 2, etc.)
+                    level_match = re.search(r'heading\s*(\d+)', style_name)
+                    if level_match:
+                        level = int(level_match.group(1))
+                    elif 'title' in style_name:
+                        level = 1
+                    else:
+                        level = 2
+                    
+                    markdown_lines.append(f"{'#' * level} {text}\n")
+                else:
+                    markdown_lines.append(f"{text}\n")
+            
+            # Processar tabelas
+            for table in doc.tables:
+                markdown_lines.append(self._table_to_markdown(table))
+                markdown_lines.append("\n")
+            
+            result = "\n".join(markdown_lines).strip()
+            
+            if not result:
+                logger.warning(f"DOCX '{filename}' convertido mas sem conteúdo extraído")
+                return None
+            
+            logger.info(f"DOCX '{filename}' convertido: {len(result)} caracteres")
+            return result
             
         except Exception as e:
-            logger.error(f"Erro ao converter PDF {filename}: {e}")
+            logger.error(f"Erro ao converter DOCX '{filename}': {e}")
             import traceback
             logger.error(traceback.format_exc())
             return None
     
-    def _table_to_markdown(self, table: list) -> str:
+    def convert_pptx_to_markdown(self, file_content: bytes, filename: str) -> Optional[str]:
         """
-        Converte tabela (lista de listas) para Markdown.
+        Converte PPTX para Markdown com estrutura de slides.
         
         Args:
-            table: Lista de linhas, cada linha é uma lista de células
+            file_content: Conteúdo do arquivo em bytes
+            filename: Nome do arquivo (para logging)
+            
+        Returns:
+            str: Conteúdo Markdown ou None se erro
+        """
+        if not PPTX_AVAILABLE:
+            logger.error("PPTX não suportado - python-pptx não instalado")
+            return None
+        
+        try:
+            prs = Presentation(BytesIO(file_content))
+            markdown_lines = []
+            
+            for i, slide in enumerate(prs.slides, 1):
+                markdown_lines.append(f"# Slide {i}\n")
+                
+                # Processar formas na slide
+                for shape in slide.shapes:
+                    if not hasattr(shape, "text"):
+                        continue
+                    
+                    text = shape.text.strip()
+                    if not text:
+                        continue
+                    
+                    # Detectar títulos (geralmente são as primeiras formas ou têm formato específico)
+                    # Simplificação: primeira forma não vazia é título
+                    if i == 1 and len(markdown_lines) == 1:
+                        # Primeira forma da primeira slide pode ser título
+                        markdown_lines.append(f"## {text}\n")
+                    elif text.upper() in ["TÍTULO", "TITLE", "TITULO"] or len(text) < 50:
+                        # Textos curtos ou que contêm "título" podem ser títulos
+                        markdown_lines.append(f"## {text}\n")
+                    else:
+                        markdown_lines.append(f"{text}\n")
+                
+                markdown_lines.append("\n")
+            
+            result = "\n".join(markdown_lines).strip()
+            
+            if not result:
+                logger.warning(f"PPTX '{filename}' convertido mas sem conteúdo extraído")
+                return None
+            
+            logger.info(f"PPTX '{filename}' convertido: {len(result)} caracteres, {len(prs.slides)} slides")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Erro ao converter PPTX '{filename}': {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return None
+    
+    def convert_image_to_markdown(self, image_bytes: bytes, filename: str) -> Optional[str]:
+        """
+        Converte imagem para Markdown usando OCR.
+        
+        Args:
+            image_bytes: Conteúdo da imagem em bytes
+            filename: Nome do arquivo (para logging)
+            
+        Returns:
+            str: Conteúdo Markdown ou None se erro
+        """
+        if not self.enable_ocr or not self.ocr_service:
+            logger.error("OCR não habilitado ou não disponível para processar imagens")
+            return None
+        
+        try:
+            markdown_content = self.ocr_service.process_image(image_bytes, filename)
+            
+            if not markdown_content:
+                logger.warning(f"Imagem '{filename}' processada mas sem texto extraído")
+                return None
+            
+            logger.info(f"Imagem '{filename}' convertida: {len(markdown_content)} caracteres")
+            return markdown_content
+            
+        except Exception as e:
+            logger.error(f"Erro ao converter imagem '{filename}': {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return None
+    
+    def _table_to_markdown(self, table) -> str:
+        """
+        Converte tabela do Word para Markdown.
+        
+        Args:
+            table: Tabela do python-docx
             
         Returns:
             str: Tabela em formato Markdown
         """
-        if not table:
-            return ""
-        
-        lines = []
-        
-        # Cabeçalho (primeira linha)
-        if table:
-            header = "| " + " | ".join([str(cell) if cell else "" for cell in table[0]]) + " |"
-            lines.append(header)
-            # Separador
-            lines.append("| " + " | ".join(["---"] * len(table[0])) + " |")
-        
-        # Corpo (resto das linhas)
-        for row in table[1:]:
-            if row:  # Ignorar linhas vazias
-                row_str = "| " + " | ".join([str(cell) if cell else "" for cell in row]) + " |"
-                lines.append(row_str)
-        
-        return "\n".join(lines)
-    
-    def _convert_excel_to_markdown(
-        self,
-        file_content: bytes,
-        filename: str
-    ) -> Optional[str]:
-        """
-        Converte Excel para Markdown manualmente.
-        Preserva tabelas, múltiplas abas e estrutura básica.
-        
-        Args:
-            file_content: Conteúdo do arquivo Excel em bytes
-            filename: Nome do arquivo
-            
-        Returns:
-            str: Markdown ou None se erro
-        """
-        if not EXCEL_AVAILABLE:
-            logger.error("pandas/openpyxl não disponíveis")
-            return None
-        
         try:
-            excel_file = io.BytesIO(file_content)
+            rows = []
+            for row in table.rows:
+                cells = [cell.text.strip().replace('\n', ' ') for cell in row.cells]
+                rows.append("| " + " | ".join(cells) + " |")
             
-            # Carregar workbook
-            workbook = load_workbook(excel_file, data_only=True, read_only=True)
+            if not rows:
+                return ""
             
-            markdown_sections = []
+            # Criar separador
+            num_cols = len(table.rows[0].cells)
+            separator = "|" + "|".join(["---"] * num_cols) + "|"
             
-            # Processar cada planilha
-            for sheet_name in workbook.sheetnames:
-                try:
-                    # Ler sheet como DataFrame
-                    excel_file.seek(0)  # Resetar para ler novamente
-                    df = pd.read_excel(
-                        excel_file,
-                        sheet_name=sheet_name,
-                        engine='openpyxl'
-                    )
-                    
-                    # Remover linhas completamente vazias
-                    df = df.dropna(how='all').reset_index(drop=True)
-                    
-                    # Remover colunas completamente vazias
-                    df = df.dropna(axis=1, how='all')
-                    
-                    # Pular se DataFrame vazio
-                    if df.empty:
-                        logger.debug(f"Planilha {sheet_name} está vazia, pulando...")
-                        continue
-                    
-                    # Adicionar seção
-                    markdown_sections.append(f"## {sheet_name}\n\n")
-                    
-                    # Converter DataFrame para Markdown table
-                    # Usar tabulate para melhor formatação (se disponível)
-                    try:
-                        from tabulate import tabulate
-                        markdown_table = tabulate(
-                            df,
-                            headers='keys',
-                            tablefmt='pipe',
-                            showindex=False
-                        )
-                    except ImportError:
-                        # Fallback: usar método básico do pandas
-                        markdown_table = df.to_markdown(index=False, tablefmt='pipe')
-                    
-                    markdown_sections.append(markdown_table)
-                    markdown_sections.append("\n\n")
-                    
-                except Exception as e:
-                    logger.warning(f"Erro ao processar planilha {sheet_name}: {e}")
-                    continue
-            
-            workbook.close()
-            
-            if not markdown_sections:
-                logger.warning(f"Nenhum conteúdo encontrado no Excel: {filename}")
-                return None
-            
-            markdown = "".join(markdown_sections)
-            logger.info(f"✅ Excel convertido: {filename} ({len(workbook.sheetnames)} planilhas)")
-            return markdown
-            
+            # Primeira linha é cabeçalho, resto são dados
+            if len(rows) > 1:
+                return "\n".join([rows[0], separator] + rows[1:])
+            else:
+                return rows[0]
+                
         except Exception as e:
-            logger.error(f"Erro ao converter Excel {filename}: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
-            return None
+            logger.warning(f"Erro ao converter tabela para Markdown: {e}")
+            return ""

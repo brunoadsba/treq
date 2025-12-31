@@ -15,10 +15,59 @@ def classify_query(query: str, message_history: List = None) -> str:
         message_history: Histórico de mensagens (opcional, para detectar follow-up)
         
     Returns:
-        str: Tipo da consulta ("alerta", "procedimento", "métrica", "status", "detalhamento", "geral")
+        str: Tipo da consulta ("alerta", "procedimento", "métrica", "status", "detalhamento", "capacidade", "geral")
     """
     query_lower = query.lower().strip()
     message_history = message_history or []
+    
+    # 0. Detectar perguntas sobre CAPACIDADES DO ASSISTENTE (prioridade máxima)
+    # Essas perguntas devem ser respondidas diretamente, sem buscar no RAG
+    capability_patterns = [
+        r"você\s+(é|está|pode|consegue|faz|realiza|analisa|extrai|lê|le)",
+        r"(você|vc)\s+(pode|consegue|faz|realiza|analisa|extrai|lê|le)",
+        r"que\s+tipo\s+(de\s+)?(arquivo|documento|formato)",
+        r"quais\s+(tipos|formatos)\s+(de\s+)?(arquivo|documento)",
+        r"você\s+(aceita|suporta|trabalha\s+com)",
+        r"(é|está)\s+capaz\s+(de|de\s+extrair|de\s+ler|de\s+analisar)",
+        r"capaz\s+(de|de\s+extrair|de\s+ler|de\s+analisar)",
+        r"que\s+(você|vc)\s+(pode|consegue|faz)",
+        r"o\s+que\s+(você|vc)\s+(pode|consegue|faz)",
+        r"quais\s+(são\s+)?(suas\s+)?(capacidades|funcionalidades|recursos)",
+    ]
+    
+    import re
+    for pattern in capability_patterns:
+        if re.search(pattern, query_lower):
+            # Verificar se menciona arquivos/documentos/formats/imagens
+            file_related_keywords = [
+                "arquivo", "documento", "pdf", "docx", "pptx", "excel", "xlsx",
+                "formato", "tipo", "extrair", "ler", "le", "analisar", "processar",
+                "imagem", "imagens", "jpeg", "jpg", "png", "gif", "bmp", "tiff", "webp",
+                "foto", "fotos", "fotografia", "ocr", "reconhecimento"
+            ]
+            if any(keyword in query_lower for keyword in file_related_keywords):
+                logger.debug(f"Query classificada como CAPACIDADE (sobre arquivos): '{query}'")
+                return "capacidade"
+    
+    # Verificar também no histórico se é follow-up sobre capacidades
+    if message_history:
+        last_assistant_msg = None
+        for msg in reversed(message_history):
+            if isinstance(msg, dict) and msg.get("role") == "assistant":
+                last_assistant_msg = msg.get("content", "").lower()
+                break
+        
+        if last_assistant_msg and any(keyword in last_assistant_msg for keyword in ["capacidade", "arquivo", "documento", "pdf", "formato", "imagem", "jpeg", "png"]):
+            # Se a última resposta foi sobre capacidades e a query atual é uma continuação
+            continuation_patterns = [
+                r"e\s+(você|vc)\s+(pode|consegue|faz)",
+                r"também\s+(pode|consegue|faz)",
+                r"além\s+(disso|disso\s+você)",
+                r"outros?\s+(tipos?|formatos?)",
+            ]
+            if any(re.search(pattern, query_lower) for pattern in continuation_patterns):
+                logger.debug(f"Query classificada como CAPACIDADE (follow-up): '{query}'")
+                return "capacidade"
     
     # 0. Detectar padrões temporais (antes de tudo, para identificar queries que precisam de dados reais)
     temporal_keywords = [
@@ -29,6 +78,20 @@ def classify_query(query: str, message_history: List = None) -> str:
     has_temporal = any(keyword in query_lower for keyword in temporal_keywords)
     
     # 1. Detectar perguntas sobre STATUS/ESTADO ATUAL (prioridade alta)
+    # Primeiro, verificar padrões específicos de "status de/das" (não requerem contexto operacional)
+    status_direct_patterns = [
+        "status de ", "status das ", "status de todas ", "status das unidades ",
+        "status operacional", "status das operações", "status geral"
+    ]
+    if any(pattern in query_lower for pattern in status_direct_patterns):
+        # Se tem padrão temporal, classificar como status_temporal (requer tool)
+        if has_temporal:
+            logger.debug(f"Query classificada como STATUS_TEMPORAL: '{query}'")
+            return "status_temporal"
+        logger.debug(f"Query classificada como STATUS: '{query}'")
+        return "status"
+    
+    # Depois, verificar outros padrões de status (requerem contexto operacional)
     status_patterns = [
         "como está", "como vai", "qual o status", "qual a situação",
         "está funcionando", "está ativo", "está ok", "tem problema",
@@ -148,7 +211,12 @@ def classify_query(query: str, message_history: List = None) -> str:
             logger.debug(f"Query classificada como DETALHAMENTO: '{query}'")
             return "detalhamento"
     
-    # 6. Detectar ALERTAS (após verificar procedimentos e detalhamento)
+    # 6. Detectar MODO CONSULTORIA (quando query começa com "consultoria:")
+    if query_lower.startswith("consultoria:"):
+        logger.debug(f"Query classificada como CONSULTORIA: '{query}'")
+        return "consultoria"
+    
+    # 7. Detectar ALERTAS (após verificar procedimentos e detalhamento)
     alert_keywords = [
         "alerta", "problema", "erro", "falha", "incidente", "urgente",
         "crítico"
@@ -163,14 +231,14 @@ def classify_query(query: str, message_history: List = None) -> str:
         logger.debug(f"Query classificada como ALERTA: '{query}'")
         return "alerta"
     
-    # 7. Verificar se menciona "como" mas não é procedimento (pode ser status)
+    # 8. Verificar se menciona "como" mas não é procedimento (pode ser status)
     if "como" in query_lower:
         # Se menciona unidade/operação, provavelmente é status
         if any(word in query_lower for word in ["operação", "unidade", "salvador", "recife"]):
             logger.debug(f"Query classificada como STATUS (padrão 'como'): '{query}'")
             return "status"
     
-    # 8. Padrão geral
+    # 9. Padrão geral
     logger.debug(f"Query classificada como GERAL: '{query}'")
     return "geral"
 
