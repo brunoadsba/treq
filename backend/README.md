@@ -26,26 +26,43 @@ cp .env.example .env
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
+
 ## Estrutura
 
-- `app/` - Código da aplicação
-  - `main.py` - FastAPI app principal
-  - `config.py` - Configurações (Pydantic Settings)
-  - `api/routes/` - Endpoints HTTP
-    - `chat.py` - Chat e streaming de respostas
-    - `audio.py` - STT e TTS
-    - `documents.py` - Upload e processamento de documentos
-  - `core/` - Lógica de negócio
-    - `rag_service.py` - Serviço RAG (vector search)
-    - `llm_service.py` - Serviço LLM (roteamento 3 níveis)
-    - `query_classifier.py` - Classificação de queries
-    - `context_manager.py` - Gerenciamento de contexto
-    - `tools/` - Tools (Metrics, Procedures, Status)
-  - `services/` - Serviços externos
-    - `document_converter.py` - Conversão de documentos (PDF/Excel → Markdown)
-    - `embedding_service.py` - Geração de embeddings
-    - `supabase_service.py` - Cliente Supabase
-  - `models/` - Schemas Pydantic
+```
+backend/
+├── app/                        # Código da aplicação
+│   ├── main.py                 # FastAPI app principal
+│   ├── config.py               # Configurações (Pydantic Settings)
+│   ├── api/routes/             # Endpoints HTTP
+│   │   ├── chat.py             # Chat e streaming de respostas
+│   │   ├── audio.py            # STT e TTS
+│   │   └── documents.py        # Upload e processamento de documentos
+│   ├── core/                   # Lógica de negócio
+│   │   ├── rag_service.py      # Serviço RAG (vector search)
+│   │   ├── query_classifier.py # Classificação de queries
+│   │   ├── context_manager.py  # Gerenciamento de contexto
+│   │   └── tools/              # Tools (Metrics, Procedures, Status)
+│   ├── services/               # Serviços externos
+│   │   ├── llm_service.py      # Serviço LLM (roteamento 3 níveis)
+│   │   ├── document_converter.py # Conversão de documentos
+│   │   ├── embedding_service.py  # Geração de embeddings
+│   │   └── supabase_service.py   # Cliente Supabase
+│   ├── middleware/             # Middlewares (rate limiting, request ID)
+│   └── utils/                  # Utilitários (sanitização, PII, debug)
+├── tests/                      # Testes automatizados
+│   ├── conftest.py             # Configuração e fixtures do pytest
+│   ├── test_document_converter.py
+│   ├── test_query_classifier_status.py
+│   ├── test_technical_terms_filter.py
+│   └── test_visualization.py
+├── scripts/                    # Scripts utilitários
+│   ├── check_schema.py         # Verificação de schema Supabase
+│   └── check_schema_direct.py  # Schema via SQL direto
+├── requirements.txt            # Dependências Python
+└── pytest.ini                  # Configuração do pytest
+```
+
 
 ## Funcionalidades Principais
 
@@ -74,6 +91,10 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 - Chunking semântico preservando hierarquia
 - Hybrid search (semântico + filtros)
 
+### 5. Observabilidade (LangSmith)
+- **Tracing:** Integrado em LLM, RAG e Validadores
+- **Métricas Locais:** Logs detalhados de token e latência (`[LLM_METRICS]`)
+- **Feedback:** Endpoint `/feedback` para coleta de dados de satisfação
 ## Endpoints Principais
 
 ### Chat
@@ -126,6 +147,11 @@ Principais variáveis necessárias no `.env`:
 ```bash
 # APIs (OBRIGATÓRIAS)
 GROQ_API_KEY=your_key  # OBRIGATÓRIA - Sem isso, sistema não inicia
+
+# Observabilidade (LangSmith)
+LANGCHAIN_TRACING_V2=true
+LANGSMITH_API_KEY=your_key
+LANGCHAIN_PROJECT=treq-assistente
 
 # APIs (OPCIONAIS)
 GEMINI_API_KEY=your_key  # Opcional - Para TTS (Google Gemini)

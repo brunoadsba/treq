@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useHighContrast } from "../../app/hooks/useHighContrast";
+import { useHighContrast } from "@/hooks/useHighContrast";
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -19,13 +19,13 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
  * - Acessibilidade WCAG 2.1 AA
  */
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ 
+  ({
     className = "",
     label,
     error,
     helperText,
     id,
-    ...props 
+    ...props
   }, ref) => {
     const isHighContrast = useHighContrast();
     const inputId = id || `input-${Math.random().toString(36).substring(7)}`;
@@ -36,7 +36,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className="w-full">
         {label && (
-          <label 
+          <label
             htmlFor={inputId}
             className="block text-sm font-medium text-treq-gray-700 mb-2"
           >
@@ -51,8 +51,8 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             border transition-all
             focus:outline-none focus:ring-2 focus:ring-offset-2
             disabled:opacity-50 disabled:cursor-not-allowed
-            ${error 
-              ? "border-treq-error focus:ring-treq-error" 
+            ${error
+              ? "border-treq-error focus:ring-treq-error"
               : "border-treq-gray-300 focus:ring-treq-yellow focus:border-transparent"
             }
             ${isHighContrast
@@ -69,7 +69,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           {...props}
         />
         {error && (
-          <p 
+          <p
             id={errorId}
             className="mt-2 text-sm text-treq-error"
             role="alert"
@@ -78,7 +78,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           </p>
         )}
         {helperText && !error && (
-          <p 
+          <p
             id={helperId}
             className="mt-2 text-sm text-treq-gray-500"
           >

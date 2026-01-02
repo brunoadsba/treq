@@ -19,10 +19,15 @@ def replace_sla(text: str) -> str:
     """
     # Padrões específicos primeiro (mais específicos → mais genéricos)
     patterns = [
+        # Correção de termos corrompidos (LLM às vezes gera texto truncado)
+        (r'\bSLazo\b', 'Prazo'),  # SLA + prazo corrompido
+        (r'\bSLazos\b', 'Prazos'),  # SLA + prazos corrompido
+        (r'\b3to\b', 'desvio'),  # 3σ truncado
+        (r'\b2to\b', 'desvio'),  # 2σ truncado
         # SLA com apóstrofe e número: "SLA's de 24h"
         (r"\bSLA'?s?\b\s+(de|da|do)\s+(\d+\w*)", r'prazo \1 \2'),
         # SLA com dois pontos: "SLA:"
-        (r'\bSLA\b\s*:\s*', 'prazo:'),
+        (r'\bSLA\b\s*:\s*', 'prazo: '),
         # SLA com preposição antes e adjetivo: "com SLA mensal"
         (r'\b(com|do|da|no|na|em|para|por)\s+SLA\b\s+([a-záàâãéêíóôõúç]+)', r'\1 prazo \2'),
         # SLA com preposição antes (sem adjetivo): "com SLA"
@@ -33,16 +38,7 @@ def replace_sla(text: str) -> str:
         (r'\bSLA\b\s+(\d+\s*\w+)', r'prazo de \1'),
         # SLA com adjetivo: "SLA mensal"
         (r'\bSLA\b\s+([a-záàâãéêíóôõúç]+(?:\s+[a-záàâãéêíóôõúç]+)?)', r'prazo \1'),
-        # SLazo e variações (erros de digitação)
-        (r'\bSLazo\b\s+(de|da|do)\s+(\d+\w*)', r'prazo \1 \2'),
-        (r'\bSLazo\b\s+([a-záàâãéêíóôõúç]+)', r'prazo \1'),
-        (r'\bSLazo\b', 'prazo'),
-        (r'\bSLazos\b', 'prazos'),
-        # SLA's (plural com apóstrofe)
-        (r"\bSLA's\b", 'prazos'),
-        # SLAs (plural)
-        (r'\bSLAs\b', 'prazos'),
-        # SLA sozinho (último padrão - mais genérico)
+        # SLA (singular/plural)
         (r"\bSLA'?s?\b", 'prazo'),
     ]
     
@@ -55,26 +51,14 @@ def replace_sla(text: str) -> str:
 # Mapeamento centralizado e extensível de substituições
 # IMPORTANTE: Ordem importa! Padrões mais específicos primeiro
 TECHNICAL_TERMS_SUBSTITUTIONS: List[Tuple[re.Pattern, str]] = [
-    # 1. Desvios padrão e Sigma (padrões mais específicos primeiro)
-    # Padrões de desvio com palavra "desvio" antes: substituir tudo junto
-    (re.compile(r'\bdesvio\s*>\s*3\s*σ|\bdesvio\s*>\s*3\s*sigma', re.IGNORECASE), 
-     'desvio grande (muito acima do normal)'),
-    (re.compile(r'\bdesvio\s*>\s*2\s*σ|\bdesvio\s*>\s*2\s*sigma', re.IGNORECASE), 
-     'desvio moderado (acima do normal)'),
-    # Padrões de desvio sem palavra "desvio" antes: adicionar "desvio"
-    (re.compile(r'>\s*3\s*σ|>\s*3\s*sigma', re.IGNORECASE), 
-     'desvio grande (muito acima do normal)'),
-    (re.compile(r'>\s*2\s*σ|>\s*2\s*sigma', re.IGNORECASE), 
-     'desvio moderado (acima do normal)'),
-    (re.compile(r'< \s*\d+\s*σ|< \s*\d+\s*sigma', re.IGNORECASE), 
-     'desvio pequeno (abaixo do normal)'),
-    (re.compile(r'\b3\s*σ\b|\b3\s*sigma\b', re.IGNORECASE), 
-     'três desvios-padrão'),
-    (re.compile(r'\b2\s*σ\b|\b2\s*sigma\b', re.IGNORECASE), 
-     'dois desvios-padrão'),
-    # Sigma sozinho (deve vir depois dos padrões específicos)
-    (re.compile(r'\bσ\b|\bsigma\b', re.IGNORECASE), 
-     'desvio padrão'),
+    # 1. Desvios padrão e Sigma
+    (re.compile(r'\bdesvio\s*>\s*3\s*σ|\bdesvio\s*>\s*3\s*sigma\b', re.IGNORECASE), 'desvio muito acima do normal'),
+    (re.compile(r'\bdesvio\s*>\s*2\s*σ|\bdesvio\s*>\s*2\s*sigma\b', re.IGNORECASE), 'desvio acima do normal'),
+    (re.compile(r'>\s*3\s*σ|>\s*3\s*sigma\b', re.IGNORECASE), 'desvio muito acima do normal'),
+    (re.compile(r'>\s*2\s*σ|>\s*2\s*sigma\b', re.IGNORECASE), 'desvio acima do normal'),
+    (re.compile(r'\b3\s*σ\b|\b3\s*sigma\b', re.IGNORECASE), 'três desvios padrão'),
+    (re.compile(r'\b2\s*σ\b|\b2\s*sigma\b', re.IGNORECASE), 'dois desvios padrão'),
+    (re.compile(r'σ|sigma\b', re.IGNORECASE), 'desvio padrão'),
     
     # 2. Threshold e Limites
     (re.compile(r'\bThreshold\b:\s*', re.IGNORECASE), 
@@ -210,61 +194,63 @@ def _detect_remaining_technical_terms(text: str) -> List[str]:
 
 class StreamingTermFilter:
     """
-    Filtro de termos técnicos para streaming que acumula chunks parcialmente
-    para garantir que padrões divididos entre chunks sejam capturados.
+    Filtro de termos técnicos para streaming.
+    
+    Estratégia simples: acumula chunks, processa quando tem tamanho suficiente,
+    e retorna apenas o conteúdo novo para evitar duplicação.
     """
-    def __init__(self, buffer_size: int = 10):
+    def __init__(self, buffer_size: int = 15):
         """
         Args:
-            buffer_size: Tamanho do buffer para acumular chunks (padrão: 10 caracteres)
+            buffer_size: Tamanho mínimo antes de processar (padrão: 15 caracteres)
         """
         self.buffer = ""
         self.buffer_size = buffer_size
-        self.processed_length = 0  # Tamanho já processado e enviado
+        self.output_sent = 0  # Quantidade de caracteres já enviados para o cliente
     
     def filter_chunk(self, chunk: str) -> str:
         """
-        Filtra um chunk de texto, acumulando parcialmente para capturar padrões divididos.
+        Filtra um chunk de texto.
+        
+        Acumula no buffer, processa quando tem tamanho suficiente,
+        e retorna apenas o conteúdo novo (não duplicado).
         
         Args:
             chunk: Chunk de texto a ser filtrado
             
         Returns:
-            Chunk filtrado
+            Chunk filtrado (pode ser string vazia se retido no buffer)
         """
         if not chunk:
-            return chunk
+            return ""
         
-        # Adicionar chunk ao buffer
+        # Acumular no buffer
         self.buffer += chunk
         
-        # Se buffer ainda é pequeno, retornar chunk sem filtrar (mas acumular)
+        # Se buffer ainda é pequeno, reter para evitar processar termos parciais
         if len(self.buffer) < self.buffer_size:
-            return chunk
+            return ""
         
-        # Filtrar buffer completo
-        filtered_buffer = filter_technical_terms(self.buffer)
+        # Processar buffer inteiro com filtro de termos técnicos
+        filtered = filter_technical_terms(self.buffer)
         
-        # Extrair apenas a parte nova (após o que já foi processado)
-        new_content = filtered_buffer[self.processed_length:]
+        # Calcular quanto já foi enviado vs quanto temos agora
+        # Enviamos apenas o conteúdo novo (do ponto output_sent em diante)
+        if self.output_sent >= len(filtered):
+            # Já enviamos tudo que tem no filtered
+            return ""
         
-        # Atualizar tamanho processado
-        self.processed_length = len(filtered_buffer)
+        # Conteúdo novo para enviar
+        new_content = filtered[self.output_sent:]
         
-        # Manter apenas últimos N caracteres no buffer para próximos chunks
-        # (para capturar padrões que podem estar divididos)
-        if len(self.buffer) > self.buffer_size:
-            # Remover do início do buffer o que já foi processado
-            chars_to_remove = len(self.buffer) - self.buffer_size
-            self.buffer = self.buffer[chars_to_remove:]
-            # Ajustar processed_length proporcionalmente
-            self.processed_length = max(0, self.processed_length - chars_to_remove)
+        # Atualizar contador de enviados
+        self.output_sent = len(filtered)
         
         return new_content
     
     def flush(self) -> str:
         """
-        Filtra e retorna qualquer conteúdo restante no buffer.
+        Processa e retorna qualquer conteúdo restante no buffer.
         
         Returns:
             Conteúdo filtrado restante
@@ -272,10 +258,19 @@ class StreamingTermFilter:
         if not self.buffer:
             return ""
         
-        filtered_buffer = filter_technical_terms(self.buffer)
-        new_content = filtered_buffer[self.processed_length:]
+        # Processar buffer final
+        filtered = filter_technical_terms(self.buffer)
+        
+        # Retornar apenas o que ainda não foi enviado
+        if self.output_sent >= len(filtered):
+            new_content = ""
+        else:
+            new_content = filtered[self.output_sent:]
+        
+        # Limpar estado
         self.buffer = ""
-        self.processed_length = 0
+        self.output_sent = 0
+        
         return new_content
 
 

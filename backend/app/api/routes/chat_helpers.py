@@ -210,21 +210,40 @@ async def fetch_context_and_tools(
     sources = []
     
     if should_use_rag:
+        from app.core.search_utils import should_use_hybrid_search, search_hybrid_with_fallback
+        
         top_k = get_adaptive_top_k(query_type)
-        rag_results, used_threshold = search_with_fallback(
-            query=search_query,
-            query_type=query_type,
-            rag_service=rag_service,
-            top_k=top_k,
-            min_docs=2,
-            filters=None
-        )
+        
+        # Usar busca híbrida para termos exatos ou queries curtas
+        if should_use_hybrid_search(search_query):
+            logger.debug(f"Usando busca híbrida para query: {search_query[:50]}...")
+            rag_results, used_threshold, search_type = search_hybrid_with_fallback(
+                query=search_query,
+                query_type=query_type,
+                rag_service=rag_service,
+                top_k=top_k,
+                min_docs=2,
+                filters=None
+            )
+        else:
+            # Busca vetorial padrão para queries longas/conversacionais
+            rag_results, used_threshold = search_with_fallback(
+                query=search_query,
+                query_type=query_type,
+                rag_service=rag_service,
+                top_k=top_k,
+                min_docs=2,
+                filters=None
+            )
+            search_type = "vector"
+        
         context_texts = [result["content"] for result in rag_results]
         sources = [
             {
                 "content": result["content"][:200] + "..." if len(result["content"]) > 200 else result["content"],
                 "similarity": round(result.get("similarity", result.get("score", 0.0)), 3),
-                "metadata": result.get("metadata", {})
+                "metadata": result.get("metadata", {}),
+                "search_type": result.get("search_type", search_type)
             }
             for result in rag_results
         ]

@@ -14,8 +14,10 @@ from app.core.circuit_breaker import (
     call_with_circuit_breaker,
     CircuitBreakerError
 )
+from app.core.tracing import trace_llm_call
 
 
+@trace_llm_call(name="call_glm4", run_type="llm")
 def call_glm4(
     zhipu_client: Any,
     glm_model: str,
@@ -83,6 +85,7 @@ def call_glm4(
         raise
 
 
+@trace_llm_call(name="stream_groq", run_type="llm")
 @trace_generator("Groq_Stream")
 def stream_groq(
     groq_client: Any,
@@ -149,6 +152,7 @@ def stream_groq(
         raise
 
 
+@trace_llm_call(name="stream_glm4", run_type="llm")
 @trace_generator("GLM4_Stream")
 def stream_glm4(
     zhipu_client: Any,
@@ -319,6 +323,7 @@ def stream_glm4(
             yield from fallback_stream
 
 
+@trace_llm_call(name="call_groq", run_type="llm")
 def call_groq(
     groq_client: Any,
     model: str,
@@ -348,16 +353,28 @@ def call_groq(
         Exception: Outros erros da API
     """
     def _call_groq_internal():
+        temp = temperature if temperature is not None else default_temperature
+        tokens = max_tokens if max_tokens is not None else default_max_tokens
+        
+        msg_count = len(messages)
+        content_len = sum(len(m.get('content', '')) for m in messages)
+        logger.info(f"📡 Chamando Groq {model} (temp={temp}, tokens={tokens}, msgs={msg_count}, chars={content_len})")
+        start_time = time.time()
+        
         response = groq_client.chat.completions.create(
             model=model,
             messages=messages,
-            temperature=temperature or default_temperature,
-            max_tokens=max_tokens or default_max_tokens,
+            temperature=temp,
+            max_tokens=tokens,
             stream=False
         )
         content = response.choices[0].message.content
+        elapsed = time.time() - start_time
+        
         if not content or not content.strip():
             raise ValueError(f"Groq {model} retornou conteúdo vazio")
+        
+        logger.info(f"✅ Groq {model} resposta pronta em {elapsed:.2f}s")
         return content.strip()
     
     breaker = get_groq_breaker()
@@ -400,12 +417,20 @@ def fallback_to_groq(
         Exception: Outros erros da API
     """
     def _call_groq_internal():
+        temp = temperature if temperature is not None else default_temperature
+        tokens = max_tokens if max_tokens is not None else default_max_tokens
+        
+        logger.info(f"📡 Chamando Groq Fallback {model} (temp={temp}, tokens={tokens})")
+        start_time = time.time()
+        
         response = groq_client.chat.completions.create(
             model=model,
             messages=messages,
-            temperature=temperature or default_temperature,
-            max_tokens=max_tokens or default_max_tokens
+            temperature=temp,
+            max_tokens=tokens
         )
+        elapsed = time.time() - start_time
+        logger.info(f"✅ Groq Fallback {model} resposta pronta em {elapsed:.2f}s")
         return response.choices[0].message.content
     
     breaker = get_groq_breaker()

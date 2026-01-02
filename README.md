@@ -10,6 +10,7 @@ O Treq é um assistente operacional desenvolvido para a Sotreq, combinando:
 - **Streaming de respostas** para melhor UX
 - **Processamento de documentos** (PDF, DOCX, Excel)
 - **Suporte completo a áudio** (Speech-to-Text e Text-to-Speech)
+- **Vision (Multimodal)** para análise de imagens e capturas de câmera
 - **Chain of Thought** para transparência no raciocínio
 
 ## 📋 Status do Projeto
@@ -26,8 +27,11 @@ O Treq é um assistente operacional desenvolvido para a Sotreq, combinando:
 | **Document Processing** | ✅ Completo (MVP) | PDF e Excel (nativo), conversão para Markdown |
 | **Upload de Documentos** | ✅ Completo | Frontend integrado com backend |
 | **Audio STT/TTS** | ✅ Completo | Groq Whisper + Google Gemini TTS |
+| **Vision & Multimodal** | ✅ Completo | Captura de câmera, análise de imagens (OCR + Tabelas) |
 | **Tools** | ✅ Completo | Metrics, Procedures, Status |
-| **Frontend Completo** | ✅ Completo | Next.js 15, streaming, CoT, upload |
+| **Observabilidade** | ✅ Completo | Tracing end-to-end com LangSmith |
+| **Feedback Loop** | ✅ Completo | Botões 👍/👎 para melhoria contínua |
+| **Frontend Completo** | ✅ Completo | Next.js 15, UX Premium, Captura Vision |
 
 ### ⚠️ Pendências
 
@@ -35,9 +39,7 @@ O Treq é um assistente operacional desenvolvido para a Sotreq, combinando:
 |----------------|------------|--------|
 | **Deploy** | Alta | Pendente |
 | **Lógica específica de métricas** | Alta | Placeholder implementado |
-| **Rate limiting** | Média | Não implementado |
 | **Autenticação** | Média | Não implementado |
-| **OCR para PDFs escaneados** | Baixa | Documentado como limitação MVP |
 | **Suporte DOCX/PPTX** | Baixa | Não suportado no MVP |
 
 ## 🏗️ Arquitetura
@@ -87,8 +89,8 @@ pip install -r requirements.txt
 # Configurar .env (copiar de .env.example)
 # Preencher: GROQ_API_KEY, GEMINI_API_KEY, SUPABASE_URL, etc.
 
-# Rodar servidor
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# Rodar servidor (Porta 8002 recomendada para Vision)
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8002
 ```
 
 ### Frontend
@@ -99,8 +101,8 @@ cd treq/frontend
 # Instalar dependências
 npm install
 
-# Configurar .env.local
-# NEXT_PUBLIC_API_URL=http://localhost:8000
+# Configurar .env.local (GPS de conexão)
+NEXT_PUBLIC_API_URL=http://localhost:8002
 
 # Rodar servidor
 npm run dev
@@ -202,6 +204,13 @@ O assistente usa Chain of Thought para respostas transparentes:
 3. Geração de embeddings
 4. Indexação no Supabase (pgvector)
 
+## 📊 Observabilidade e Monitoramento (LangSmith)
+
+O Treq integra **LangSmith** para observabilidade total:
+- **Tracing Completo:** Acompanhe o ciclo de vida de cada query (Retrieval → Reasoning → Generation → Validation).
+- **Métricas de Token/Custo:** Monitoramento em tempo real do consumo de APIs.
+- **Debugging de Alucinações:** Visualize o comportamento do *Grounding Validator* para cada resposta.
+- **Feedback Loop:** Coleta de 👍/👎 dos usuários integrada ao dashboard para melhoria do RAG.
 ## 🎤 Áudio
 
 ### Speech-to-Text (STT)

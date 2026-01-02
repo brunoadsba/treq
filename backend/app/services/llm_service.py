@@ -19,6 +19,7 @@ from app.services.llm_clients import (
 )
 from app.utils.debug import trace_generator
 from app.utils.technical_term_filter import filter_technical_terms
+from app.core.tracing import tracing_metrics, trace_llm_call
 
 # Importar Zhipu AI SDK (pode não estar instalado inicialmente)
 try:
@@ -73,6 +74,7 @@ class LLMService:
         self.temperature = settings.llm_temperature  # Usar temperatura do config (0.4)
         self.max_tokens = settings.llm_max_tokens  # Usar max_tokens do config (800) para respostas completas
     
+    @trace_llm_call(name="llm_generate_non_stream")
     def _generate_response_non_stream(
         self,
         messages: List[Dict[str, str]],
@@ -168,6 +170,17 @@ class LLMService:
                 content = filter_technical_terms(content)
                 
                 elapsed = time.time() - start_time
+                elapsed_ms = elapsed * 1000
+                
+                # Registrar métricas para observabilidade
+                tracing_metrics.log_llm_call(
+                    model=selected_model,
+                    prompt_tokens=len(str(messages)) // 4,  # Estimativa aproximada
+                    completion_tokens=len(content) // 4,
+                    latency_ms=elapsed_ms,
+                    success=True
+                )
+                
                 logger.debug(f"Resposta LLM gerada: {len(content)} caracteres (tempo: {elapsed:.2f}s)")
                 return content
             
@@ -177,6 +190,7 @@ class LLMService:
             logger.error(traceback.format_exc())
             raise
     
+    @trace_llm_call(name="llm_generate_stream")
     @trace_generator("Response_Stream")
     def _generate_response_stream(
         self,
@@ -243,6 +257,7 @@ class LLMService:
                 logger.error(f"❌ Fallback falhou: {fallback_error}")
                 yield f"Erro ao gerar resposta: {str(e)}"
     
+    @trace_llm_call(name="llm_service_main", run_type="chain")
     def generate_response(
         self,
         messages: List[Dict[str, str]],
@@ -349,17 +364,16 @@ class LLMService:
         logger.debug(f"Usando prompt do tipo: {query_type} (histórico: {len(conversation_history) if conversation_history else 0} mensagens)")
         
         # Ajustar max_tokens por tipo de query
-        # Usar valores adequados para garantir respostas completas
+        # Usar None para respeitar o valor definido no .env (LLM_MAX_TOKENS)
+        # Overrides hardcoded anteriores (1500/2000) estavam cortando respostas longas.
         max_tokens_override = None
-        if query_type == "status":
-            # Status pode ser mais conciso, mas ainda precisa ser completo
-            max_tokens_override = 600  # Aumentado de 250 para permitir respostas completas
-        elif query_type == "consultoria":
-            # Consultorias precisam de mais espaço para análises detalhadas
-            max_tokens_override = 2000  # Aumentado para análises completas
-        elif query_type in ["procedimento", "metrica_temporal"]:
-            # Procedimentos e métricas podem ser longos
-            max_tokens_override = 1500  # Espaço adequado para respostas completas
+        
+        # if query_type == "status":
+        #     max_tokens_override = 600
+        # elif query_type == "consultoria":
+        #     max_tokens_override = 2000
+        # elif query_type in ["procedimento", "metrica_temporal"]:
+        #     max_tokens_override = 1500
         
         # Construir mensagens com formato melhorado
         messages = [

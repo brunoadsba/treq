@@ -56,18 +56,26 @@ execucao/
 Docs/
 
 # Scripts auxiliares de desenvolvimento
+scripts/
 backend/scripts/
 frontend/scripts/
+*.sh
 
-# Dados de desenvolvimento/testes
+# Dados de desenvolvimento e arquivos de testes
 backend/data/
 frontend/public/test-data/
+tests/
+__tests__/
+backend/tests/
+frontend/tests/
+backend/api/
 
 # Análises e documentação técnica
 *.md
 !README.md
 !backend/README.md
 !frontend/README.md
+!Docs/README.md
 
 # ============================================
 # Build e Cache
@@ -116,3 +124,4 @@ secrets/
 *.sqlite
 *.sqlite3
 
+venv/

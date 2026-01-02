@@ -31,6 +31,14 @@ except ImportError:
     OCR_AVAILABLE = False
     OCRService = None
 
+# Importar Multimodal Service (Vision Advanced)
+try:
+    from src.features.vision.multimodal_service import multimodal_service
+    VISION_AVAILABLE = True
+except ImportError:
+    VISION_AVAILABLE = False
+    multimodal_service = None
+
 # Verificar disponibilidade de bibliotecas
 try:
     import PyPDF2
@@ -71,7 +79,21 @@ class DocumentConverterService:
         Args:
             enable_ocr: Se True, tenta usar OCR para PDFs escaneados (requer bibliotecas)
         """
-        """Inicializa o conversor de documentos."""
+        # Inicializar OCR Service se solicitado e disponível
+        self.enable_ocr = enable_ocr and OCR_AVAILABLE
+        self.ocr_service = None
+        if self.enable_ocr:
+            try:
+                self.ocr_service = OCRService()
+                if self.ocr_service.is_ocr_available():
+                    logger.info("✅ OCR habilitado para PDFs escaneados e imagens")
+                else:
+                    logger.warning("OCR solicitado mas não disponível (bibliotecas faltando)")
+                    self.enable_ocr = False
+            except Exception as e:
+                logger.warning(f"Erro ao inicializar OCR: {e}")
+                self.enable_ocr = False
+
         supported_formats = []
         
         if PYPDF2_AVAILABLE:
@@ -83,7 +105,9 @@ class DocumentConverterService:
         if PPTX_AVAILABLE:
             supported_formats.append("PPTX")
         if self.enable_ocr and self.ocr_service and self.ocr_service.is_ocr_available():
-            supported_formats.append("Imagens (JPEG/PNG/GIF/BMP/TIFF/WEBP)")
+            supported_formats.append("Imagens (OCR)")
+        if VISION_AVAILABLE:
+            supported_formats.append("Visão Multimodal (Gemini 1.5 Pro)")
         
         if supported_formats:
             logger.info(f"✅ DocumentConverterService inicializado - Formatos suportados: {', '.join(supported_formats)}")
@@ -99,23 +123,8 @@ class DocumentConverterService:
             logger.warning("DOCX não disponível - python-docx não instalado")
         if not PPTX_AVAILABLE:
             logger.warning("PPTX não disponível - python-pptx não instalado")
-        
-        # Inicializar OCR Service se solicitado e disponível
-        self.enable_ocr = enable_ocr and OCR_AVAILABLE
-        self.ocr_service = None
-        if self.enable_ocr:
-            try:
-                self.ocr_service = OCRService()
-                if self.ocr_service.is_ocr_available():
-                    logger.info("✅ OCR habilitado para PDFs escaneados e imagens")
-                else:
-                    logger.warning("OCR solicitado mas não disponível (bibliotecas faltando)")
-                    self.enable_ocr = False
-            except Exception as e:
-                logger.warning(f"Erro ao inicializar OCR: {e}")
-                self.enable_ocr = False
     
-    def convert_file(self, file_path: str) -> Optional[str]:
+    async def convert_file(self, file_path: str) -> Optional[str]:
         """
         Converte arquivo do sistema de arquivos para Markdown.
         
@@ -151,7 +160,7 @@ class DocumentConverterService:
         logger.warning(f"Formato {suffix} não suportado no MVP (apenas PDF texto nativo e Excel)")
         return None
     
-    def convert_bytes(self, file_content: bytes, filename: str) -> Optional[str]:
+    async def convert_bytes(self, file_content: bytes, filename: str) -> Optional[str]:
         """
         Converte arquivo a partir de bytes (para upload) para Markdown.
         
@@ -203,8 +212,13 @@ class DocumentConverterService:
         
         # Imagens (JPEG, PNG, GIF, BMP, TIFF, WEBP)
         if suffix in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.tif', '.webp']:
+            # Prioridade 1: Visão Multimodal (Gemini)
+            if VISION_AVAILABLE and multimodal_service:
+                return await self.convert_image_via_vision(file_content, filename)
+            
+            # Prioridade 2: OCR padrão
             if not self.enable_ocr or not self.ocr_service:
-                logger.error("Imagens não suportadas - OCR não habilitado ou não disponível")
+                logger.error("Imagens não suportadas - OCR não habilitado e Visão não disponível")
                 return None
             return self.convert_image_to_markdown(file_content, filename)
         
@@ -361,6 +375,81 @@ class DocumentConverterService:
             logger.error(f"Erro ao converter imagem '{filename}': {e}")
             import traceback
             logger.error(traceback.format_exc())
+            return None
+
+    async def convert_image_via_vision(self, image_bytes: bytes, filename: str) -> Optional[str]:
+        """
+        Converte imagem para Markdown usando Visão Multimodal Avançada (Gemini).
+        """
+        if not VISION_AVAILABLE or not multimodal_service:
+            return None
+
+        try:
+            logger.info(f"Usando Gemini Vision para processar: {filename}")
+            
+            # Obter descrição e análise estruturada
+            description = await multimodal_service.describe_image(image_bytes)
+            analysis = await multimodal_service.analyze_document_page(image_bytes)
+
+            # Montar Markdown rico
+            md = [
+                f"## Análise Visual de {filename}",
+                f"**Descrição:** {description}\n",
+            ]
+
+            if analysis:
+                if "summary" in analysis:
+                    md.append(f"### Resumo Analítico\n{analysis['summary']}\n")
+                if "tables" in analysis and analysis["tables"]:
+                    md.append("### Dados Extraídos (Tabelas)")
+                    for i, table in enumerate(analysis["tables"], 1):
+                        md.append(f"#### Tabela {i}")
+                        if isinstance(table, list) and len(table) > 0:
+                            # Tabela pode ser lista de listas ou lista de dicts
+                            if isinstance(table[0], dict):
+                                # Lista de dicionários
+                                all_keys = []
+                                for row in table:
+                                    if isinstance(row, dict):
+                                        for k in row.keys():
+                                            if k not in all_keys:
+                                                all_keys.append(k)
+                                
+                                if all_keys:
+                                    md.append("| " + " | ".join(all_keys) + " |")
+                                    md.append("| " + " | ".join(["---"] * len(all_keys)) + " |")
+                                    for row in table:
+                                        if isinstance(row, dict):
+                                            vals = [str(row.get(k, "")) for k in all_keys]
+                                            md.append("| " + " | ".join(vals) + " |")
+                            elif isinstance(table[0], list):
+                                # Lista de listas (row-based)
+                                for row_idx, row in enumerate(table):
+                                    md.append("| " + " | ".join(str(cell) for cell in row) + " |")
+                                    if row_idx == 0: # Header
+                                        md.append("| " + " | ".join(["---"] * len(row)) + " |")
+                        else:
+                            md.append(str(table))
+                        md.append("")
+                if "charts" in analysis and analysis["charts"]:
+                    md.append(f"### Insights de Gráficos\n{str(analysis['charts'])}\n")
+                if "alerts" in analysis and analysis["alerts"]:
+                    md.append(f"### ⚠️ Alertas e Pontos Críticos")
+                    if isinstance(analysis["alerts"], list):
+                        for alert in analysis["alerts"]:
+                            md.append(f"- {alert}")
+                    else:
+                        md.append(str(analysis["alerts"]))
+                    md.append("")
+
+            return "\n".join(md)
+
+        except Exception as e:
+            logger.error(f"Erro ao processar imagem via Vision: {e}")
+            # Fallback para OCR tradicional se disponível
+            if self.enable_ocr and self.ocr_service:
+                logger.info("Tentando fallback para OCR tradicional...")
+                return self.convert_image_to_markdown(image_bytes, filename)
             return None
     
     def _table_to_markdown(self, table) -> str:

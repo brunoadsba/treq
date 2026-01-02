@@ -47,7 +47,7 @@ def get_initial_consultoria_response() -> str:
         str: Pergunta inicial interativa
     """
     return (
-        "Olá! Sou o Consultor de Operações da Treq. "
+        "Olá! Sou o Assistente Operacional da Treq. "
         "Em que posso ajudar você hoje?\n\n"
         "Posso ajudar com:\n"
         "• Análise de problemas operacionais\n"

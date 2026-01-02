@@ -1,21 +1,21 @@
 "use client";
 
-import { useChat } from "../hooks/useChat";
-import { Header } from "../components/Header";
-import { MessageList } from "../components/MessageList";
-import { InputArea } from "../components/InputArea";
-import { QuickActions } from "../components/QuickActions";
-import { Toast } from "../components/Toast";
-import { ConversationHistory } from "../components/ConversationHistory";
-import { useToast } from "../hooks/useToast";
+import { useChat } from "@/hooks/useChat";
+import { Header } from "@/components/Header";
+import { MessageList } from "@/components/MessageList";
+import { InputArea } from "@/components/InputArea";
+import { QuickActions } from "@/components/QuickActions";
+import { Toast } from "@/components/Toast";
+import { ConversationHistory } from "@/components/ConversationHistory";
+import { useToast } from "@/hooks/useToast";
 import { useEffect, useState } from "react";
 
 export default function ChatPage() {
-  const { 
-    messages, 
-    isLoading, 
-    error, 
-    sendMessage, 
+  const {
+    messages,
+    isLoading,
+    error,
+    sendMessage,
     conversationId,
     currentConversationId,
     startNewConversation,
@@ -43,16 +43,16 @@ export default function ChatPage() {
       // QuickActions com supportsVisualization: true são: alertas, status-recife, status-salvador
       // Também detectar query de dashboard que deve gerar gráficos
       const isDashboardQuery = message.toLowerCase().includes("status detalhado de todas as unidades") ||
-                               message.toLowerCase().includes("status de todas as unidades");
-      
-      const supportsVisualization = actionId ? 
-        (actionId === "alertas" || actionId === "status-recife" || actionId === "status-salvador") : 
+        message.toLowerCase().includes("status de todas as unidades");
+
+      const supportsVisualization = actionId ?
+        (actionId === "alertas" || actionId === "status-recife" || actionId === "status-salvador") :
         false;
-      
+
       // Se for query de dashboard, tratar como visualização de alertas (gráfico geral)
       const visualization = supportsVisualization || isDashboardQuery;
       const finalActionId = isDashboardQuery ? "alertas" : actionId;
-      
+
       await sendMessage(
         message,
         undefined,  // context
@@ -133,45 +133,48 @@ export default function ChatPage() {
   };
 
   return (
-    <div 
-      className="flex flex-col h-screen overflow-hidden bg-treq-gray-50" 
-      role="main" 
+    <div
+      className="flex flex-col h-screen overflow-hidden bg-treq-gray-50"
+      role="main"
       aria-label="Chat do Assistente Operacional Treq"
       style={{ maxHeight: '100vh', height: '100vh' }}
     >
-      <Header 
+      <Header
         hasMessages={messages.length > 0}
         onNewConversation={handleNewConversation}
         onShowHistory={handleShowHistory}
         onExportConversation={handleExportConversation}
       />
-      
+
       <div className="mt-0 flex-shrink-0">
-        <QuickActions 
-          onActionClick={(query, actionId) => handleSendMessage(query, actionId)} 
-          disabled={isLoading} 
+        <QuickActions
+          onActionClick={(query, actionId) => handleSendMessage(query, actionId)}
+          disabled={isLoading}
         />
       </div>
-      
+
       <div className="flex-1 min-h-0 overflow-hidden">
-        <MessageList messages={messages} isLoading={isLoading} />
+        <MessageList
+          messages={messages}
+          isLoading={isLoading}
+        />
       </div>
-      
+
       <div className="flex-shrink-0">
-        <InputArea 
-        onSend={handleSendMessage} 
-        isLoading={isLoading}
-        conversationId={conversationId || undefined}
-        onDocumentUploaded={(fileName, chunksIndexed) => {
-          showToast(
-            `Documento "${fileName}" enviado com sucesso! ${chunksIndexed} chunks indexados.`,
-            "success"
-          );
-        }}
-        onDocumentUploadError={(error) => {
-          showToast(`Erro ao enviar documento: ${error}`, "error");
-        }}
-      />
+        <InputArea
+          onSend={handleSendMessage}
+          isLoading={isLoading}
+          conversationId={conversationId || undefined}
+          onDocumentUploaded={(fileName, chunksIndexed) => {
+            showToast(
+              `Documento "${fileName}" enviado com sucesso! ${chunksIndexed} chunks indexados.`,
+              "success"
+            );
+          }}
+          onDocumentUploadError={(error) => {
+            showToast(`Erro ao enviar documento: ${error}`, "error");
+          }}
+        />
       </div>
 
       {/* Histórico de Conversas */}

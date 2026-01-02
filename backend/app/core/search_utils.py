@@ -4,6 +4,7 @@ Utilitários para busca RAG com threshold adaptativo e fallback.
 from typing import Dict, Any, Optional, List
 from loguru import logger
 from app.core.rag_service import RAGService
+from app.core.tracing import trace_rag_pipeline
 
 
 def get_adaptive_threshold(query_type: str, corpus_size: int = 45) -> float:
@@ -149,3 +150,117 @@ def search_with_fallback(
     
     return final_results, 0.20
 
+
+@trace_rag_pipeline(name="hybrid_search_with_fallback")
+def search_hybrid_with_fallback(
+    query: str,
+    query_type: str,
+    rag_service: RAGService,
+    top_k: int = 5,
+    min_docs: int = 2,
+    filters: Optional[Dict[str, Any]] = None
+) -> tuple[list[dict], float, str]:
+    """
+    Busca híbrida (vetorial + keyword) com fallback automático.
+    
+    Melhor para termos exatos como códigos de erro, nomes de peças, etc.
+    
+    Args:
+        query: Query do usuário
+        query_type: Tipo da query
+        rag_service: Instância do RAGService
+        top_k: Número máximo de documentos
+        min_docs: Número mínimo de documentos desejados
+        filters: Filtros opcionais de metadata
+    
+    Returns:
+        tuple: (lista de documentos, threshold utilizado, tipo de busca)
+    """
+    initial_threshold = get_adaptive_threshold(query_type)
+    
+    logger.info(f"Iniciando busca híbrida para query_type: {query_type}")
+    
+    # Tentar busca híbrida primeiro
+    try:
+        results = rag_service.search_hybrid(
+            query=query,
+            top_k=top_k,
+            similarity_threshold=initial_threshold,
+            filters=filters
+        )
+        
+        if len(results) >= min_docs:
+            logger.info(f"✅ Busca híbrida bem-sucedida: {len(results)} docs")
+            return results, initial_threshold, "hybrid"
+        
+        # Se não encontrou docs suficientes, tentar com threshold menor
+        if len(results) < min_docs:
+            lower_threshold = max(0.20, initial_threshold - 0.10)
+            results = rag_service.search_hybrid(
+                query=query,
+                top_k=top_k,
+                similarity_threshold=lower_threshold,
+                filters=filters
+            )
+            
+            if len(results) >= min_docs:
+                logger.info(f"✅ Busca híbrida com threshold reduzido: {len(results)} docs")
+                return results, lower_threshold, "hybrid"
+        
+        # Se ainda não encontrou, retornar o que temos
+        if results:
+            logger.info(f"⚠️ Busca híbrida retornou {len(results)} docs (menos que min_docs)")
+            return results, initial_threshold, "hybrid"
+            
+    except Exception as e:
+        logger.warning(f"Erro na busca híbrida, usando fallback vetorial: {e}")
+    
+    # Fallback para busca vetorial padrão
+    results, threshold = search_with_fallback(
+        query=query,
+        query_type=query_type,
+        rag_service=rag_service,
+        top_k=top_k,
+        min_docs=min_docs,
+        filters=filters
+    )
+    
+    return results, threshold, "vector"
+
+
+def should_use_hybrid_search(query: str) -> bool:
+    """
+    Determina se a query deve usar busca híbrida.
+    
+    Híbrida é melhor para:
+    - Códigos de erro (ex: "ERR-001", "E404")
+    - Nomes técnicos (ex: "Parafuso Allen M5")
+    - Siglas e abreviações
+    - Queries curtas e específicas
+    
+    Args:
+        query: Query do usuário
+        
+    Returns:
+        bool: True se deve usar híbrida
+    """
+    import re
+    
+    # Padrões que indicam necessidade de busca exata
+    patterns = [
+        r'\b[A-Z]{2,5}-?\d{2,5}\b',  # Códigos como ERR-001, E404
+        r'\b\d+[A-Za-z]+\b',  # Códigos alfanuméricos como 5W30, M5
+        r'\b[A-Z]{2,}\b',  # Siglas em maiúsculo
+    ]
+    
+    for pattern in patterns:
+        if re.search(pattern, query):
+            logger.debug(f"Query contém padrão para busca híbrida: {pattern}")
+            return True
+    
+    # Queries muito curtas (1-3 palavras) beneficiam de busca híbrida
+    word_count = len(query.split())
+    if word_count <= 3:
+        return True
+    
+    return False

@@ -188,7 +188,7 @@ async def upload_document(
         
         # Converter para Markdown
         logger.info("Convertendo documento para Markdown...")
-        markdown_content = converter.convert_bytes(file_content, file.filename)
+        markdown_content = await converter.convert_bytes(file_content, file.filename)
         
         if not markdown_content:
             raise HTTPException(
@@ -215,12 +215,22 @@ async def upload_document(
         
         logger.info(f"Documento dividido em {len(chunks)} chunks")
         
+        # Prevenção: Limpar versões anteriores do mesmo arquivo antes de indexar a nova
+        # Isso evita redundância (mesmo documento indexado n vezes)
+        logger.info(f"Limpando chunks antigos para prevenir redundância: {file.filename}")
+        deleted_count = rag.delete_by_source(file.filename)
+        if deleted_count > 0:
+            logger.info(f"Substituindo versão anterior: {deleted_count} chunks removidos")
+        
         # Indexar chunks no RAG
         indexed_count, failed_count = index_document_chunks(
             chunks,
             base_metadata,
             rag
         )
+        
+        # Limpar cache de busca RAG para garantir que novas queries vejam os novos dados
+        rag.clear_cache()
         
         # Resposta
         if indexed_count == 0:

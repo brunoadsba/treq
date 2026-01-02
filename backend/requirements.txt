@@ -1,55 +1,95 @@
-# Core
-fastapi>=0.104.0,<0.105.0
-uvicorn[standard]>=0.24.0,<0.25.0
-pydantic>=2.7.0,<3.0.0  # Breaking changes entre v2 e v3
-pydantic-settings>=2.1.0,<3.0.0
+# =============================================================================
+# TREQ Backend - Dependências Python
+# =============================================================================
+# Versão: 1.1.0
+# Atualizado: Janeiro 2026
+# =============================================================================
 
-# Database
-supabase>=2.27.0,<3.0.0  # Versão compatível com httpx 0.27.x
-pgvector>=0.2.0,<0.3.0
-psycopg2-binary>=2.9.0,<3.0.0
+# -----------------------------------------------------------------------------
+# Core Framework
+# -----------------------------------------------------------------------------
+fastapi>=0.109.0,<1.0.0        # Web framework assíncrono
+uvicorn[standard]>=0.27.0       # ASGI server
+pydantic>=2.7.0,<3.0.0          # Validação de dados (breaking changes em v3)
+pydantic-settings>=2.1.0,<3.0.0 # Configurações via ambiente
 
-# Embeddings e RAG
-sentence-transformers>=2.2.0,<3.0.0
-langchain>=0.3.27,<0.4.0  # Pode ter breaking changes entre versões menores
-langchain-community>=0.3.27,<0.4.0
+# -----------------------------------------------------------------------------
+# Database & Vector Store
+# -----------------------------------------------------------------------------
+supabase>=2.27.0,<3.0.0         # Cliente Supabase (PostgreSQL)
+pgvector>=0.2.0,<0.4.0          # Extensão para vetores
+psycopg2-binary>=2.9.0,<3.0.0   # Driver PostgreSQL
 
-# LLM e APIs
-groq>=0.36.0,<1.0.0
-google-genai>=0.2.0,<1.0.0  # Nova biblioteca para Gemini (inclui TTS)
-# DEPENDÊNCIA OPCIONAL: Para usar GLM 4 (Zhipu AI), instale manualmente:
-# pip install "zai-sdk==0.3.1"
-# zai-sdk==0.3.1  # Versão testada e estável (descomente se necessário)
+# -----------------------------------------------------------------------------
+# Embeddings & RAG
+# -----------------------------------------------------------------------------
+sentence-transformers>=2.2.0,<4.0.0  # Modelos de embedding
+langchain>=0.3.27,<0.4.0             # Framework LLM
+langchain-community>=0.3.27,<0.4.0   # Integrações da comunidade
 
-# Utilitários
-python-dotenv>=1.0.0
+# -----------------------------------------------------------------------------
+# LLM & APIs
+# -----------------------------------------------------------------------------
+groq>=0.36.0,<1.0.0              # API Groq (Llama models + Whisper)
+google-generativeai>=0.5.0,<1.0.0 # Google Gemini (Vision/Multimodal)
+zai-sdk>=0.2.0,<1.0.0            # Zhipu AI (GLM 4)
 
-# Ferramentas de Desenvolvimento e Qualidade
-pytest>=8.0.0
-pytest-asyncio>=0.21.0
-ruff>=0.1.0
-bandit>=1.7.5
-requests>=2.31.0  # Para scripts de teste (test_sistema_completo.py)
-httpx>=0.26.0,<0.28.0  # Compatível com supabase 2.x (0.28.0+ tem breaking changes)
-loguru>=0.7.0
-slowapi>=0.1.0
-python-multipart>=0.0.6  # Necessário para UploadFile no FastAPI
-pybreaker>=1.0.0,<2.0.0  # Circuit breakers para serviços externos
+# -----------------------------------------------------------------------------
+# HTTP & Networking
+# -----------------------------------------------------------------------------
+httpx>=0.26.0,<0.28.0            # Cliente HTTP assíncrono (compatível com supabase)
+requests>=2.31.0                 # Cliente HTTP síncrono
 
-# Audio (se necessário)
-pydub>=0.25.0
+# -----------------------------------------------------------------------------
+# Utilities
+# -----------------------------------------------------------------------------
+python-dotenv>=1.0.0             # Carregamento de .env
+python-multipart>=0.0.6          # Upload de arquivos no FastAPI
+loguru>=0.7.0                    # Logging avançado
+slowapi>=0.1.0                   # Rate limiting
+pybreaker>=1.0.0,<2.0.0          # Circuit breakers
+PyYAML>=6.0                      # Leitura de YAML
+cachetools>=5.3.0                # Caching agressivo
+psutil>=5.9.0                    # System metrics
 
-# Document Processing (MVP 100% FREE - Fase 2)
-PyPDF2>=3.0.0      # Extração de texto de PDFs (texto nativo apenas)
-pdfplumber>=0.11.0 # Extração melhorada de PDFs com suporte a tabelas (opcional)
-openpyxl>=3.1.0    # Para leitura/escrita de Excel
-pandas>=2.0.0      # Para processamento de dados Excel
+# -----------------------------------------------------------------------------
+# Audio Processing
+# -----------------------------------------------------------------------------
+pydub>=0.25.0                    # Manipulação de áudio
 
-# Document Processing - DOCX/PPTX (Fase 2)
-python-docx>=1.1.0    # Para leitura de arquivos DOCX
-python-pptx>=0.6.23   # Para leitura de arquivos PPTX
+# -----------------------------------------------------------------------------
+# Document Processing
+# -----------------------------------------------------------------------------
+PyPDF2>=3.0.0                    # Extração de texto de PDFs
+pdfplumber>=0.11.0               # PDFs com suporte a tabelas
+openpyxl>=3.1.0                  # Leitura/escrita de Excel
+pandas>=2.0.0                    # Processamento de dados
+python-docx>=1.1.0               # Leitura de DOCX
+python-pptx>=0.6.23              # Leitura de PPTX
 
-# TODO FUTURO (quando necessário):
-# - OCR para PDFs escaneados: Google Document AI (1k páginas/mês free) ou solução paga
-# - OCR básico: pytesseract, pdf2image (requer Tesseract instalado no sistema)
+# -----------------------------------------------------------------------------
+# Development & Testing
+# -----------------------------------------------------------------------------
+pytest>=8.0.0                    # Framework de testes
+pytest-asyncio>=0.21.0           # Suporte async para pytest
+pytest-cov>=4.0.0                # Cobertura de código
+ruff>=0.1.0                      # Linter e formatter
+bandit>=1.7.5                    # Análise de segurança
 
+# =============================================================================
+# NOTAS PARA INSTALAÇÃO
+# =============================================================================
+# 
+# 1. Instalação padrão:
+#    pip install -r requirements.txt
+#
+# 2. Para usar GLM 4 (Zhipu AI), instale manualmente:
+#    pip install "zai-sdk>=0.3.1,<1.0.0"
+#
+# 3. Para OCR e Visão:
+pytesseract>=0.3.10
+pdf2image>=1.17.0
+Pillow>=10.0.0
+# (requer Tesseract e Poppler instalados no sistema)
+#
+# =============================================================================

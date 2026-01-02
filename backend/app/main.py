@@ -116,6 +116,25 @@ app.add_middleware(
 )
 
 
+# Startup Event - Pré-carregar modelo de embedding
+@app.on_event("startup")
+async def startup_event():
+    """
+    Pré-carrega recursos pesados no startup para evitar latência na primeira requisição.
+    """
+    logger.info("🚀 Iniciando pré-carregamento de recursos...")
+    
+    # Pré-carregar modelo de embedding (evita ~4s delay na primeira query RAG)
+    try:
+        from app.services.embedding_service import get_embedding_model
+        get_embedding_model()
+        logger.info("✅ Modelo de embedding pré-carregado")
+    except Exception as e:
+        logger.warning(f"⚠️ Falha ao pré-carregar modelo de embedding: {e}")
+    
+    logger.info("🚀 Servidor pronto para receber requisições")
+
+
 # Exception Handlers Globais (DEVE SER ANTES DOS ROUTERS)
 @app.exception_handler(RateLimitExceeded)
 async def rate_limit_exceeded_handler(request, exc: RateLimitExceeded):
@@ -176,6 +195,17 @@ async def root():
     }
 
 
+# Inicializar LangSmith (observabilidade)
+@app.on_event("startup")
+async def setup_observability():
+    """Configura observabilidade com LangSmith se disponível."""
+    try:
+        from app.core.langsmith_config import setup_langsmith
+        setup_langsmith()
+    except ImportError:
+        logger.info("LangSmith não disponível - observabilidade desabilitada")
+
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
@@ -183,11 +213,16 @@ async def health_check():
 
 
 # Incluir rotas
-from app.api.routes import chat, audio, documents, health
+from app.api.routes import chat, audio, documents, health, monitoring, feedback
+from src.features.vision.routes import router as vision_router
+
 app.include_router(chat.router)
 app.include_router(audio.router)
 app.include_router(documents.router)
 app.include_router(health.router)
+app.include_router(monitoring.router)
+app.include_router(feedback.router)
+app.include_router(vision_router)
 
 # Endpoint de teste para rate limiting (para diagnóstico)
 @app.get("/test-rate-limit")

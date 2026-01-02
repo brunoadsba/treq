@@ -4,7 +4,17 @@ Configurações da aplicação usando Pydantic Settings.
 from pydantic_settings import BaseSettings
 from pydantic import HttpUrl, Field
 from functools import lru_cache
+import os
+from dotenv import load_dotenv
 
+# Carregar variáveis do .env IMEDIATAMENTE para garantir que o LangSmith as veja
+load_dotenv()
+
+# Forçar injeção no ambiente para bibliotecas que leem direto do os.environ
+if os.getenv("LANGCHAIN_TRACING_V2", "").lower() == "true":
+    os.environ["LANGCHAIN_TRACING_V2"] = "true"
+    os.environ["LANGSMITH_API_KEY"] = os.getenv("LANGSMITH_API_KEY", "")
+    os.environ["LANGCHAIN_PROJECT"] = os.getenv("LANGCHAIN_PROJECT", "treq-assistente")
 
 class Settings(BaseSettings):
     """Configurações da aplicação."""
@@ -52,6 +62,11 @@ class Settings(BaseSettings):
     
     # Logging
     log_level: str = "INFO"
+    
+    # LangSmith Observability (opcional)
+    langsmith_api_key: str = ""
+    langchain_tracing_v2: str = "false"
+    langchain_project: str = "treq-assistente"
     
     class Config:
         env_file = ".env"

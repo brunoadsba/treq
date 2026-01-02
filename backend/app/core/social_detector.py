@@ -24,20 +24,29 @@ def detect_social_interaction(query: str) -> Optional[str]:
     if query_lower.startswith("consultoria:"):
         return None
     
-    # Cumprimentos
+    import re
+    
+    # Função auxiliar para busca exata de palavra/expressão
+    def has_exact(pattern_list, text):
+        for p in pattern_list:
+            # \b garante que seja uma palavra completa
+            if re.search(rf'\b{re.escape(p)}\b', text):
+                return True
+        return False
+
+    # 1. Cumprimentos
     greetings = [
-        "oi", "olá", "olá", "e aí", "hey", "hello",
-        "bom dia", "boa tarde", "boa noite",
-        "bom dia!", "boa tarde!", "boa noite!"
+        "oi", "olá", "e aí", "hey", "hello",
+        "bom dia", "boa tarde", "boa noite"
     ]
-    if any(greeting in query_lower for greeting in greetings):
+    if has_exact(greetings, query_lower):
         logger.info(f"Interação social detectada: cumprimento - '{query}'")
         return "Olá! Sou o Assistente Operacional da Treq. Como posso ajudar você hoje?"
     
-    # Perguntas sobre capacidades do assistente (análise de documentos, tipos de arquivo)
+    # 2. Perguntas sobre capacidades (análise de documentos)
     capability_keywords = [
         "arquivo", "documento", "pdf", "docx", "pptx", "excel", "xlsx",
-        "extrair", "ler", "le", "analisar", "processar", "aceitar",
+        "extrair", "ler", "analisar", "processar", "aceitar",
         "suporta", "trabalha com", "formato", "tipo de arquivo"
     ]
     capability_questions = [
@@ -47,14 +56,9 @@ def detect_social_interaction(query: str) -> Optional[str]:
         r"quais\s+(tipos|formatos)\s+(de\s+)?(arquivo|documento)",
         r"você\s+(aceita|suporta|trabalha\s+com)",
         r"(é|está)\s+capaz\s+(de|de\s+extrair|de\s+ler|de\s+analisar)",
-        r"capaz\s+(de|de\s+extrair|de\s+ler|de\s+analisar)",
     ]
     
-    import re
-    has_capability_keyword = any(keyword in query_lower for keyword in capability_keywords)
-    matches_capability_pattern = any(re.search(pattern, query_lower) for pattern in capability_questions)
-    
-    if has_capability_keyword or matches_capability_pattern:
+    if has_exact(capability_keywords, query_lower) or any(re.search(p, query_lower) for p in capability_questions):
         logger.info(f"Interação detectada: pergunta sobre capacidades - '{query}'")
         return (
             "Sim, consigo analisar arquivos PDF, DOCX, PPTX e Excel (.xlsx, .xls). "
@@ -62,55 +66,37 @@ def detect_social_interaction(query: str) -> Optional[str]:
             "Por favor, envie o arquivo usando o botão de anexo na interface e me diga qual informação específica você gostaria de extrair."
         )
     
-    # Perguntas sobre o assistente (genéricas)
+    # 3. Perguntas sobre o assistente
     about_assistant = [
         "qual seu nome", "quem é você", "o que você faz", "você é",
-        "qual é seu nome", "como você se chama", "quem é você",
-        "o que você pode fazer", "quais suas funções"
+        "como você se chama", "o que você pode fazer", "quais suas funções"
     ]
-    if any(phrase in query_lower for phrase in about_assistant):
+    if has_exact(about_assistant, query_lower):
         logger.info(f"Interação social detectada: pergunta sobre assistente - '{query}'")
         return (
             "Sou o Assistente Operacional da Treq. "
             "Posso ajudar com alertas operacionais, procedimentos, métricas e análise de causas. "
-            "Também consigo analisar documentos (PDF, DOCX, PPTX, Excel) para extrair informações operacionais. "
-            "O que você gostaria de saber?"
+            "Também consigo analisar documentos (PDF, DOCX, PPTX, Excel) para extrair informações operacionais."
         )
     
-    # Agradecimentos
-    thanks = [
-        "obrigado", "obrigada", "valeu", "agradeço",
-        "muito obrigado", "muito obrigada", "obrigado!", "obrigada!",
-        "agradeço muito", "valeu mesmo"
-    ]
-    if any(thanks_word in query_lower for thanks_word in thanks):
+    # 4. Agradecimentos
+    thanks = ["obrigado", "obrigada", "valeu", "agradeço"]
+    if has_exact(thanks, query_lower):
         logger.info(f"Interação social detectada: agradecimento - '{query}'")
         return "De nada! Estou aqui para ajudar. Precisa de mais alguma coisa?"
     
-    # Despedidas
-    farewells = [
-        "tchau", "até logo", "até mais", "até breve",
-        "falou", "flw", "bye", "até"
-    ]
-    if any(farewell in query_lower for farewell in farewells):
+    # 5. Despedidas
+    farewells = ["tchau", "até logo", "até mais", "até breve", "falou", "flw", "bye"]
+    if has_exact(farewells, query_lower):
         logger.info(f"Interação social detectada: despedida - '{query}'")
         return "Até logo! Se precisar de mais alguma coisa, estarei aqui."
     
-    # Perguntas genéricas de saúde/estado
-    how_are_you = [
-        "como vai", "tudo bem", "tudo bom", "como está",
-        "e aí", "beleza", "tranquilo"
-    ]
-    # Mas só se não mencionar operação/unidade (para não confundir com "como está a operação")
-    if any(phrase in query_lower for phrase in how_are_you):
-        # Verificar se não menciona contexto operacional
-        operational_context = [
-            "operação", "operacional", "unidade", "salvador", "recife",
-            "bahia", "pernambuco", "métrica", "alerta", "procedimento"
-        ]
-        if not any(context_word in query_lower for context_word in operational_context):
-            logger.info(f"Interação social detectada: pergunta genérica - '{query}'")
+    # 6. Estado/Saúde
+    how_are_you = ["como vai", "tudo bem", "tudo bom", "como está", "beleza", "tranquilo"]
+    if has_exact(how_are_you, query_lower):
+        operational_context = ["operação", "unidade", "métrica", "alerta", "procedimento"]
+        if not has_exact(operational_context, query_lower):
             return "Tudo bem, obrigado por perguntar! Como posso ajudar você hoje?"
     
-    return None  # Não é interação social, continuar com RAG
+    return None
 

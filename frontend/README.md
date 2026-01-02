@@ -20,30 +20,47 @@ cp .env.example .env.local
 npm run dev
 ```
 
-A aplicação estará disponível em: http://localhost:3000
+A aplicação estará disponível em: http://localhost:3000 (Certifique-se que o backend está na 8002)
 
 ## Estrutura
 
-- `app/` - App Router do Next.js 15
-  - `(chat)/` - Rotas do chat
-    - `page.tsx` - Página principal do chat
-  - `layout.tsx` - Layout raiz
-  - `globals.css` - Estilos globais
-- `components/` - Componentes React
-  - `Header.tsx` - Cabeçalho da aplicação
-  - `MessageList.tsx` - Lista de mensagens
-  - `MessageBubble.tsx` - Bolha de mensagem individual
-  - `FormattedMessage.tsx` - Renderização de markdown com suporte a CoT
-  - `InputArea.tsx` - Área de input com upload e áudio
-  - `QuickActions.tsx` - Ações rápidas (botões de ação)
-  - `Toast.tsx` - Sistema de notificações
-- `hooks/` - Custom hooks
-  - `useChat.ts` - Hook principal do chat (com streaming)
-  - `useTTS.ts` - Text-to-Speech
-  - `useAudioRecorder.ts` - Gravação de áudio
-  - `useAudioTranscription.ts` - Transcrição de áudio
-  - `useDocumentUpload.ts` - Upload de documentos
-  - `useToast.ts` - Gerenciamento de toasts
+```
+frontend/
+├── app/                        # App Router do Next.js 15
+│   ├── chat/                   # Rotas do chat
+│   │   └── page.tsx            # Página principal do chat
+│   ├── layout.tsx              # Layout raiz
+│   ├── page.tsx                # Redireciona para /chat
+│   └── globals.css             # Estilos globais
+├── src/features/               # Funcionalidades modulares
+│   └── vision/                 # Feature Vision (Câmera, OCR, Imagens)
+├── components/                 # Componentes React
+│   ├── Header.tsx              # Cabeçalho da aplicação
+│   ├── MessageList.tsx         # Lista de mensagens
+│   ├── MessageBubble.tsx       # Bolha de mensagem individual
+│   ├── FormattedMessage.tsx    # Renderização de markdown com CoT
+│   ├── InputArea.tsx           # Área de input com upload e áudio
+│   ├── QuickActions.tsx        # Ações rápidas (botões de ação)
+│   ├── ChartMessage.tsx        # Visualização de gráficos
+│   └── Toast.tsx               # Sistema de notificações
+├── hooks/                      # Custom hooks
+│   ├── useChat.ts              # Hook principal do chat (streaming)
+│   ├── useTTS.ts               # Text-to-Speech
+│   ├── useAudioRecorder.ts     # Gravação de áudio
+│   ├── useAudioTranscription.ts # Transcrição de áudio
+│   ├── useDocumentUpload.ts    # Upload de documentos
+│   ├── useTheme.ts             # Gerenciamento de tema
+│   ├── useHighContrast.ts      # Modo alto contraste
+│   └── useToast.ts             # Gerenciamento de toasts
+├── lib/                        # Utilitários
+│   ├── api.ts                  # Cliente de API
+│   └── supabase.ts             # Cliente Supabase
+├── design-system/              # Sistema de design
+│   ├── components/             # Componentes base
+│   └── tokens/                 # Design tokens
+└── package.json                # Dependências npm
+```
+
 
 ## Funcionalidades Principais
 
@@ -57,11 +74,11 @@ A aplicação estará disponível em: http://localhost:3000
 - **Seção colapsável:** Pensamento do assistente pode ser expandido/recolhido
 - **Visual discreto:** Pensamento em seção cinza, resposta formatada normalmente
 
-### 3. Upload de Documentos
-- **Botão de anexar:** Ícone de clipe na área de input
-- **Formatos suportados:** PDF, DOCX, PPTX, Excel (.xlsx, .xls)
-- **Feedback visual:** Toasts de sucesso/erro
-- **Upload automático:** Inicia ao selecionar arquivo
+### 3. Vision & Upload de Documentos
+- **Captura de Câmera:** Botão de câmera com interface premium e guias de enquadramento
+- **Formatos suportados:** PDF, DOCX, PPTX, Excel, JPG, PNG, WEBP
+- **Análise Multimodal:** Extração de tabelas e leitura inteligente de imagens via Gemini Vision
+- **Feedback visual:** Toasts de sucesso/erro e efeito de flash na captura
 
 ### 4. Áudio
 - **Gravação:** Botão de microfone para gravar áudio
@@ -85,8 +102,8 @@ A aplicação estará disponível em: http://localhost:3000
 ## Variáveis de Ambiente
 
 ```bash
-# Backend API URL
-NEXT_PUBLIC_API_URL=http://localhost:8000
+# Backend API URL (Obrigatório para Vision e Chat)
+NEXT_PUBLIC_API_URL=http://localhost:8002
 ```
 
 ## Componentes Principais
