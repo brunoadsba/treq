@@ -5,6 +5,7 @@ import json
 from app.services.llm_service import LLMService
 from app.core.context_manager import ContextManager
 from app.core.consultant_validator import validate_consultant_response, assess_response_quality
+from app.core.tracing import trace_llm_call
 from app.utils.stream_validator import StreamValidator
 from app.api.routes.chat_helpers import build_llm_messages
 from app.utils.technical_term_filter import (
@@ -110,7 +111,8 @@ def generate_stream_response(
     sources: List[Dict[str, Any]],
     strategy: str,
     sanitized_message: str,
-    cot_plan: Optional[Dict[str, Any]] = None
+    cot_plan: Optional[Dict[str, Any]] = None,
+    run_id: Optional[str] = None
 ):
     """
     Generator para streaming de respostas via SSE.
@@ -166,10 +168,11 @@ def generate_stream_response(
             
             # Enviar evento de reasoning (CoT) inicial se disponível
             if cot_plan:
-                yield f"data: {json.dumps({'type': 'reasoning', 'plan': cot_plan, 'done': False})}\n\n"
+                yield f"data: {json.dumps({'type': 'reasoning', 'plan': cot_plan, 'run_id': run_id, 'done': False})}\n\n"
             
             # Criar filtro de streaming que acumula chunks parcialmente
-            stream_filter = StreamingTermFilter(buffer_size=15)
+            # Buffer aumentado de 15 para 25 para capturar termos compostos e corrompidos (ex: SLazo)
+            stream_filter = StreamingTermFilter(buffer_size=25)
             
             # Loop SSE com tratamento de erros melhorado
             try:
@@ -304,7 +307,8 @@ def generate_stream_response(
                 "sources": sources,
                 "strategy": strategy,
                 "tool_data": tool_result.data if tool_result and tool_result.success else None,
-                "reasoning": cot_plan
+                "reasoning": cot_plan,
+                "run_id": run_id
             }
             logger.info(f"📤 Enviando evento final (done=True)")
             yield f"data: {json.dumps(final_data)}\n\n"

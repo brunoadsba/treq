@@ -28,43 +28,68 @@ class FeedbackResponse(BaseModel):
 @router.post("/", response_model=FeedbackResponse)
 async def submit_feedback(request: FeedbackRequest):
     """
-    Recebe feedback do usuário sobre uma resposta.
+    Recebe feedback do usuário e integra com LangSmith e Supabase.
     
-    Conforme plano chat-inteligente.md:
-    "Implemente um botão de Feedback (Gostei / Não Gostei) em cada mensagem.
-    Isso será crucial para a Fase 4 (Otimização e Monitoramento)."
+    BEST PRACTICE 2026:
+    - Persistência local no Supabase para dashboards rápidos.
+    - Sincronização com LangSmith para análise de engenharia de prompt.
     """
     try:
-        # Log estruturado para análise futura
+        from app.services.supabase_service import get_supabase_client
+        from app.core.langsmith_config import get_langsmith_client
+        
+        # 1. Preparar dados
+        score = 1.0 if request.feedback_type == "positive" else 0.0
         feedback_data = {
-            "message_id": request.message_id,
+            "run_id": request.message_id,
             "feedback_type": request.feedback_type,
-            "timestamp": request.timestamp or datetime.now().isoformat(),
+            "score": score,
             "comment": request.comment,
+            "metadata": {
+                "source": "frontend_ui",
+                "v": "2026.1"
+            },
+            "created_at": request.timestamp or datetime.now().isoformat()
         }
         
-        if request.feedback_type == "positive":
-            logger.info(
-                f"[FEEDBACK_POSITIVE] 👍 Resposta aprovada | "
-                f"message_id: {request.message_id}"
-            )
-        else:
-            logger.warning(
-                f"[FEEDBACK_NEGATIVE] 👎 Resposta reprovada | "
-                f"message_id: {request.message_id} | "
-                f"comment: {request.comment or 'Sem comentário'}"
-            )
+        # 2. Salvar no Supabase (Persistência Principal)
+        try:
+            supabase = get_supabase_client()
+            supabase.table('feedbacks').insert(feedback_data).execute()
+            logger.info(f"✅ Feedback salvo no Supabase (ID de Run: {request.message_id})")
+        except Exception as db_err:
+            logger.error(f"Erro ao salvar no Supabase: {db_err}")
+            # Continuamos para tentar o LangSmith mesmo se o DB local falhar
         
-        # TODO: Futuramente, salvar no banco de dados para análise
-        # await save_feedback_to_database(feedback_data)
-        
+        # 3. Sincronizar com LangSmith (Observabilidade)
+        if request.message_id:
+            try:
+                ls_client = get_langsmith_client()
+                if ls_client:
+                    # Enviar com chave específica e chave genérica para garantir visibilidade nos dashboards
+                    ls_client.create_feedback(
+                        run_id=request.message_id,
+                        key="user-score",
+                        score=score,
+                        comment=request.comment
+                    )
+                    ls_client.create_feedback(
+                        run_id=request.message_id,
+                        key="score",
+                        score=score,
+                        comment=request.comment
+                    )
+                    logger.info(f"🚀 Feedback sincronizado com LangSmith (ID: {request.message_id})")
+            except Exception as ls_err:
+                logger.error(f"Erro ao conectar com LangSmith: {ls_err}")
+
         return FeedbackResponse(
             success=True,
-            message="Feedback registrado com sucesso"
+            message="Feedback registrado com sucesso em todos os sistemas"
         )
         
     except Exception as e:
-        logger.error(f"Erro ao registrar feedback: {e}")
+        logger.error(f"Erro crítico no processamento de feedback: {e}")
         return FeedbackResponse(
             success=False,
             message="Erro ao registrar feedback"

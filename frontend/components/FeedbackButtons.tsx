@@ -19,93 +19,125 @@ interface FeedbackButtonsProps {
 export function FeedbackButtons({ messageId, onFeedback, className = "" }: FeedbackButtonsProps) {
     const [feedback, setFeedback] = useState<"positive" | "negative" | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showComment, setShowComment] = useState(false);
+    const [comment, setComment] = useState("");
 
     const handleFeedback = async (type: "positive" | "negative") => {
-        if (feedback || isSubmitting) return; // Já deu feedback ou está submetendo
+        if (feedback === "positive" || isSubmitting) return;
+
+        if (type === "negative" && !showComment) {
+            setShowComment(true);
+            return;
+        }
 
         setIsSubmitting(true);
 
         try {
-            // Chamar callback se fornecido
             if (onFeedback) {
                 onFeedback(type, messageId);
             }
 
-            // Enviar feedback para o backend (opcional - para analytics futuros)
-            try {
-                const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8002";
-                await fetch(`${apiUrl}/feedback`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        message_id: messageId,
-                        feedback_type: type,
-                        timestamp: new Date().toISOString(),
-                    }),
-                });
-            } catch (error) {
-                // Silenciar erro - feedback é opcional
-                console.debug("Feedback não enviado para backend:", error);
-            }
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8002";
+            await fetch(`${apiUrl}/feedback`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    message_id: messageId,
+                    feedback_type: type,
+                    comment: type === "negative" ? comment : undefined,
+                    timestamp: new Date().toISOString(),
+                }),
+            });
 
             setFeedback(type);
+            setShowComment(false);
+        } catch (error) {
+            console.debug("Feedback não enviado para backend:", error);
+            setFeedback(type); // Mostrar sucesso local mesmo se backend falhar
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    // Se já deu feedback, mostrar confirmação
     if (feedback) {
         return (
-            <div className={`flex items-center gap-2 text-xs ${className}`}>
-                <span className="text-treq-gray-500">
-                    {feedback === "positive" ? (
-                        <span className="flex items-center gap-1 text-green-600">
-                            <ThumbsUp className="w-3.5 h-3.5" />
-                            Obrigado pelo feedback!
-                        </span>
-                    ) : (
-                        <span className="flex items-center gap-1 text-treq-gray-500">
-                            <ThumbsDown className="w-3.5 h-3.5" />
-                            Feedback registrado
-                        </span>
-                    )}
-                </span>
+            <div className={`flex items-center gap-2 text-xs animate-in fade-in duration-300 ${className}`}>
+                {feedback === "positive" ? (
+                    <span className="flex items-center gap-1.5 text-green-600 font-medium bg-green-50 px-2 py-1 rounded-md border border-green-100">
+                        <ThumbsUp className="w-3.5 h-3.5" />
+                        Obrigado! Isso nos ajuda a melhorar.
+                    </span>
+                ) : (
+                    <span className="flex items-center gap-1.5 text-treq-gray-600 font-medium bg-treq-gray-100 px-2 py-1 rounded-md border border-treq-gray-200">
+                        <ThumbsDown className="w-3.5 h-3.5" />
+                        Feedback registrado. Analisaremos esta resposta.
+                    </span>
+                )}
             </div>
         );
     }
 
     return (
-        <div className={`flex items-center gap-1 ${className}`}>
-            <span className="text-xs text-treq-gray-400 mr-1 hidden sm:inline">
-                Esta resposta foi útil?
-            </span>
+        <div className={`flex flex-col gap-2 ${className}`}>
+            <div className="flex items-center gap-1">
+                {!showComment && (
+                    <span className="text-xs text-treq-gray-400 mr-1 hidden sm:inline">
+                        Útil?
+                    </span>
+                )}
 
-            <button
-                onClick={() => handleFeedback("positive")}
-                disabled={isSubmitting}
-                className="p-1.5 sm:p-2 rounded-lg text-treq-gray-400 hover:text-green-600 hover:bg-green-50 
-                   transition-all focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1
-                   hover:scale-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed
-                   min-w-[32px] min-h-[32px] sm:min-w-[36px] sm:min-h-[36px] flex items-center justify-center"
-                title="Gostei"
-                aria-label="Gostei desta resposta"
-            >
-                <ThumbsUp className="w-4 h-4" />
-            </button>
+                <button
+                    onClick={() => handleFeedback("positive")}
+                    disabled={isSubmitting || showComment}
+                    className={`p-1.5 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1
+                       hover:scale-110 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed
+                       min-w-[32px] min-h-[32px] flex items-center justify-center
+                       ${feedback === "positive" ? "text-green-600 bg-green-50" : "text-treq-gray-400 hover:text-green-600 hover:bg-green-50"}`}
+                    title="Gostei"
+                >
+                    <ThumbsUp className="w-4 h-4" />
+                </button>
 
-            <button
-                onClick={() => handleFeedback("negative")}
-                disabled={isSubmitting}
-                className="p-1.5 sm:p-2 rounded-lg text-treq-gray-400 hover:text-red-500 hover:bg-red-50 
-                   transition-all focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1
-                   hover:scale-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed
-                   min-w-[32px] min-h-[32px] sm:min-w-[36px] sm:min-h-[36px] flex items-center justify-center"
-                title="Não gostei"
-                aria-label="Não gostei desta resposta"
-            >
-                <ThumbsDown className="w-4 h-4" />
-            </button>
+                <button
+                    onClick={() => handleFeedback("negative")}
+                    disabled={isSubmitting}
+                    className={`p-1.5 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1
+                       hover:scale-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed
+                       min-w-[32px] min-h-[32px] flex items-center justify-center
+                       ${showComment ? "text-red-600 bg-red-50 ring-2 ring-red-500" : "text-treq-gray-400 hover:text-red-600 hover:bg-red-50"}`}
+                    title="Não gostei"
+                >
+                    <ThumbsDown className="w-4 h-4" />
+                </button>
+
+                {showComment && (
+                    <button
+                        onClick={() => setShowComment(false)}
+                        className="text-[10px] text-treq-gray-400 hover:text-treq-gray-600 ml-1 underline"
+                    >
+                        Cancelar
+                    </button>
+                )}
+            </div>
+
+            {showComment && (
+                <div className="flex flex-col gap-2 animate-in slide-in-from-top-1 duration-200">
+                    <textarea
+                        value={comment}
+                        onChange={(e) => setComment(e.target.value)}
+                        placeholder="O que estava errado? (Opcional)"
+                        className="text-xs p-2 border border-treq-gray-200 rounded-md focus:ring-1 focus:ring-treq-yellow focus:border-treq-yellow outline-none resize-none h-16 w-full max-w-[240px]"
+                        autoFocus
+                    />
+                    <button
+                        onClick={() => handleFeedback("negative")}
+                        disabled={isSubmitting}
+                        className="bg-treq-black text-white text-[10px] py-1 px-3 rounded-md hover:bg-treq-gray-800 transition-colors self-start font-bold uppercase tracking-wider"
+                    >
+                        {isSubmitting ? "Enviando..." : "Enviar Melhoria"}
+                    </button>
+                </div>
+            )}
         </div>
     );
 }

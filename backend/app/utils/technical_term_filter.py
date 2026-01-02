@@ -19,11 +19,17 @@ def replace_sla(text: str) -> str:
     """
     # Padrões específicos primeiro (mais específicos → mais genéricos)
     patterns = [
-        # Correção de termos corrompidos (LLM às vezes gera texto truncado)
-        (r'\bSLazo\b', 'Prazo'),  # SLA + prazo corrompido
-        (r'\bSLazos\b', 'Prazos'),  # SLA + prazos corrompido
-        (r'\b3to\b', 'desvio'),  # 3σ truncado
-        (r'\b2to\b', 'desvio'),  # 2σ truncado
+        # Correção de termos corrompidos (LLM às vezes gera texto truncado ou neologismos)
+        (r'\bSLazo\b', 'Prazo'),        # SLA + prazo
+        (r'\bslazo\b', 'prazo'),
+        (r'\bSLazos\b', 'Prazos'),      # Plural
+        (r'\bslazos\b', 'prazos'),
+        (r'SLA-zo\b', 'Prazo'),         # Hífen
+        (r'SLA\s*zo\b', 'Prazo'),       # Espaço acidental
+        (r'\bSLA\s+lazo\b', 'prazo'),   # Outra forma comum de erro
+        (r'\b3to\b', 'desvio'),         # 3σ truncado
+        (r'\b2to\b', 'desvio'),         # 2σ truncado
+        
         # SLA com apóstrofe e número: "SLA's de 24h"
         (r"\bSLA'?s?\b\s+(de|da|do)\s+(\d+\w*)", r'prazo \1 \2'),
         # SLA com dois pontos: "SLA:"
@@ -86,6 +92,12 @@ TECHNICAL_TERMS_SUBSTITUTIONS: List[Tuple[re.Pattern, str]] = [
      'definido diretamente no código'),
     (re.compile(r'\bPII\b', re.IGNORECASE), 
      'dados pessoais'),
+    (re.compile(r'\bOOB\b', re.IGNORECASE), 
+     'fora do padrão'),
+    (re.compile(r'\bBacklog\b', re.IGNORECASE), 
+     'lista de tarefas pendentes'),
+    (re.compile(r'\bSprints?\b', re.IGNORECASE), 
+     'ciclo de trabalho'),
 ]
 
 
@@ -210,43 +222,56 @@ class StreamingTermFilter:
     
     def filter_chunk(self, chunk: str) -> str:
         """
-        Filtra um chunk de texto.
+        Filtra um chunk de texto garantindo estabilidade das substituições.
         
-        Acumula no buffer, processa quando tem tamanho suficiente,
-        e retorna apenas o conteúdo novo (não duplicado).
-        
-        Args:
-            chunk: Chunk de texto a ser filtrado
-            
-        Returns:
-            Chunk filtrado (pode ser string vazia se retido no buffer)
+        Estratégia 2026:
+        1. Mantém uma janela deslizante (buffer)
+        2. Processa o buffer inteiro
+        3. Só emite o texto que está atrás de um separador (espaço, ponto, enter)
+           E que esteja além da distância de segurança (buffer_size).
         """
         if not chunk:
             return ""
         
-        # Acumular no buffer
         self.buffer += chunk
         
-        # Se buffer ainda é pequeno, reter para evitar processar termos parciais
+        # Só processamos se tivermos conteúdo suficiente
         if len(self.buffer) < self.buffer_size:
             return ""
+            
+        # 1. Aplicar todos os filtros no buffer completo
+        filtered_buffer = filter_technical_terms(self.buffer)
         
-        # Processar buffer inteiro com filtro de termos técnicos
-        filtered = filter_technical_terms(self.buffer)
-        
-        # Calcular quanto já foi enviado vs quanto temos agora
-        # Enviamos apenas o conteúdo novo (do ponto output_sent em diante)
-        if self.output_sent >= len(filtered):
-            # Já enviamos tudo que tem no filtered
+        # 2. Encontrar o último ponto de corte seguro (espaço ou pontuação)
+        # Que esteja a pelo menos buffer_size caracteres do fim para evitar corte de termos
+        safe_zone = len(filtered_buffer) - self.buffer_size
+        if safe_zone <= self.output_sent:
             return ""
+            
+        # Procurar o último espaço dentro da zona segura
+        last_space = filtered_buffer.rfind(" ", self.output_sent, safe_zone)
         
-        # Conteúdo novo para enviar
-        new_content = filtered[self.output_sent:]
+        # Se não achou espaço, mas a zona segura cresceu muito, forçar corte em pontuação
+        if last_space == -1:
+            for char in [".", ",", "\n", ":"]:
+                last_space = filtered_buffer.rfind(char, self.output_sent, safe_zone)
+                if last_space != -1: break
         
-        # Atualizar contador de enviados
-        self.output_sent = len(filtered)
+        # Se ainda não temos um ponto seguro de corte, esperamos mais chunks
+        if last_space == -1:
+            # Fallback de segurança: se o buffer crescer demais sem espaço, emitir até a safe_zone
+            if len(filtered_buffer) > (self.buffer_size * 4):
+                last_space = safe_zone
+            else:
+                return ""
         
-        return new_content
+        # 3. Extrair o conteúdo novo e estável
+        stable_content = filtered_buffer[self.output_sent:last_space + 1]
+        
+        # 4. Atualizar ponteiro de saída com base no buffer filtrado
+        self.output_sent += len(stable_content)
+        
+        return stable_content
     
     def flush(self) -> str:
         """

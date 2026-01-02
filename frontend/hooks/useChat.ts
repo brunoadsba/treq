@@ -52,6 +52,9 @@ export interface ChatMessage {
   timestamp?: string;
   chartData?: ChartData;
   reasoning?: ReasoningPlan;
+  runId?: string;
+  isThinking?: boolean;
+  thinkingDuration?: number;
 }
 
 export interface ChatResponse {
@@ -68,6 +71,7 @@ export interface ChatResponse {
   fallback_message?: string;
   chart_data?: ChartData;
   reasoning?: ReasoningPlan;
+  run_id?: string;
 }
 
 export interface SavedConversation {
@@ -262,7 +266,10 @@ export function useChat(userId: string = "default-user") {
           role: "assistant",
           content: "",
           timestamp: new Date().toISOString(),
+          isThinking: true, // Começa pensando
         };
+
+        const startTime = Date.now();
 
         if (useStream) {
           // Modo streaming via SSE
@@ -323,6 +330,16 @@ export function useChat(userId: string = "default-user") {
                           if (data.conversation_id) {
                             setConversationId(data.conversation_id);
                           }
+                          // Atualizar runId se fornecido no evento final
+                          if (data.run_id) {
+                            setMessages((prev) =>
+                              prev.map((msg, idx) =>
+                                idx === prev.length - 1 && msg.role === "assistant"
+                                  ? { ...msg, runId: data.run_id }
+                                  : msg
+                              )
+                            );
+                          }
                           // Atualizar mensagem final se houver conteúdo
                           if (fullResponse) {
                             setMessages((prev) =>
@@ -375,7 +392,12 @@ export function useChat(userId: string = "default-user") {
                       setMessages((prev) =>
                         prev.map((msg, idx) =>
                           idx === prev.length - 1 && msg.role === "assistant"
-                            ? { ...msg, content: fullResponse }
+                            ? {
+                              ...msg,
+                              content: fullResponse,
+                              isThinking: false, // Parou de pensar ao receber o primeiro texto
+                              thinkingDuration: msg.thinkingDuration || Math.round((Date.now() - startTime) / 1000)
+                            }
                             : msg
                         )
                       );
@@ -386,7 +408,7 @@ export function useChat(userId: string = "default-user") {
                       setMessages((prev) =>
                         prev.map((msg, idx) =>
                           idx === prev.length - 1 && msg.role === "assistant"
-                            ? { ...msg, reasoning: data.plan }
+                            ? { ...msg, reasoning: data.plan, runId: data.run_id }
                             : msg
                         )
                       );
@@ -467,7 +489,7 @@ export function useChat(userId: string = "default-user") {
                         setMessages((prev) =>
                           prev.map((msg, idx) =>
                             idx === prev.length - 1 && msg.role === "assistant"
-                              ? { ...msg, content: fullResponse }
+                              ? { ...msg, content: fullResponse, runId: data.run_id }
                               : msg
                           )
                         );
@@ -486,6 +508,7 @@ export function useChat(userId: string = "default-user") {
                         fallback: data.fallback || false,
                         fallback_reason: data.fallback_reason,
                         fallback_message: data.fallback_message,
+                        run_id: data.run_id
                       };
                     }
 
@@ -544,14 +567,14 @@ export function useChat(userId: string = "default-user") {
 
           const data: ChatResponse = await response.json();
 
-          // Adicionar resposta do assistente
-          assistantMessage.content = data.response;
-          setMessages((prev) => [...prev, assistantMessage]);
-
-          // Atualizar conversation ID se fornecido
           if (data.conversation_id) {
             setConversationId(data.conversation_id);
           }
+
+          // Adicionar resposta do assistente com runId
+          assistantMessage.content = data.response;
+          assistantMessage.runId = data.run_id;
+          setMessages((prev) => [...prev, assistantMessage]);
 
           return data;
         }

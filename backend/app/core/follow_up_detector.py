@@ -31,7 +31,8 @@ def detect_follow_up(query: str, context_manager: ContextManager) -> bool:
         "detalhe isso", "explique isso", "o que quer dizer",
         "forneça mais", "mostre mais", "apresente mais",
         "conte mais", "fale mais sobre", "e sobre", "e quanto a",
-        "e o que", "e como", "e qual", "e quais"
+        "e o que", "e como", "e qual", "e quais",
+        "seja direto", "seja objetivo", "resuma", "mais curto", "simplifique"
     ]
     
     # Verificar padrões explícitos primeiro

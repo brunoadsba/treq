@@ -76,7 +76,7 @@ export function MessageList({ messages, isLoading = false }: MessageListProps) {
         />
       ))}
 
-      {isLoading && (
+      {isLoading && messages[messages.length - 1]?.role !== "assistant" && (
         <div className="flex items-center gap-2 sm:gap-3 text-treq-gray-600 px-2 sm:px-3 md:px-2 lg:px-3 py-3 sm:py-4 animate-fade-in">
           <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 animate-spin text-treq-yellow flex-shrink-0" />
           <span className="text-sm sm:text-base font-medium">Assistente está pensando...</span>

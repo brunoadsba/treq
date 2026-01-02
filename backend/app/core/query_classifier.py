@@ -140,11 +140,14 @@ def classify_query(query: str, message_history: List = None) -> str:
     has_temporal = any(keyword in query_lower for keyword in temporal_keywords)
     
     metric_patterns = [
-        "quantos", "qual o valor", "qual o número", "qual a métrica",
-        "mostre os dados", "dados de", "resultados de", "indicador",
-        "kpi", "performance", "desempenho"
+        "quantos", "qual o valor", "qual o número", "qual a métrica", "quais as métricas",
+        "métrica de", "métricas de", "indicador", "indicadores",
+        "mostre os dados", "dados de", "resultados de",
+        "kpi", "performance", "desempenho", "valor de", "valor da"
     ]
-    if any(pattern in query_lower for pattern in metric_patterns):
+    if any(pattern in query_lower for pattern in metric_patterns) or \
+       (any(word in query_lower for word in ["métrica", "métricas", "indicador"]) and \
+        any(op in query_lower for op in ["cancelamento", "atraso", "entrega", "estoque"])):
         # Se tem padrão temporal, classificar como métrica_temporal (requer tool)
         if has_temporal:
             logger.debug(f"Query classificada como MÉTRICA_TEMPORAL: '{query}'")

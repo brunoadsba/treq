@@ -26,16 +26,32 @@ interface ReasoningDisplayProps {
     plan: ReasoningPlan;
     className?: string;
     defaultOpen?: boolean;
+    isThinking?: boolean;
+    thinkingDuration?: number;
 }
 
 export const ReasoningDisplay: React.FC<ReasoningDisplayProps> = ({
     plan,
     className,
-    defaultOpen = false
+    defaultOpen = false,
+    isThinking = false,
+    thinkingDuration
 }) => {
     const [isOpen, setIsOpen] = useState(defaultOpen);
+    const [seconds, setSeconds] = React.useState(0);
 
-    if (!plan) return null;
+    // Cronômetro em tempo real
+    React.useEffect(() => {
+        let interval: NodeJS.Timeout;
+        if (isThinking) {
+            interval = setInterval(() => {
+                setSeconds(s => s + 1);
+            }, 1000);
+        }
+        return () => clearInterval(interval);
+    }, [isThinking]);
+
+    if (!plan && !isThinking) return null;
 
     return (
         <div className={cn("mt-2 mb-4 rounded-lg border border-purple-200 dark:border-purple-500/20 bg-purple-50/50 dark:bg-purple-500/5 overflow-hidden shadow-sm", className)}>
@@ -46,6 +62,16 @@ export const ReasoningDisplay: React.FC<ReasoningDisplayProps> = ({
                 <div className="flex items-center gap-2">
                     <BrainCircuit className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                     <span>Raciocínio</span>
+                    <span className="text-[10px] font-normal px-2 py-0.5 bg-purple-200/50 dark:bg-purple-800/50 rounded-full animate-pulse flex items-center gap-1">
+                        {isThinking ? (
+                            <>
+                                <span className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-ping"></span>
+                                Pensando... ({seconds}s)
+                            </>
+                        ) : (
+                            thinkingDuration !== undefined && `Pensou por: ${thinkingDuration}s`
+                        )}
+                    </span>
                 </div>
                 {isOpen ? <ChevronUp className="w-4 h-4 text-purple-600 dark:text-purple-400" /> : <ChevronDown className="w-4 h-4 text-purple-700 dark:text-purple-500" />}
             </button>
@@ -57,36 +83,38 @@ export const ReasoningDisplay: React.FC<ReasoningDisplayProps> = ({
                             <div className="text-[10px] sm:text-xs text-purple-700 dark:text-purple-400 flex items-center gap-1 mb-1.5 font-bold uppercase tracking-wider">
                                 <Target className="w-3 h-3" /> Intenção
                             </div>
-                            <div className="text-black dark:text-white font-semibold leading-relaxed">{plan.intent}</div>
+                            <div className="text-black dark:text-white font-semibold leading-relaxed">{plan?.intent || "Planejando..."}</div>
                         </div>
                         <div className="bg-purple-100/50 dark:bg-purple-900/20 p-3 rounded-md border border-purple-200/50 dark:border-purple-500/10">
                             <div className="text-[10px] sm:text-xs text-purple-700 dark:text-purple-400 flex items-center gap-1 mb-1.5 font-bold uppercase tracking-wider">
                                 <Lightbulb className="w-3 h-3" /> Estratégia
                             </div>
-                            <div className="text-black dark:text-white font-semibold leading-relaxed">{STRATEGY_MAP[plan.strategy] || plan.strategy}</div>
+                            <div className="text-black dark:text-white font-semibold leading-relaxed">{plan ? (STRATEGY_MAP[plan.strategy] || plan.strategy) : "Definindo..."}</div>
                         </div>
                     </div>
 
                     <div className="space-y-2 mt-2">
                         <div className="text-[10px] sm:text-xs text-purple-700 dark:text-purple-400 font-bold uppercase tracking-wider mb-2">Passos de Análise</div>
                         <ul className="space-y-2 text-black dark:text-white">
-                            {plan.reasoning_steps?.map((step, idx) => (
+                            {plan?.reasoning_steps ? plan.reasoning_steps.map((step, idx) => (
                                 <li key={idx} className="flex items-start gap-2 leading-relaxed">
                                     <span className="text-purple-500 font-bold mt-0.5">•</span>
                                     <span>{step}</span>
                                 </li>
-                            ))}
+                            )) : (
+                                <li className="italic text-purple-400/60">Aguardando passos...</li>
+                            )}
                         </ul>
                     </div>
 
-                    {plan.needs_visualization && (
+                    {plan?.needs_visualization && (
                         <div className="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 p-2.5 rounded-md mt-2 flex items-center gap-2">
                             <BarChart className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                             <span className="text-blue-700 dark:text-blue-200 text-xs font-medium">Visualização Gráfica Recomendada ({VIZ_MAP[plan.visualization_type || ""] || plan.visualization_type || "Geral"})</span>
                         </div>
                     )}
 
-                    {plan.missing_info && plan.missing_info.length > 0 && (
+                    {plan?.missing_info && plan.missing_info.length > 0 && (
                         <div className="bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/20 p-2.5 rounded-md mt-2">
                             <div className="text-xs text-yellow-700 dark:text-yellow-400 flex items-center gap-1 mb-2 font-bold uppercase">
                                 <AlertTriangle className="w-3 h-3" /> Informações Faltantes

@@ -24,6 +24,7 @@ class ChatResponse(BaseModel):
     """Response do chat."""
     response: str = Field(..., description="Resposta do assistente")
     conversation_id: Optional[str] = Field(None, description="ID da conversa")
+    run_id: Optional[str] = Field(None, description="ID do run no LangSmith (para feedback)")
     context_summary: str = Field(..., description="Resumo do contexto atual")
     sources: List[Dict[str, Any]] = Field(default_factory=list, description="Fontes usadas (do RAG)")
     strategy: Optional[str] = Field(None, description="Estratégia usada (tool_first, rag_first, hybrid)")

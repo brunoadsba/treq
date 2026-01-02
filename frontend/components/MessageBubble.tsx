@@ -4,9 +4,10 @@ import { useState, lazy, Suspense, useMemo } from "react";
 import { ChatMessage } from "@/hooks/useChat";
 import { Volume2, Loader2, Pause, Play, Gauge } from "lucide-react";
 import { useTTS, PLAYBACK_RATES } from "@/hooks/useTTS";
+import { parseChainOfThought } from "@/src/features/chat/utils/message-parser";
 
 // Lazy loading para FormattedMessage (componente pesado com markdown)
-const FormattedMessage = lazy(() => import("./FormattedMessage").then(m => ({ default: m.FormattedMessage })));
+const FormattedMessage = lazy(() => import("@/src/features/chat/components/FormattedMessage").then(m => ({ default: m.FormattedMessage })));
 // Lazy loading para ChartMessage (componente pesado com Recharts)
 const ChartMessage = lazy(() => import("./ChartMessage").then(m => ({ default: m.ChartMessage })));
 // Import direto para ChartLoadingSkeleton (componente leve)
@@ -17,53 +18,11 @@ import { FeedbackButtons } from "./FeedbackButtons";
 // Função para processar conteúdo removendo tags <pensamento> e <resposta>
 // DEVE ser idêntica à função parseChainOfThought do FormattedMessage
 // para garantir que áudio e visualização usem o mesmo conteúdo processado
+// Função para processar conteúdo removendo tags <pensamento> e <resposta>
 function parseContentForAudio(text: string): string {
   if (!text || typeof text !== 'string') return text;
-
-  // SEMPRE remove tag <pensamento> completamente do texto (nunca exibir ao usuário)
-  let content = text.replace(/<pensamento>[\s\S]*?<\/pensamento>/gi, '').trim();
-
-  // Extrair conteúdo de dentro das tags <resposta> (pode haver múltiplas)
-  const respostaMatches = content.match(/<resposta>([\s\S]*?)<\/resposta>/gi);
-  let answer: string;
-
-  if (respostaMatches && respostaMatches.length > 0) {
-    // Extrair conteúdo de todas as tags <resposta> e juntar
-    answer = respostaMatches
-      .map(match => {
-        const innerMatch = match.match(/<resposta>([\s\S]*?)<\/resposta>/i);
-        return innerMatch ? innerMatch[1].trim() : '';
-      })
-      .filter(text => text.length > 0)
-      .join('\n\n')
-      .trim();
-
-    // Se não conseguiu extrair conteúdo válido, usar texto completo sem as tags
-    if (!answer || answer.length === 0) {
-      answer = content.replace(/<resposta>[\s\S]*?<\/resposta>/gi, '').trim();
-    }
-  } else {
-    // Não há tags <resposta>, usar texto completo
-    answer = content.trim();
-  }
-
-  // REMOVER TODAS as tags <resposta> e </resposta> que possam ter sobrado (segurança extra)
-  answer = answer
-    .replace(/<resposta>/gi, '')
-    .replace(/<\/resposta>/gi, '')
-    .replace(/<pensamento>[\s\S]*?<\/pensamento>/gi, '') // Remover pensamento novamente (segurança extra)
-    .trim();
-
-  // Remover avisos duplicados do markdown (o frontend já renderiza esses cards)
-  answer = answer
-    .replace(/⏱️\s*\*\*Processamento:\*\*[^\n]*\n?/gi, '')
-    .replace(/⚠️\s*\*\*Aviso:\*\*[^\n]*\n?/gi, '')
-    .replace(/Esta análise requer processamento[^\n]*precisão\.?\s*/gi, '')
-    .replace(/A inteligência artificial pode cometer erros[^\n]*críticas\.?\s*/gi, '')
-    .replace(/^\s*\n\s*\n/gm, '\n')  // Remover linhas vazias extras
-    .trim();
-
-  return answer;
+  const parsed = parseChainOfThought(text);
+  return parsed.answer;
 }
 
 interface MessageBubbleProps {
@@ -181,9 +140,11 @@ export function MessageBubble({ message, isLoading: isGlobalLoading }: MessageBu
         ) : (
           <>
             {/* Renderizar Reasoning (CoT) se disponível */}
-            {message.reasoning && (
+            {(message.reasoning || message.isThinking) && (
               <ReasoningDisplay
-                plan={message.reasoning}
+                plan={message.reasoning!}
+                isThinking={message.isThinking}
+                thinkingDuration={message.thinkingDuration}
                 className={message.chartData ? "mb-4" : ""}
               />
             )}
@@ -283,7 +244,7 @@ export function MessageBubble({ message, isLoading: isGlobalLoading }: MessageBu
 
             {/* Botões de Feedback */}
             <FeedbackButtons
-              messageId={message.timestamp}
+              messageId={message.runId || message.timestamp}
               className="ml-auto sm:ml-0"
             />
           </div>

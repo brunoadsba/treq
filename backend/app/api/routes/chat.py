@@ -14,6 +14,7 @@ from app.middleware.rate_limiter import get_rate_limit, rate_limit
 from slowapi.errors import RateLimitExceeded
 from app.api.routes.chat_helpers import build_llm_messages
 from app.core.tracing import trace_llm_call
+from langsmith.run_helpers import get_current_run_tree
 
 # Importar módulos refatorados
 from .chat_modules.models import ChatRequest, ChatResponse
@@ -43,6 +44,10 @@ async def chat(
     3. Retorna resposta especial (social/consultoria) se aplicável
     4. Gera resposta com LLM (streaming ou não-streaming)
     """
+    # BEST PRACTICE 2026: Capturar IDs de rastreio logo no início para vinculação de feedback
+    run_tree = get_current_run_tree()
+    run_id = str(run_tree.id) if run_tree else None
+    
     # Log temporário para diagnóstico de rate limiting
     # Rate limiting check (internal)
     logger.debug(f"Rate limit check - Limit: {get_rate_limit('chat')}")
@@ -102,7 +107,8 @@ async def chat(
                     sources=sources,
                     strategy=strategy,
                     sanitized_message=sanitized_message,
-                    cot_plan=cot_plan
+                    cot_plan=cot_plan,
+                    run_id=run_id
                 ),
                 media_type="text/event-stream",
                 headers={
@@ -198,7 +204,8 @@ async def chat(
             sources=sources,
             strategy=strategy,
             tool_data=tool_result.data if tool_result and tool_result.success else None,
-            reasoning=cot_plan
+            reasoning=cot_plan,
+            run_id=run_id
         )
         
     except HTTPException:
