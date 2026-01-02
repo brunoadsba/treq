@@ -21,9 +21,10 @@ class Settings(BaseSettings):
     
     # Aplicação
     app_name: str = "Treq Assistente Operacional"
-    environment: str = "development"
-    debug: bool = True
-    secret_key: str = Field(..., env="SECRET_KEY", description="Secret key obrigatória para segurança")
+    environment: str = "production"
+    debug: bool = False
+    secret_key: str = Field("placeholder-do-not-use-in-prod", env="SECRET_KEY", description="Secret key obrigatória para segurança")
+    cors_origins: str = "*" # Origens permitidas separadas por vírgula
     
     # Backend
     host: str = "0.0.0.0"

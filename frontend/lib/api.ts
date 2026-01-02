@@ -4,7 +4,7 @@
  * Configurar variável de ambiente:
  * - NEXT_PUBLIC_API_URL (padrão: http://localhost:8000)
  */
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002'
 
 // Constantes de configuração
 const DEFAULT_TIMEOUT_MS = 30000 // 30 segundos
@@ -30,10 +30,10 @@ interface ApiRequestOptions extends RequestInit {
 function createTimeoutController(timeoutMs: number): AbortController {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
-  
+
   // Limpar timeout se o controller já foi abortado
   controller.signal.addEventListener('abort', () => clearTimeout(timeoutId))
-  
+
   return controller
 }
 
@@ -80,7 +80,7 @@ export async function apiRequest<T = unknown>(
 
   // Detectar se body é FormData para não adicionar Content-Type
   const isFormData = body instanceof FormData
-  
+
   // Preparar headers (não adicionar Content-Type para FormData, browser fará isso)
   const requestHeaders: HeadersInit = {
     ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
@@ -93,13 +93,13 @@ export async function apiRequest<T = unknown>(
     try {
       // Criar timeout controller para esta tentativa
       const timeoutController = createTimeoutController(timeout)
-      
+
       // Combinar com signal existente se fornecido
       const signals: AbortSignal[] = [timeoutController.signal]
       if (options.signal) {
         signals.push(options.signal)
       }
-      
+
       // Criar AbortController combinado
       const combinedController = new AbortController()
       signals.forEach(signal => {
@@ -131,7 +131,7 @@ export async function apiRequest<T = unknown>(
       }
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error))
-      
+
       // Se não for retryable ou última tentativa, retornar erro
       if (!isRetryableError(error) || attempt >= retries) {
         if (error instanceof Error && error.name === 'AbortError') {
@@ -143,7 +143,7 @@ export async function apiRequest<T = unknown>(
           error: lastError.message || 'Erro desconhecido',
         }
       }
-      
+
       // Calcular delay para próximo retry (backoff exponencial)
       const delay = calculateRetryDelay(attempt, retryDelay, MAX_RETRY_DELAY_MS)
       await sleep(delay)

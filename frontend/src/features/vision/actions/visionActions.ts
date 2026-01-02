@@ -4,12 +4,14 @@
  * Ações para a feature de visão computacional.
  */
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8002";
+
 export async function uploadVisionImage(file: File, prompt?: string) {
     const formData = new FormData();
     formData.append("file", file);
     if (prompt) formData.append("prompt", prompt);
 
-    const response = await fetch("http://localhost:8002/vision/upload-multimodal", {
+    const response = await fetch(`${API_URL}/vision/upload-multimodal`, {
         method: "POST",
         body: formData,
     });
@@ -22,7 +24,7 @@ export async function uploadVisionImage(file: File, prompt?: string) {
 }
 
 export async function analyzeCameraCapture(base64Image: string, prompt?: string) {
-    const response = await fetch("http://localhost:8002/vision/analyze-webcam", {
+    const response = await fetch(`${API_URL}/vision/analyze-webcam`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
