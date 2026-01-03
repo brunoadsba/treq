@@ -13,7 +13,7 @@ import { base64ToFile } from "@/src/features/vision/actions/visionActions";
 import { Camera } from "lucide-react";
 
 interface InputAreaProps {
-  onSend: (message: string) => void;
+  onSend: (message: string, actionId?: string, imageUrl?: string) => void;
   isLoading?: boolean;
   placeholder?: string;
   userId?: string;
@@ -66,8 +66,13 @@ export function InputArea({
 
         // Se há mensagem, também enviar como mensagem de chat
         if (message.trim()) {
+          // Criar URL para visualização local da imagem se for imagem
+          const imageUrl = attachedFile.type.startsWith('image/')
+            ? URL.createObjectURL(attachedFile)
+            : undefined;
+
           // Enviar mensagem explicando o que fazer com o arquivo
-          onSend(message.trim());
+          onSend(message.trim(), undefined, imageUrl);
         }
 
         if (onDocumentUploaded) {
@@ -308,36 +313,62 @@ export function InputArea({
             <Mic className={`w-5 h-5 sm:w-5.5 sm:h-5.5 transition-transform ${isRecording ? 'animate-pulse scale-110' : ''}`} />
           </button>
 
-          {/* Input de texto - Touch target 48px mínimo */}
-          <input
-            type="text"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder={
-              attachedFile
-                ? "O que você quer fazer com este arquivo?"
-                : isTranscribing
-                  ? "Transcrevendo..."
-                  : isUploading
-                    ? "Enviando..."
-                    : "Digite sua mensagem..."
-            }
-            disabled={isProcessing || !!audioBlob}
-            className={`flex-1 min-h-[44px] sm:min-h-[48px] px-3 sm:px-4 md:px-5 py-2 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base focus:outline-none focus:ring-2 disabled:opacity-50 transition-all ${isHighContrast
-              ? 'border-white bg-black text-white focus:ring-treq-yellow placeholder:text-treq-gray-400'
-              : 'border-treq-gray-300 bg-white text-treq-gray-900 focus:ring-treq-yellow focus:border-transparent placeholder:text-treq-gray-400'
-              }`}
-            style={{
-              fontSize: isHighContrast ? '1.125rem' : undefined
-            }}
-            aria-label="Campo de entrada de mensagem"
-            aria-describedby={isTranscribing ? "transcribing-status" : undefined}
-          />
-          {isTranscribing && (
-            <span id="transcribing-status" className="sr-only">
-              Transcrevendo áudio, aguarde...
-            </span>
-          )}
+          {/* Área de Texto com Auto-resize - Touch target 48px mínimo */}
+          <div className="flex-1 relative">
+            <textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyDown={(e) => {
+                // Desktop: Enter envia, Shift+Enter cria nova linha
+                if (e.key === "Enter" && !e.shiftKey) {
+                  // Prevenir comportamento padrão apenas em desktop (não mobile)
+                  // No mobile, o Enter no teclado virtual costuma ser usado para nova linha
+                  // mas podemos habilitar o envio se quisermos. 
+                  // O usuário pediu "dinâmica diferente no mobile".
+                  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+                  if (!isMobile) {
+                    e.preventDefault();
+                    if (message.trim() && !isProcessing) {
+                      handleSubmit(e as any);
+                    }
+                  }
+                }
+              }}
+              placeholder={
+                attachedFile
+                  ? "O que você quer fazer com este arquivo?"
+                  : isTranscribing
+                    ? "Transcrevendo..."
+                    : isUploading
+                      ? "Enviando..."
+                      : "Digite sua mensagem..."
+              }
+              rows={1}
+              disabled={isProcessing || !!audioBlob}
+              className={`w-full min-h-[44px] sm:min-h-[48px] max-h-[150px] sm:max-h-[200px] px-3 sm:px-4 md:px-5 py-2.5 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base focus:outline-none focus:ring-2 disabled:opacity-50 transition-all resize-none overflow-y-auto scrollbar-hide ${isHighContrast
+                ? 'border-white bg-black text-white focus:ring-treq-yellow placeholder:text-treq-gray-400'
+                : 'border-treq-gray-300 bg-white text-treq-gray-900 focus:ring-treq-yellow focus:border-transparent placeholder:text-treq-gray-400'
+                }`}
+              style={{
+                fontSize: isHighContrast ? '1.125rem' : undefined,
+                height: 'auto',
+              }}
+              aria-label="Campo de entrada de mensagem"
+              aria-describedby={isTranscribing ? "transcribing-status" : undefined}
+              ref={(el) => {
+                if (el) {
+                  el.style.height = '0';
+                  el.style.height = (el.scrollHeight) + 'px';
+                }
+              }}
+            />
+            {isTranscribing && (
+              <span id="transcribing-status" className="sr-only">
+                Transcrevendo áudio, aguarde...
+              </span>
+            )}
+          </div>
 
           {/* Botão de enviar - Touch target 48px mínimo */}
           <button

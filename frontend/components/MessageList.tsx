@@ -3,6 +3,7 @@
 import { ChatMessage } from "@/hooks/useChat";
 import { MessageBubble } from "./MessageBubble";
 import { Loader2 } from "lucide-react";
+import { useRef, useEffect } from "react";
 
 interface MessageListProps {
   messages: ChatMessage[];
@@ -10,6 +11,18 @@ interface MessageListProps {
 }
 
 export function MessageList({ messages, isLoading = false }: MessageListProps) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Scroll automático para a última mensagem
+  useEffect(() => {
+    if (scrollRef.current) {
+      const { scrollHeight, clientHeight } = scrollRef.current;
+      scrollRef.current.scrollTo({
+        top: scrollHeight - clientHeight,
+        behavior: "smooth",
+      });
+    }
+  }, [messages, isLoading]);
   if (messages.length === 0) {
     return (
       <div className="h-full w-full flex flex-col items-center justify-center text-treq-gray-500 bg-treq-gray-50 p-4 sm:p-6 md:p-8 lg:p-10 overflow-hidden">
@@ -62,6 +75,7 @@ export function MessageList({ messages, isLoading = false }: MessageListProps) {
 
   return (
     <div
+      ref={scrollRef}
       className="h-full w-full overflow-y-auto overflow-x-hidden p-2 sm:p-3 md:p-3 lg:p-4 space-y-2 sm:space-y-3 md:space-y-4 bg-treq-gray-50"
       style={{
         maxHeight: '100%',

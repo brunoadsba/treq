@@ -14,7 +14,7 @@ interface HeaderProps {
   onExportConversation?: () => void;
 }
 
-export function Header({ 
+export function Header({
   title = "Assistente Operacional",
   hasMessages = false,
   onNewConversation,
@@ -36,11 +36,11 @@ export function Header({
             <span className="text-white font-bold tracking-tight flex-shrink-0" style={{ fontSize: '24px', lineHeight: '24px' }}>Treq</span>
           </div>
           {/* Assistente Operacional - centralizado, ocupando espaço restante, 80% do tamanho de Treq */}
-          <h1 className="flex-1 text-center font-semibold truncate ml-6" style={{ fontSize: '19.2px', lineHeight: '19.2px' }}>
+          <h1 className="flex-1 text-center font-semibold truncate ml-2" style={{ fontSize: '18px', lineHeight: '24px' }}>
             {title}
           </h1>
         </div>
-        
+
         {/* Desktop: Layout melhorado - Logo maior + título centralizado */}
         <div className="hidden sm:flex items-center min-w-0 flex-1">
           {/* Logo + Treq (esquerda) - tamanho maior no desktop */}
@@ -57,12 +57,12 @@ export function Header({
           {(onNewConversation || onShowHistory || onExportConversation) && (
             <ConversationMenu
               hasMessages={hasMessages}
-              onNewConversation={onNewConversation || (() => {})}
-              onShowHistory={onShowHistory || (() => {})}
-              onExportConversation={onExportConversation || (() => {})}
+              onNewConversation={onNewConversation || (() => { })}
+              onShowHistory={onShowHistory || (() => { })}
+              onExportConversation={onExportConversation || (() => { })}
             />
           )}
-          
+
           <button
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             className="p-1.5 sm:p-2 rounded-lg hover:bg-treq-gray-800 transition-colors flex-shrink-0 min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] md:min-w-[44px] md:min-h-[44px] flex items-center justify-center"

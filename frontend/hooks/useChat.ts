@@ -55,6 +55,7 @@ export interface ChatMessage {
   runId?: string;
   isThinking?: boolean;
   thinkingDuration?: number;
+  imageUrl?: string;
 }
 
 export interface ChatResponse {
@@ -227,7 +228,8 @@ export function useChat(userId: string = "default-user") {
       context?: Record<string, any>,
       useStream: boolean = true,
       visualization?: boolean,
-      actionId?: string
+      actionId?: string,
+      imageUrl?: string
     ) => {
       if (!message.trim()) return;
 
@@ -255,6 +257,7 @@ export function useChat(userId: string = "default-user") {
         role: "user",
         content: message,
         timestamp: new Date().toISOString(),
+        imageUrl: imageUrl
       };
 
       setMessages((prev) => [...prev, userMessage]);

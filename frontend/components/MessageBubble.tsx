@@ -127,16 +127,27 @@ export function MessageBubble({ message, isLoading: isGlobalLoading }: MessageBu
           }`}
       >
         {isUser ? (
-          <p
-            className="text-sm sm:text-base font-semibold whitespace-pre-wrap leading-relaxed break-words"
-            style={{
-              color: "#000000", // Preto puro sempre para máximo contraste no amarelo
-              WebkitFontSmoothing: "antialiased",
-              MozOsxFontSmoothing: "grayscale",
-            }}
-          >
-            {message.content}
-          </p>
+          <div className="flex flex-col gap-2">
+            {message.imageUrl && (
+              <div className="max-w-full overflow-hidden rounded-md border border-black/10 shadow-sm">
+                <img
+                  src={message.imageUrl}
+                  alt="Usuário anexou uma imagem"
+                  className="w-full h-auto object-cover max-h-[300px]"
+                />
+              </div>
+            )}
+            <p
+              className="text-sm sm:text-base font-semibold whitespace-pre-wrap leading-relaxed break-words"
+              style={{
+                color: "#000000", // Preto puro sempre para máximo contraste no amarelo
+                WebkitFontSmoothing: "antialiased",
+                MozOsxFontSmoothing: "grayscale",
+              }}
+            >
+              {message.content}
+            </p>
+          </div>
         ) : (
           <>
             {/* Renderizar Reasoning (CoT) se disponível */}
@@ -176,10 +187,10 @@ export function MessageBubble({ message, isLoading: isGlobalLoading }: MessageBu
             <button
               onClick={handleAudioControl}
               disabled={isLoading}
-              className={`p-1.5 sm:p-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-treq-yellow focus:ring-offset-2 hover:scale-110 active:scale-95 min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center ${isSpeaking || isPaused
+              className={`p-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-treq-yellow focus:ring-offset-2 hover:scale-110 active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center ${isSpeaking || isPaused
                 ? "text-treq-info hover:bg-treq-info-light"
                 : "text-treq-gray-500 hover:text-treq-gray-700 hover:bg-treq-gray-100"
-                } disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100`}
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
               title={title}
               aria-label={title}
             >

@@ -56,7 +56,7 @@ export const getMarkdownComponents = ({ isHighContrast }: MarkdownComponentsProp
         }
 
         return (
-            <p className="text-[15px] sm:text-base md:text-[16px] lg:text-[17px] text-treq-gray-900 leading-[1.75] sm:leading-[1.8] md:leading-[1.85] mb-4 sm:mb-5 md:mb-6 last:mb-0 tracking-tight sm:tracking-normal text-justify">
+            <p className="text-[15px] sm:text-base md:text-[16px] lg:text-[17px] text-treq-gray-900 leading-[1.75] sm:leading-[1.8] md:leading-[1.85] mb-4 sm:mb-5 md:mb-6 last:mb-0 tracking-tight sm:tracking-normal text-left sm:text-justify">
                 {children}
             </p>
         );
@@ -75,12 +75,12 @@ export const getMarkdownComponents = ({ isHighContrast }: MarkdownComponentsProp
             return (
                 <li className="flex items-start gap-3 sm:gap-3.5 text-[15px] sm:text-base text-treq-gray-900 mb-3 sm:mb-4">
                     <span className="text-treq-yellow-dark mt-[2px] flex-shrink-0 font-bold text-lg">•</span>
-                    <span className="flex-1 text-justify">{cleanedText || children}</span>
+                    <span className="flex-1 text-left sm:text-justify">{cleanedText || children}</span>
                 </li>
             );
         }
         return (
-            <li className="text-[15px] sm:text-base text-treq-gray-900 pl-3 mb-3 text-justify">
+            <li className="text-[15px] sm:text-base text-treq-gray-900 pl-3 mb-3 text-left sm:text-justify">
                 {children}
             </li>
         );

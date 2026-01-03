@@ -72,7 +72,7 @@ export function QuickActions({ onActionClick, disabled = false }: QuickActionsPr
 
   return (
     <div className="px-2 sm:px-3 md:px-4 lg:px-6 py-1.5 sm:py-2 md:py-2.5 border-b border-treq-gray-200 bg-white" role="toolbar" aria-label="Ações rápidas">
-      <div className="flex gap-1.5 sm:gap-2 md:gap-3 overflow-x-auto pb-1.5 scrollbar-hide -mx-2 sm:-mx-0 px-2 sm:px-0 justify-center">
+      <div className="flex gap-1.5 sm:gap-2 md:gap-3 overflow-x-auto pb-1.5 scrollbar-hide -mx-2 sm:-mx-0 px-2 sm:px-0 justify-start sm:justify-center">
         {quickActions.map((action) => (
           <Tooltip key={action.id} content={action.label} position="bottom" delay={200}>
             <button

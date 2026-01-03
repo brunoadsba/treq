@@ -134,7 +134,7 @@ export function FormattedMessage({ content }: FormattedMessageProps) {
 
     // Layout Padrão com Ação ISOLADA
     return (
-        <div className={`prose prose-sm max-w-none prose-headings:mt-0 prose-headings:mb-0 prose-p:my-0 px-3 sm:px-4 md:px-5 lg:px-6 py-1 sm:py-2 ${isHighContrast ? 'prose-headings:text-yellow-200 prose-p:text-yellow-200 prose-strong:text-yellow-300' : ''
+        <div className={`prose prose-sm max-w-none prose-headings:mt-0 prose-headings:mb-0 prose-p:my-0 px-1 sm:px-4 md:px-5 lg:px-6 py-1 sm:py-2 ${isHighContrast ? 'prose-headings:text-yellow-200 prose-p:text-yellow-200 prose-strong:text-yellow-300' : ''
             }`}>
             {/* Parte Principal */}
             {blocks.main && (

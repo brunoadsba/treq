@@ -37,7 +37,7 @@ export default function ChatPage() {
   // Removido: Eventos de fallback não são mais exibidos ao usuário
   // O fallback acontece silenciosamente em background sem notificar o usuário
 
-  const handleSendMessage = async (message: string, actionId?: string) => {
+  const handleSendMessage = async (message: string, actionId?: string, imageUrl?: string) => {
     try {
       // Detectar se é uma ação rápida que suporta visualização
       // QuickActions com supportsVisualization: true são: alertas, status-recife, status-salvador
@@ -58,7 +58,8 @@ export default function ChatPage() {
         undefined,  // context
         true,  // useStream
         visualization,  // visualization
-        finalActionId  // actionId
+        finalActionId,  // actionId
+        imageUrl // NOVO: Passar URL da imagem para o hook
       );
     } catch (err) {
       // Toast já é mostrado pelo useEffect acima
@@ -134,10 +135,10 @@ export default function ChatPage() {
 
   return (
     <div
-      className="flex flex-col h-screen overflow-hidden bg-treq-gray-50"
+      className="flex flex-col h-[100dvh] overflow-hidden bg-treq-gray-50"
       role="main"
       aria-label="Chat do Assistente Operacional Treq"
-      style={{ maxHeight: '100vh', height: '100vh' }}
+      style={{ maxHeight: '100dvh', height: '100dvh' }}
     >
       <Header
         hasMessages={messages.length > 0}
