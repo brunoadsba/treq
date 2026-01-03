@@ -27,8 +27,7 @@ class RAGService:
         self.embedding_dimension = settings.embedding_dimension
     
     @trace_rag_pipeline(name="vector_search")
-    @cached(cache=rag_search_cache, key=lambda self, query, top_k=3, similarity_threshold=0.7, filters=None: hashkey(query, top_k, similarity_threshold, str(filters)))
-    def search_similar(
+    async def search_similar(
         self,
         query: str,
         top_k: int = 5,
@@ -58,7 +57,7 @@ class RAGService:
                 return cached_results
 
             # Gerar embedding da query
-            query_embedding = generate_embedding(query)
+            query_embedding = await generate_embedding(query)
             
             # Preparar filtros de metadata para formato JSONB
             # Função SQL espera '{}' quando não há filtros, não None
@@ -213,7 +212,7 @@ class RAGService:
             return []
     
     @trace_rag_pipeline(name="hybrid_search")
-    def search_hybrid(
+    async def search_hybrid(
         self,
         query: str,
         top_k: int = 5,
@@ -238,7 +237,7 @@ class RAGService:
         """
         try:
             # 1. Busca vetorial (semântica)
-            vector_results = self.search_similar(
+            vector_results = await self.search_similar(
                 query=query,
                 top_k=top_k * 2,  # Buscar mais para ter margem
                 similarity_threshold=similarity_threshold,
@@ -277,7 +276,7 @@ class RAGService:
             import traceback
             logger.error(traceback.format_exc())
             # Fallback para busca vetorial apenas
-            return self.search_similar(query, top_k, similarity_threshold, filters)
+            return await self.search_similar(query, top_k, similarity_threshold, filters)
     
     def _search_by_keyword(
         self,
@@ -412,7 +411,7 @@ class RAGService:
         return combined[:top_k]
 
     
-    def index_document(
+    async def index_document(
         self,
         content: str,
         metadata: Optional[Dict[str, Any]] = None
@@ -464,7 +463,7 @@ class RAGService:
                         pass
             
             # Gerar embedding do conteúdo
-            embedding = generate_embedding(content)
+            embedding = await generate_embedding(content)
             
             # Preparar dados para inserção
             data = {

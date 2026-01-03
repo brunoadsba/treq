@@ -219,7 +219,7 @@ async def fetch_context_and_tools(
         # Usar busca híbrida para termos exatos ou queries curtas
         if should_use_hybrid_search(search_query):
             logger.debug(f"Usando busca híbrida para query: {search_query[:50]}...")
-            rag_results, used_threshold, search_type = search_hybrid_with_fallback(
+            rag_results, used_threshold, search_type = await search_hybrid_with_fallback(
                 query=search_query,
                 query_type=query_type,
                 rag_service=rag_service,
@@ -229,7 +229,7 @@ async def fetch_context_and_tools(
             )
         else:
             # Busca vetorial padrão para queries longas/conversacionais
-            rag_results, used_threshold = search_with_fallback(
+            rag_results, used_threshold = await search_with_fallback(
                 query=search_query,
                 query_type=query_type,
                 rag_service=rag_service,

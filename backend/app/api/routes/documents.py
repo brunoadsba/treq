@@ -224,7 +224,7 @@ async def upload_document(
             logger.info(f"Substituindo versão anterior: {deleted_count} chunks removidos")
         
         # Indexar chunks no RAG
-        indexed_count, failed_count = index_document_chunks(
+        indexed_count, failed_count = await index_document_chunks(
             chunks,
             base_metadata,
             rag

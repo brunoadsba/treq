@@ -83,7 +83,7 @@ def get_adaptive_top_k(query_type: str, initial_results: Optional[List] = None) 
     return top_k
 
 
-def search_with_fallback(
+async def search_with_fallback(
     query: str,
     query_type: str,
     rag_service: RAGService,
@@ -122,7 +122,7 @@ def search_with_fallback(
     logger.info(f"Iniciando busca com fallback. Thresholds: {thresholds} (filtros: {filters})")
     
     for threshold in thresholds:
-        results = rag_service.search_similar(
+        results = await rag_service.search_similar(
             query=query,
             top_k=top_k,
             similarity_threshold=threshold,
@@ -136,7 +136,7 @@ def search_with_fallback(
             return results, threshold
     
     # Se nenhum threshold encontrou docs suficientes, retorna o melhor resultado
-    final_results = rag_service.search_similar(
+    final_results = await rag_service.search_similar(
         query=query,
         top_k=top_k,
         similarity_threshold=0.20,
@@ -152,7 +152,7 @@ def search_with_fallback(
 
 
 @trace_rag_pipeline(name="hybrid_search_with_fallback")
-def search_hybrid_with_fallback(
+async def search_hybrid_with_fallback(
     query: str,
     query_type: str,
     rag_service: RAGService,
@@ -182,7 +182,7 @@ def search_hybrid_with_fallback(
     
     # Tentar busca híbrida primeiro
     try:
-        results = rag_service.search_hybrid(
+        results = await rag_service.search_hybrid(
             query=query,
             top_k=top_k,
             similarity_threshold=initial_threshold,
@@ -196,7 +196,7 @@ def search_hybrid_with_fallback(
         # Se não encontrou docs suficientes, tentar com threshold menor
         if len(results) < min_docs:
             lower_threshold = max(0.20, initial_threshold - 0.10)
-            results = rag_service.search_hybrid(
+            results = await rag_service.search_hybrid(
                 query=query,
                 top_k=top_k,
                 similarity_threshold=lower_threshold,
@@ -216,7 +216,7 @@ def search_hybrid_with_fallback(
         logger.warning(f"Erro na busca híbrida, usando fallback vetorial: {e}")
     
     # Fallback para busca vetorial padrão
-    results, threshold = search_with_fallback(
+    results, threshold = await search_with_fallback(
         query=query,
         query_type=query_type,
         rag_service=rag_service,

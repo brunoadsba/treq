@@ -28,7 +28,7 @@ def get_genai_client() -> Any:
             raise
     return _genai_client
 
-def generate_embedding(text: str) -> List[float]:
+async def generate_embedding(text: str) -> List[float]:
     """
     Gera embedding para um texto usando a API do Gemini.
     

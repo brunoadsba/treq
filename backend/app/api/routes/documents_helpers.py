@@ -37,7 +37,7 @@ def prepare_document_metadata(
     }
 
 
-def index_document_chunks(
+async def index_document_chunks(
     chunks: List[Dict[str, Any]],
     base_metadata: Dict[str, Any],
     rag_service: 'RAGService'
@@ -66,7 +66,7 @@ def index_document_chunks(
                 'total_chunks': len(chunks)
             }
             
-            doc_id = rag_service.index_document(
+            doc_id = await rag_service.index_document(
                 content=chunk['content'],
                 metadata=chunk_metadata
             )
