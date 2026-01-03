@@ -13,6 +13,10 @@ from app.api.routes.chat_helpers import build_llm_messages
 from app.core.tracing import trace_llm_call
 from langsmith.run_helpers import get_current_run_tree
 
+# Importar tipos para type hinting
+from app.services.llm_service import LLMService
+from app.core.rag_service import RAGService
+
 # Importar módulos refatorados
 from .chat_modules.models import ChatRequest, ChatResponse
 from .chat_modules.dependencies import get_llm_service, get_rag_service, get_visualization_service

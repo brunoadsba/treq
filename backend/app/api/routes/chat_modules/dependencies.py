@@ -1,14 +1,17 @@
-from typing import Optional, Any, Dict
-# Lazy imports para economizar memória no startup
+from typing import Optional, Any, Dict, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.services.llm_service import LLMService
+    from app.core.rag_service import RAGService
+    from app.core.context_manager import ContextManager
 
 # Instâncias singleton dos serviços
-_llm_service: Optional[LLMService] = None
-_rag_service: Optional[RAGService] = None
+_llm_service: Optional['LLMService'] = None
+_rag_service: Optional['RAGService'] = None
 _visualization_service: Optional[Any] = None
 
 # Cache de ContextManager por conversa
-# Nota: Em produção, idealmente usar Redis ou similar
-_context_cache: Dict[str, ContextManager] = {}
+_context_cache: Dict[str, 'ContextManager'] = {}
 
 def get_llm_service():
     """Retorna instância singleton do LLM Service."""
