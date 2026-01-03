@@ -23,4 +23,14 @@ services:
       - key: PYTHON_VERSION
         value: "3.12.4"
       - key: CORS_ORIGINS
-        value: "*"
+        value: "https://treq-bay.vercel.app"
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: treq-cache
+          property: connectionString
+
+  - type: redis
+    name: treq-cache
+    plan: free
+    ipAllowList: [] # Permite acesso apenas de serviços internos do Render
