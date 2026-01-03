@@ -184,7 +184,7 @@ export function InputArea({
       <form onSubmit={handleSubmit} className="p-3 sm:p-4 max-w-5xl mx-auto">
         <div className={`relative flex items-end gap-2 p-2 rounded-[28px] border transition-all ${isHighContrast
           ? 'border-white bg-black'
-          : 'border-treq-gray-200 bg-white shadow-sm focus-within:shadow-md focus-within:border-treq-yellow'
+          : 'border-white/10 bg-white/5 shadow-sm focus-within:border-white/20'
           }`}>
           {/* Menu de Anexos (Esquerda Style Grok) */}
           <div className="mb-1 ml-1">

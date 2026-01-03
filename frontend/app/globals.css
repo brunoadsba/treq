@@ -73,9 +73,9 @@
     line-height: var(--line-height-normal);
   }
 
-  /* Foco visível para acessibilidade - WCAG 2.1 AA */
+  /* Foco customizado - Removido ring amarelo conforme solicitado */
   *:focus-visible {
-    @apply outline-none ring-2 ring-treq-yellow ring-offset-2;
+    @apply outline-none;
   }
 
   /* Botões e elementos interativos */
@@ -84,7 +84,7 @@
   input:focus-visible,
   textarea:focus-visible,
   select:focus-visible {
-    @apply ring-2 ring-treq-yellow ring-offset-2;
+    @apply outline-none;
   }
 
   /* Modo Alto Contraste */
