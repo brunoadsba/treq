@@ -1,14 +1,13 @@
 """
-Serviço Multimodal: Integração com Gemini 1.5 Pro Vision para análise de imagens e documentos.
+Serviço Multimodal: Integração com o novo Google GenAI SDK para análise de imagens e documentos.
 Localizado em src/features/vision seguindo a arquitetura modular.
 """
-import os
 import io
 import json
 import asyncio
 from typing import List, Dict, Any, Optional
 from PIL import Image
-import google.generativeai as genai
+from google import genai
 from loguru import logger
 
 from app.config import get_settings
@@ -18,26 +17,39 @@ settings = get_settings()
 class MultimodalService:
     def __init__(self):
         self.api_key = settings.gemini_api_key
+        self._client = None
+        
         if not self.api_key:
-            logger.error("❌ GEMINI_API_KEY não configurada no .env")
-            raise ValueError("GEMINI_API_KEY missing")
-        
-        genai.configure(api_key=self.api_key)
-        # Padronizado para 2.5 Flash devido à disponibilidade de quota e performance
-        self.model_pro = genai.GenerativeModel('gemini-2.5-flash')
-        self.model_flash = genai.GenerativeModel('gemini-2.5-flash')
-        
+            logger.warning("⚠️ GEMINI_API_KEY não configurada. Funcionalidades de visão estarão limitadas.")
+        else:
+            try:
+                self._client = genai.Client(api_key=self.api_key)
+                logger.info("✅ Cliente Gemini Vision (google-genai) inicializado com sucesso.")
+            except Exception as e:
+                logger.error(f"❌ Erro ao inicializar cliente Gemini Vision: {e}")
+
+    def _get_client(self):
+        if not self._client:
+            if not self.api_key:
+                raise ValueError("GEMINI_API_KEY missing. Configure no .env")
+            self._client = genai.Client(api_key=self.api_key)
+        return self._client
+
     async def describe_image(self, image_bytes: bytes, prompt: Optional[str] = None) -> str:
         """
         Gera uma descrição semântica detalhada da imagem.
         """
         try:
+            client = self._get_client()
             img = Image.open(io.BytesIO(image_bytes))
+            
             default_prompt = "Descreva esta imagem em detalhes para um sistema de assistência operacional. Extraia textos visíveis, identifique objetos, máquinas, avisos de segurança e descreva o contexto operacional."
             
+            # O novo SDK google-genai lida com PIL Images diretamente
             response = await asyncio.to_thread(
-                self.model_flash.generate_content,
-                [prompt or default_prompt, img]
+                client.models.generate_content,
+                model='gemini-2.0-flash',
+                contents=[prompt or default_prompt, img]
             )
             return response.text
         except Exception as e:
@@ -47,13 +59,11 @@ class MultimodalService:
     def _clean_json_text(self, text: str) -> str:
         """Limpa o texto para extrair apenas o conteúdo JSON."""
         text = text.strip()
-        # Remover blocos de código markdown
         if "```json" in text:
             text = text.split("```json")[1].split("```")[0].strip()
         elif "```" in text:
             text = text.split("```")[1].split("```")[0].strip()
         
-        # Se ainda houver lixo antes/depois do JSON
         start = text.find('{')
         end = text.rfind('}')
         if start != -1 and end != -1:
@@ -66,6 +76,7 @@ class MultimodalService:
         Extrai dados estruturados (tabelas ou gráficos) no formato JSON.
         """
         try:
+            client = self._get_client()
             img = Image.open(io.BytesIO(image_bytes))
             
             prompts = {
@@ -78,8 +89,9 @@ class MultimodalService:
             prompt += "\nRetorne APENAS o JSON, sem explicações."
             
             response = await asyncio.to_thread(
-                self.model_pro.generate_content,
-                [prompt, img]
+                client.models.generate_content,
+                model='gemini-2.0-flash',
+                contents=[prompt, img]
             )
             
             clean_text = self._clean_json_text(response.text)
@@ -92,8 +104,9 @@ class MultimodalService:
         """
         Análise completa de uma página de documento (texto + tabelas + insights).
         """
+        client = self._get_client()
         prompt = """
-        Analise esta página de documento técnico/operacional da Sotreq.
+        Analise esta página de documento técnico/operacional.
         Identifique e extraia em um JSON estruturado:
         1. "summary": Um resumo executivo do que trata o documento.
         2. "tables": Uma lista de objetos onde cada objeto é uma tabela encontrada (lista de dicts).
@@ -105,8 +118,9 @@ class MultimodalService:
         try:
             img = Image.open(io.BytesIO(image_bytes))
             response = await asyncio.to_thread(
-                self.model_pro.generate_content,
-                [prompt, img]
+                client.models.generate_content,
+                model='gemini-2.0-flash',
+                contents=[prompt, img]
             )
             
             clean_text = self._clean_json_text(response.text)
