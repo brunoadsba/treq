@@ -16,7 +16,7 @@ pydantic-settings>=2.1.0,<3.0.0 # Configurações via ambiente
 # -----------------------------------------------------------------------------
 # Database & Vector Store
 # -----------------------------------------------------------------------------
-supabase>=2.27.0,<3.0.0         # Cliente Supabase (PostgreSQL)
+supabase==2.11.0                 # Versão estável (evita dependências de build pesadas)
 pgvector>=0.2.0,<0.4.0          # Extensão para vetores
 psycopg2-binary>=2.9.0,<3.0.0   # Driver PostgreSQL
 
@@ -33,7 +33,7 @@ langsmith>=0.1.0                 # Observabilidade e tracing
 # LLM & APIs
 # -----------------------------------------------------------------------------
 groq>=0.36.0,<1.0.0              # API Groq (Llama models + Whisper)
-google-genai>=0.5.0              # Novo SDK Google GenAI (unificado para evitar conflitos)
+google-genai==1.2.0              # Pin em versão estável do novo SDK
 zai-sdk>=0.2.0,<1.0.0            # Zhipu AI (GLM 4)
 
 # -----------------------------------------------------------------------------
