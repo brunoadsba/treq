@@ -181,7 +181,7 @@ async def synthesize_audio(
         # Fallback: retornar texto para Web Speech API
         return AudioSynthesizeResponse(
             use_web_speech=True,
-            text=f"DEBUG ERROR: {str(e)}"
+            text=request.text
         )
 
 
