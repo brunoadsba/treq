@@ -25,6 +25,7 @@ CREATE OR REPLACE FUNCTION match_documents (
   created_at timestamp
 )
 LANGUAGE plpgsql
+SET search_path = public
 AS $$
 BEGIN
   RETURN QUERY

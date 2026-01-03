@@ -182,6 +182,10 @@ async def health_check():
 async def root():
     return {"status": "online", "message": "TREQ API"}
 
+@app.get("/routes")
+async def list_routes():
+    return [{"path": route.path, "name": route.name} for route in app.routes]
+
 # INCLUIR ROTAS (Agora são leves devido ao lazy loading nos routes)
 logger.info("📦 Iniciando registro individual de rotas...")
 
