@@ -183,40 +183,65 @@ async def root():
     return {"status": "online", "message": "TREQ API"}
 
 # INCLUIR ROTAS (Agora são leves devido ao lazy loading nos routes)
-try:
-    logger.info("📦 Iniciando importação de rotas...")
-    from app.api.routes import chat, health as health_route, monitoring, feedback, audio, documents
-    logger.info("✅ Imports de app.api.routes concluídos")
-    
-    try:
-        from src.features.vision.routes import router as vision_router
-        logger.info("✅ Import de vision_router concluído")
-    except Exception as vision_err:
-        logger.warning(f"⚠️ Erro ao importar vision_router: {vision_err}")
-        vision_router = None
+logger.info("📦 Iniciando registro individual de rotas...")
 
+# CHAT
+try:
+    from app.api.routes import chat
     app.include_router(chat.router)
     logger.info("✅ Router chat incluído")
+except Exception as e:
+    logger.error(f"❌ Falha ao incluir router CHAT: {e}")
+
+# HEALTH (Serviços LLM)
+try:
+    from app.api.routes import health as health_route
     app.include_router(health_route.router)
     logger.info("✅ Router health incluído")
+except Exception as e:
+    logger.error(f"❌ Falha ao incluir router HEALTH: {e}")
+
+# MONITORING
+try:
+    from app.api.routes import monitoring
     app.include_router(monitoring.router)
     logger.info("✅ Router monitoring incluído")
+except Exception as e:
+    logger.error(f"❌ Falha ao incluir router MONITORING: {e}")
+
+# FEEDBACK
+try:
+    from app.api.routes import feedback
     app.include_router(feedback.router)
     logger.info("✅ Router feedback incluído")
+except Exception as e:
+    logger.error(f"❌ Falha ao incluir router FEEDBACK: {e}")
+
+# AUDIO
+try:
+    from app.api.routes import audio
     app.include_router(audio.router)
     logger.info("✅ Router audio incluído")
+except Exception as e:
+    logger.error(f"❌ Falha ao incluir router AUDIO: {e}")
+
+# DOCUMENTS
+try:
+    from app.api.routes import documents
     app.include_router(documents.router)
     logger.info("✅ Router documents incluído")
-    
-    if vision_router:
-        app.include_router(vision_router)
-        logger.info("✅ Router vision incluído")
-        
-    logger.info("🚀 Todas as rotas registradas com sucesso")
 except Exception as e:
-    logger.error(f"❌ Erro crítico ao registrar rotas: {e}")
-    import traceback
-    logger.error(traceback.format_exc())
+    logger.error(f"❌ Falha ao incluir router DOCUMENTS: {e}")
+
+# VISION (Feature Modular)
+try:
+    from src.features.vision.routes import router as vision_router
+    app.include_router(vision_router)
+    logger.info("✅ Router vision incluído")
+except Exception as vision_err:
+    logger.warning(f"⚠️ Router vision opcional não incluído: {vision_err}")
+
+logger.info("🚀 Processo de registro de rotas concluído")
 
 # Startup Final
 @app.on_event("startup")

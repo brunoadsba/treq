@@ -26,6 +26,7 @@ psycopg2-binary>=2.9.0,<3.0.0   # Driver PostgreSQL
 sentence-transformers>=2.2.0,<4.0.0  # Modelos de embedding
 langchain>=0.3.27,<0.4.0             # Framework LLM
 langchain-community>=0.3.27,<0.4.0   # Integrações da comunidade
+langsmith>=0.1.0                 # Observabilidade e tracing
 
 # -----------------------------------------------------------------------------
 # LLM & APIs
@@ -51,6 +52,7 @@ pybreaker>=1.0.0,<2.0.0          # Circuit breakers
 PyYAML>=6.0                      # Leitura de YAML
 cachetools>=5.3.0                # Caching agressivo
 psutil>=5.9.0                    # System metrics
+tenacity>=8.2.0                  # Retry logic with backoff
 
 # -----------------------------------------------------------------------------
 # Audio Processing
