@@ -81,6 +81,7 @@ export function InputArea({
 
         // Limpar estado
         setAttachedFile(null);
+        setCameraPreview(null);
         setMessage("");
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
@@ -143,12 +144,19 @@ export function InputArea({
   };
 
   const handleCapturePhoto = (base64: string) => {
+    // Revocar URL anterior se existir para evitar vazamento de memória
+    if (cameraPreview && cameraPreview.startsWith('blob:')) {
+      URL.revokeObjectURL(cameraPreview);
+    }
     const file = base64ToFile(base64, `capture-${Date.now()}.jpg`);
     setAttachedFile(file);
     setCameraPreview(base64);
   };
 
   const handleRemoveFile = () => {
+    if (cameraPreview && cameraPreview.startsWith('blob:')) {
+      URL.revokeObjectURL(cameraPreview);
+    }
     setAttachedFile(null);
     setCameraPreview(null);
     if (fileInputRef.current) {

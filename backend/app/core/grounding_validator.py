@@ -10,6 +10,9 @@ Baseado no plano "Pragmatic Intelligence" (chat-inteligente.md).
 from typing import Dict, Any, Optional, Tuple
 from loguru import logger
 from app.core.tracing import trace_llm_call
+from app.config import get_settings
+
+settings = get_settings()
 
 
 class GroundingValidator:
@@ -111,7 +114,7 @@ Se válido = false, a resposta contém informações não suportadas e deve ser 
             # Usar geração síncrona sem streaming para validação
             validation_response = llm_service._generate_response_non_stream(
                 messages=messages,
-                selected_model="llama-3.1-8b-instant",  # Modelo rápido para validação
+                selected_model=settings.llm_model,  # Modelo rápido para validação
                 provider="groq",
                 temperature=0.1,  # Baixa temperatura para respostas consistentes
                 max_tokens=200
