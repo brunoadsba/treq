@@ -4,13 +4,14 @@ Endpoint para upload de PDF/DOCX/PPTX/Excel e indexação automática no RAG.
 """
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
 from pydantic import BaseModel
-from typing import Optional
 from pathlib import Path
 from loguru import logger
+from typing import Optional, TYPE_CHECKING
 
-from app.services.document_converter import DocumentConverterService
-from app.core.chunking_service import ChunkingService
-from app.core.rag_service import RAGService
+if TYPE_CHECKING:
+    from app.services.document_converter import DocumentConverterService
+    from app.core.chunking_service import ChunkingService
+    from app.core.rag_service import RAGService
 from app.api.routes.documents_helpers import (
     prepare_document_metadata,
     index_document_chunks
@@ -19,9 +20,9 @@ from app.api.routes.documents_helpers import (
 router = APIRouter(prefix="/documents", tags=["documents"])
 
 # Instâncias singleton dos serviços
-_converter_service: Optional[DocumentConverterService] = None
-_chunking_service: Optional[ChunkingService] = None
-_rag_service: Optional[RAGService] = None
+_converter_service: Optional['DocumentConverterService'] = None
+_chunking_service: Optional['ChunkingService'] = None
+_rag_service: Optional['RAGService'] = None
 
 
 def get_converter_service() -> DocumentConverterService:
@@ -94,9 +95,9 @@ async def upload_document(
     file: UploadFile = File(...),
     document_type: Optional[str] = Form(None),
     user_message: Optional[str] = Form(None),
-    converter: DocumentConverterService = Depends(get_converter_service),
-    chunking: ChunkingService = Depends(get_chunking_service),
-    rag: RAGService = Depends(get_rag_service)
+    converter: 'DocumentConverterService' = Depends(get_converter_service),
+    chunking: 'ChunkingService' = Depends(get_chunking_service),
+    rag: 'RAGService' = Depends(get_rag_service)
 ):
     """
     Endpoint para upload e indexação automática de documentos.
@@ -276,7 +277,7 @@ async def health_check():
 
 @router.get("/stats")
 async def get_documents_stats(
-    rag: RAGService = Depends(get_rag_service)
+    rag: 'RAGService' = Depends(get_rag_service)
 ):
     """
     Retorna estatísticas da base de conhecimento.

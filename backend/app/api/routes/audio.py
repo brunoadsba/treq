@@ -3,16 +3,20 @@ Rotas da API para processamento de áudio (STT e TTS).
 """
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query
 from pydantic import BaseModel, Field
-from typing import Optional
 from loguru import logger
+from typing import Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.services.stt_service import STTService
+    from app.services.tts_service import TTSService
 
 # Imports pesados movidos para dentro dos getters (Lazy Loading)
 
 router = APIRouter(prefix="/audio", tags=["audio"])
 
 # Instâncias singleton dos serviços
-_stt_service: Optional[STTService] = None
-_tts_service: Optional[TTSService] = None
+_stt_service: Optional['STTService'] = None
+_tts_service: Optional['TTSService'] = None
 
 
 def get_stt_service():
@@ -66,7 +70,7 @@ async def transcribe_audio(
     user_id: Optional[str] = Query(None),
     conversation_id: Optional[str] = Query(None),
     language: Optional[str] = Query("pt"),
-    stt_service: STTService = Depends(get_stt_service)
+    stt_service: 'STTService' = Depends(get_stt_service)
 ):
     """
     Transcreve áudio para texto usando Groq Whisper.
@@ -121,7 +125,7 @@ async def transcribe_audio(
 @router.post("/synthesize", response_model=AudioSynthesizeResponse)
 async def synthesize_audio(
     request: AudioSynthesizeRequest,
-    tts_service: TTSService = Depends(get_tts_service)
+    tts_service: 'TTSService' = Depends(get_tts_service)
 ):
     """
     Converte texto em áudio usando Gemini TTS.
@@ -186,7 +190,7 @@ async def chat_with_audio(
     audio_file: UploadFile = File(...),
     user_id: Optional[str] = None,
     conversation_id: Optional[str] = None,
-    stt_service: STTService = Depends(get_stt_service)
+    stt_service: 'STTService' = Depends(get_stt_service)
 ):
     """
     Endpoint combinado: transcreve áudio e processa como chat normal.
