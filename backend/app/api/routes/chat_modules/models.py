@@ -11,7 +11,7 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     """Request para chat."""
     message: str = Field(..., min_length=1, max_length=get_max_input_length(), description=f"Mensagem do usuário (máximo {get_max_input_length()} caracteres)")
-    user_id: str = Field(..., description="ID do usuário")
+    user_id: str = Field("anonymous", description="ID do usuário")
     conversation_id: Optional[str] = Field(None, description="ID da conversa (opcional)")
     context: Optional[Dict[str, Any]] = Field(None, description="Contexto adicional (unidade, período, etc.)")
     stream: Optional[bool] = Field(False, description="Se True, retorna streaming SSE")
