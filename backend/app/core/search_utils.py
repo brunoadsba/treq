@@ -258,9 +258,10 @@ def should_use_hybrid_search(query: str) -> bool:
             logger.debug(f"Query contém padrão para busca híbrida: {pattern}")
             return True
     
-    # Queries muito curtas (1-3 palavras) beneficiam de busca híbrida
+    # Queries de até 10 palavras se beneficiam de busca híbrida para garantir recall
+    # Especialmente útil quando há mismatch de modelos de embedding
     word_count = len(query.split())
-    if word_count <= 3:
+    if word_count <= 10:
         return True
     
     return False
