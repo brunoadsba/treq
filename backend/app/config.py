@@ -2,7 +2,7 @@
 Configurações da aplicação usando Pydantic Settings.
 """
 from pydantic_settings import BaseSettings
-from pydantic import HttpUrl, Field
+from pydantic import HttpUrl, Field, AliasChoices
 from functools import lru_cache
 import os
 from dotenv import load_dotenv
@@ -13,7 +13,9 @@ load_dotenv()
 # Forçar injeção no ambiente para bibliotecas que leem direto do os.environ
 if os.getenv("LANGCHAIN_TRACING_V2", "").lower() == "true":
     os.environ["LANGCHAIN_TRACING_V2"] = "true"
-    os.environ["LANGSMITH_API_KEY"] = os.getenv("LANGSMITH_API_KEY", "")
+    # Tenta LANGSMITH_API_KEY, se não houver, tenta LANGCHAIN_API_KEY
+    ls_key = os.getenv("LANGSMITH_API_KEY") or os.getenv("LANGCHAIN_API_KEY", "")
+    os.environ["LANGSMITH_API_KEY"] = ls_key
     os.environ["LANGCHAIN_PROJECT"] = os.getenv("LANGCHAIN_PROJECT", "treq-assistente")
 
 class Settings(BaseSettings):
@@ -38,7 +40,7 @@ class Settings(BaseSettings):
     
     # APIs
     groq_api_key: str = ""
-    gemini_api_key: str = ""
+    gemini_api_key: str = Field("", validation_alias=AliasChoices("GEMINI_API_KEY", "GOOGLE_API_KEY"))
     zhipu_api_key: str = ""  # API Key para Zhipu AI (GLM 4)
     
     # Audio
@@ -65,7 +67,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     
     # LangSmith Observability (opcional)
-    langsmith_api_key: str = ""
+    langsmith_api_key: str = Field("", validation_alias=AliasChoices("LANGSMITH_API_KEY", "LANGCHAIN_API_KEY"))
     langchain_tracing_v2: str = "false"
     langchain_project: str = "treq-assistente"
     
