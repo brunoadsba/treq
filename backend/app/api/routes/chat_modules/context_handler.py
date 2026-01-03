@@ -1,9 +1,11 @@
-from typing import Dict, Any
+from typing import Dict, Any, TYPE_CHECKING
 from loguru import logger
 import json
 from fastapi import HTTPException
 
-from app.core.rag_service import RAGService
+if TYPE_CHECKING:
+    from app.core.rag_service import RAGService
+    from app.services.llm_service import LLMService
 from app.core.social_detector import detect_social_interaction
 from app.core.consultoria_detector import detect_initial_consultoria, get_initial_consultoria_response
 from app.core.follow_up_detector import detect_follow_up, expand_query_with_context
@@ -25,7 +27,7 @@ from app.core.cot_planner import generate_cot_plan
 
 async def prepare_chat_context(
     chat_request: ChatRequest,
-    rag_service: RAGService
+    rag_service: 'RAGService'
 ) -> Dict[str, Any]:
     """
     Prepara contexto comum para streaming e não-streaming.

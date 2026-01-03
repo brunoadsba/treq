@@ -1,9 +1,10 @@
-from typing import Any, List, Dict, Optional, Generator
+from typing import Any, List, Dict, Optional, Generator, TYPE_CHECKING
 from loguru import logger
 import json
 
-from app.services.llm_service import LLMService
-from app.core.context_manager import ContextManager
+if TYPE_CHECKING:
+    from app.services.llm_service import LLMService
+    from app.core.context_manager import ContextManager
 from app.core.consultant_validator import validate_consultant_response, assess_response_quality
 from app.core.tracing import trace_llm_call
 from app.utils.stream_validator import StreamValidator
@@ -19,11 +20,11 @@ from .models import ChatRequest
 
 def fallback_complete_response(
     messages: List[Dict[str, str]],
-    llm_service: LLMService,
+    llm_service: 'LLMService',
     query_type: str,
     query_text: str,
     chat_request: ChatRequest,
-    context_manager: ContextManager,
+    context_manager: 'ContextManager',
     sources: List[Dict[str, Any]],
     strategy: str,
     tool_result: Optional[Any],
@@ -102,8 +103,8 @@ def fallback_complete_response(
 
 def generate_stream_response(
     chat_request: ChatRequest,
-    llm_service: LLMService,
-    context_manager: ContextManager,
+    llm_service: 'LLMService',
+    context_manager: 'ContextManager',
     query_type: str,
     combined_context: List[str],
     tool_result: Optional[Any],

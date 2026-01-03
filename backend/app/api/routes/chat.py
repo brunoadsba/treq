@@ -3,7 +3,6 @@ Rotas da API para chat.
 """
 from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi.responses import StreamingResponse
-from typing import Any
 from loguru import logger
 import json
 
@@ -12,10 +11,12 @@ from slowapi.errors import RateLimitExceeded
 from app.api.routes.chat_helpers import build_llm_messages
 from app.core.tracing import trace_llm_call
 from langsmith.run_helpers import get_current_run_tree
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-# Importar tipos para type hinting
-from app.services.llm_service import LLMService
-from app.core.rag_service import RAGService
+if TYPE_CHECKING:
+    from app.services.llm_service import LLMService
+    from app.core.rag_service import RAGService
+    from app.core.context_manager import ContextManager
 
 # Importar módulos refatorados
 from .chat_modules.models import ChatRequest, ChatResponse
@@ -32,8 +33,8 @@ async def chat(
     request: Request,
     chat_request: ChatRequest,
     _: None = Depends(rate_limit(get_rate_limit("chat"))),  # Rate limiting via dependency injection
-    llm_service: LLMService = Depends(get_llm_service),
-    rag_service: RAGService = Depends(get_rag_service),
+    llm_service: 'LLMService' = Depends(get_llm_service),
+    rag_service: 'RAGService' = Depends(get_rag_service),
     visualization_service: Any = Depends(get_visualization_service)
 ):
     """

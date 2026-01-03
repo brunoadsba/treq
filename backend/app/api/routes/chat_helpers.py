@@ -2,24 +2,26 @@
 Funções auxiliares para processamento de chat.
 Extraídas de chat.py para melhor organização e manutenibilidade.
 """
-from typing import List, Dict, Any, Optional, Tuple
 from loguru import logger
 
-from app.core.context_manager import ContextManager
 from app.core.search_utils import get_adaptive_top_k, search_with_fallback
 from app.core.query_router import should_use_tool_first, should_use_rag_first
 from app.core.tools import MetricsTool
 from app.core.param_extractor import extract_tool_params
-from app.services.llm_service import LLMService
-from app.core.rag_service import RAGService
 from app.utils.pii_anonymizer import anonymize_pii
+from typing import List, Dict, Any, Optional, Tuple, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.services.llm_service import LLMService
+    from app.core.rag_service import RAGService
+    from app.core.context_manager import ContextManager
 
 
 def get_or_create_context_manager(
     user_id: str,
     conversation_id: Optional[str],
-    context_cache: Dict[str, ContextManager]
-) -> ContextManager:
+    context_cache: Dict[str, 'ContextManager']
+) -> 'ContextManager':
     """
     Obtém ou cria um ContextManager para a conversa.
     
@@ -44,7 +46,7 @@ def get_or_create_context_manager(
 def process_entities_and_context(
     request_message: str,
     request_context: Optional[Dict[str, Any]],
-    context_manager: ContextManager
+    context_manager: 'ContextManager'
 ) -> Dict[str, Any]:
     """
     Processa entidades e contexto da requisição.
@@ -87,8 +89,8 @@ def build_llm_messages(
     query_type: str,
     combined_context: List[str],
     is_follow_up: bool,
-    llm_service: LLMService,
-    context_manager: ContextManager
+    llm_service: 'LLMService',
+    context_manager: 'ContextManager'
 ) -> List[Dict[str, str]]:
     """
     Constrói mensagens para o LLM com contexto e histórico.
@@ -171,7 +173,7 @@ async def fetch_context_and_tools(
     entities: Dict[str, Any],
     search_query: str,
     is_follow_up: bool,
-    rag_service: RAGService
+    rag_service: 'RAGService'
 ) -> Tuple[List[str], List[Dict[str, Any]], Optional[Any]]:
     """
     Busca contexto RAG e executa tools conforme estratégia.
