@@ -103,10 +103,31 @@ app.add_middleware(ExceptionHandlingMiddleware)
 app_limiter = setup_rate_limiting(app)
 
 # CORS
-origins = [o.strip() for o in settings.cors_origins.split(",")] if settings.cors_origins else ["*"]
+# Se permitir credenciais, Origins não pode conter "*" em muitos navegadores (CORS Policy)
+raw_origins = settings.cors_origins.split(",") if settings.cors_origins else []
+allowed_origins = [o.strip() for o in raw_origins if o.strip()]
+
+# Lista explícita de origens confiáveis para produção + local
+trusted_origins = [
+    "https://treq-bay.vercel.app",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000"
+]
+
+for origin in trusted_origins:
+    if origin not in allowed_origins:
+        allowed_origins.append(origin)
+
+# Se ainda assim o usuário colocou "*" no ENV, o CORSMiddleware do FastAPI 
+# vai reclamar se allow_credentials=True. Vamos garantir que funcione.
+if "*" in allowed_origins and True: # settings.allow_credentials
+    # Se houver wildcard, removemos o wildcard e mantemos apenas as origens explícitas
+    # ou deixamos o FastAPI tratar (ele vai dar erro se não filtrarmos).
+    allowed_origins = [o for o in allowed_origins if o != "*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=allowed_origins if allowed_origins else ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
