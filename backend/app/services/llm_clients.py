@@ -5,6 +5,7 @@ from typing import List, Dict, Optional, Generator, Any
 from loguru import logger
 import time
 import json
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from app.utils.debug import trace_generator
 from app.middleware.request_id import get_request_id
@@ -17,6 +18,11 @@ from app.core.circuit_breaker import (
 from app.core.tracing import trace_llm_call
 
 
+@retry(
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    stop=stop_after_attempt(3),
+    reraise=True
+)
 @trace_llm_call(name="call_glm4", run_type="llm")
 def call_glm4(
     zhipu_client: Any,
@@ -323,6 +329,11 @@ def stream_glm4(
             yield from fallback_stream
 
 
+@retry(
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    stop=stop_after_attempt(3),
+    reraise=True
+)
 @trace_llm_call(name="call_groq", run_type="llm")
 def call_groq(
     groq_client: Any,

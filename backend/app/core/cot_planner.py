@@ -9,26 +9,7 @@ from loguru import logger
 from app.services.llm_service import LLMService
 from app.services.prompts import SYSTEM_PROMPTS
 
-def _extract_json(text: str) -> Dict[str, Any]:
-    """Extrai JSON de uma string de forma robusta, lidando com blocos markdown e prefixos."""
-    try:
-        # 1. Remover blocos markdown comuns e suas variantes
-        content = re.sub(r'```(?:json|formato de dados|planilha|texto)?', '', text, flags=re.IGNORECASE)
-        content = content.replace('```', '').strip()
-        
-        # 2. Encontrar os limites do objeto JSON {...}
-        start_idx = content.find('{')
-        end_idx = content.rfind('}')
-        
-        if start_idx != -1 and end_idx != -1:
-            json_str = content[start_idx:end_idx+1]
-            return json.loads(json_str)
-        
-        # 3. Fallback: tentar carregar o conteúdo limpo original
-        return json.loads(content)
-    except Exception as e:
-        logger.warning(f"Falha na extração de JSON do CoT: {e}. Texto original: {text[:100]}...")
-        raise e
+from app.utils.text_utils import safe_json_parse
 
 async def generate_cot_plan(
     user_query: str,
@@ -87,7 +68,7 @@ async def generate_cot_plan(
         
         # Parse JSON
         if isinstance(response_text, str):
-            plan = _extract_json(response_text)
+            plan = safe_json_parse(response_text)
             logger.info(f"🧠 Plano CoT gerado: {plan.get('intent')} | Status: {plan.get('context_status')}")
             return plan
         

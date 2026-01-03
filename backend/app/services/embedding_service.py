@@ -2,18 +2,18 @@
 Serviço de embeddings para busca semântica.
 Usa sentence-transformers para gerar embeddings de texto.
 """
-from typing import List, Optional
+from typing import List, Optional, Any
 from loguru import logger
-from sentence_transformers import SentenceTransformer
+# from sentence_transformers import SentenceTransformer (Movido para dentro da função para Lazy Loading)
 from app.config import get_settings
 
 settings = get_settings()
 
-# Instância singleton do modelo de embeddings
-_embedding_model: Optional[SentenceTransformer] = None
+# Instância singleton do modelo de embeddings (tipo Any para evitar import no topo)
+_embedding_model: Optional[Any] = None
 
 
-def get_embedding_model() -> SentenceTransformer:
+def get_embedding_model() -> Any:
     """
     Retorna instância singleton do modelo de embeddings.
     
@@ -23,6 +23,7 @@ def get_embedding_model() -> SentenceTransformer:
     global _embedding_model
     
     if _embedding_model is None:
+        from sentence_transformers import SentenceTransformer
         model_name = settings.embedding_model
         logger.info(f"Carregando modelo de embeddings: {model_name}")
         

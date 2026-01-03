@@ -53,3 +53,44 @@ def truncate_for_tts(text: str, max_chars: int = MAX_TTS_CHARS) -> str:
         return truncated[:last_space] + '...'
     
     return truncated + '...'
+
+
+def safe_json_parse(text: str) -> dict:
+    """
+    Extrai e faz o parse do primeiro bloco JSON encontrado no texto.
+    Útil quando o LLM inclui preâmbulos ou explicações fora do bloco JSON.
+    
+    Args:
+        text: Texto bruto retornado pelo LLM
+        
+    Returns:
+        dict: Objeto JSON parseado
+        
+    Raises:
+        ValueError: Se nenhum JSON válido for encontrado
+    """
+    import json
+    
+    # 1. Tentar parse direto (caso ideal)
+    try:
+        return json.loads(text.strip())
+    except json.JSONDecodeError:
+        pass
+    
+    # 2. Tentar encontrar bloco JSON via RegEx
+    # Busca o primeiro objeto { ... } ou [ ... ]
+    match = re.search(r'(\{.*\}|\[.*\])', text, re.DOTALL)
+    if match:
+        try:
+            return json.loads(match.group(1))
+        except json.JSONDecodeError:
+            pass
+            
+    # 3. Fallback: remover blocos de código markdown se existirem e tentar novamente
+    clean_text = re.sub(r'```(?:json)?\s*(.*?)\s*```', r'\1', text, flags=re.DOTALL)
+    try:
+        return json.loads(clean_text.strip())
+    except json.JSONDecodeError:
+        pass
+        
+    raise ValueError("Não foi possível encontrar ou parsear um bloco JSON válido na resposta do LLM.")
