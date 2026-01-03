@@ -39,6 +39,6 @@ def get_visualization_service():
         _visualization_service = VisualizationService()
     return _visualization_service
 
-def get_context_cache() -> Dict[str, ContextManager]:
+def get_context_cache() -> Dict[str, 'ContextManager']:
     """Retorna a referência ao cache de contextos."""
     return _context_cache
