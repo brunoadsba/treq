@@ -27,12 +27,12 @@ export function Header({
   return (
     <header className="bg-treq-black text-white p-2 sm:p-2.5 md:p-3 lg:p-3.5 shadow-md">
       <div className="flex items-center justify-between gap-2 sm:gap-3">
-        {/* Lado Esquerdo: Logo e Título */}
-        <div className="flex items-center min-w-0 flex-1">
-          <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
-            <Logo variant="horizontal" size="md" className="text-white" />
-          </div>
-          <h1 className="flex-1 text-center text-base md:text-lg lg:text-xl xl:text-2xl font-semibold truncate ml-6">
+        {/* Lado Esquerdo: Marca (Responsiva) */}
+        <div className="flex items-center min-w-0 md:flex-1">
+          <Logo variant="horizontal" size="md" className="text-white" />
+
+          {/* Título Desktop: Centralizado e original (Escondido no Mobile) */}
+          <h1 className="hidden md:block flex-1 text-center text-base md:text-lg lg:text-xl font-semibold truncate ml-6">
             {title}
           </h1>
         </div>
