@@ -7,7 +7,7 @@ import re
 import struct
 from typing import Optional
 from loguru import logger
-from google import genai
+import google.genai as genai
 from google.genai import types
 from app.config import get_settings
 from app.utils.text_utils import truncate_for_tts
