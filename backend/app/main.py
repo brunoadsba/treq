@@ -184,19 +184,39 @@ async def root():
 
 # INCLUIR ROTAS (Agora são leves devido ao lazy loading nos routes)
 try:
+    logger.info("📦 Iniciando importação de rotas...")
     from app.api.routes import chat, health as health_route, monitoring, feedback, audio, documents
-    from src.features.vision.routes import router as vision_router
+    logger.info("✅ Imports de app.api.routes concluídos")
+    
+    try:
+        from src.features.vision.routes import router as vision_router
+        logger.info("✅ Import de vision_router concluído")
+    except Exception as vision_err:
+        logger.warning(f"⚠️ Erro ao importar vision_router: {vision_err}")
+        vision_router = None
 
     app.include_router(chat.router)
+    logger.info("✅ Router chat incluído")
     app.include_router(health_route.router)
+    logger.info("✅ Router health incluído")
     app.include_router(monitoring.router)
+    logger.info("✅ Router monitoring incluído")
     app.include_router(feedback.router)
+    logger.info("✅ Router feedback incluído")
     app.include_router(audio.router)
+    logger.info("✅ Router audio incluído")
     app.include_router(documents.router)
-    app.include_router(vision_router)
-    logger.info("✅ Rotas registradas no sistema")
+    logger.info("✅ Router documents incluído")
+    
+    if vision_router:
+        app.include_router(vision_router)
+        logger.info("✅ Router vision incluído")
+        
+    logger.info("🚀 Todas as rotas registradas com sucesso")
 except Exception as e:
-    logger.error(f"❌ Erro ao registrar rotas: {e}")
+    logger.error(f"❌ Erro crítico ao registrar rotas: {e}")
+    import traceback
+    logger.error(traceback.format_exc())
 
 # Startup Final
 @app.on_event("startup")
