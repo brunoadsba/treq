@@ -1,413 +1,238 @@
 "use client";
 
-import { useState, FormEvent, useRef, useEffect } from "react";
-import { Mic, Send, Loader2, Paperclip } from "lucide-react";
+import React, { useState, useRef, FormEvent, useCallback, useEffect } from "react";
+import { Send, Loader2 } from "lucide-react";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { useAudioTranscription } from "@/hooks/useAudioTranscription";
 import { useDocumentUpload } from "@/hooks/useDocumentUpload";
 import { useHighContrast } from "@/hooks/useHighContrast";
-import { useTheme } from "@/hooks/useTheme";
-import { ContextSuggestions } from "./ContextSuggestions";
 import { CameraCapture } from "@/src/features/vision/components/CameraCapture";
-import { base64ToFile } from "@/src/features/vision/actions/visionActions";
-import { Camera } from "lucide-react";
+import { base64ToFile, fileToBase64 } from "@/src/features/chat/utils/file-utils";
+
+// Novos subcomponentes modulares (Regra 5: Split files)
+import { ChatTextArea } from "@/src/features/chat/components/InputArea/subcomponents/ChatTextArea";
+import { FilePreviewSection } from "@/src/features/chat/components/InputArea/subcomponents/FilePreviewSection";
+import { AudioRecorderSection } from "@/src/features/chat/components/InputArea/subcomponents/AudioRecorderSection";
+import { InputActions } from "@/src/features/chat/components/InputArea/subcomponents/InputActions";
 
 interface InputAreaProps {
   onSend: (message: string, actionId?: string, imageUrl?: string) => void;
-  isLoading?: boolean;
-  placeholder?: string;
-  userId?: string;
-  conversationId?: string;
-  onDocumentUploaded?: (fileName: string, chunksIndexed: number) => void;
+  isLoading: boolean;
+  onDocumentUploaded?: (filename: string, chunks: number) => void;
   onDocumentUploadError?: (error: string) => void;
 }
 
 export function InputArea({
   onSend,
-  isLoading = false,
-  placeholder = "Digite sua mensagem...",
-  userId = "default-user",
-  conversationId,
+  isLoading,
   onDocumentUploaded,
   onDocumentUploadError,
 }: InputAreaProps) {
   const [message, setMessage] = useState("");
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
-  const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [cameraPreview, setCameraPreview] = useState<string | null>(null);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Ref para rastrear URLs de Blob e evitar memory leaks
+  const activeBlobUrls = useRef<Set<string>>(new Set());
+
   const { isRecording, audioBlob, startRecording, stopRecording, clearRecording } = useAudioRecorder();
   const { isTranscribing, transcribeAudio } = useAudioTranscription();
   const { isUploading, uploadDocument } = useDocumentUpload();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const isHighContrast = useHighContrast();
-  const [theme] = useTheme();
 
-  // Listener para mudanças no modo alto contraste
+  // Função para criar e registrar Blob URL
+  const createSecureBlobUrl = useCallback((file: File) => {
+    const url = URL.createObjectURL(file);
+    activeBlobUrls.current.add(url);
+    return url;
+  }, []);
+
+  // Cleanup de Blob URLs ao desmontar
   useEffect(() => {
-    const handleHighContrastChange = () => {
-      // Forçar re-render quando modo alto contraste mudar
-      window.location.reload();
-    };
-
-    window.addEventListener("highContrastChanged", handleHighContrastChange);
     return () => {
-      window.removeEventListener("highContrastChanged", handleHighContrastChange);
+      activeBlobUrls.current.forEach(url => URL.revokeObjectURL(url));
+      activeBlobUrls.current.clear();
     };
   }, []);
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-
-    // Se há arquivo anexado, enviar arquivo + mensagem
-    if (attachedFile) {
+  const handleTranscribe = useCallback(async () => {
+    if (audioBlob) {
       try {
-        // Enviar arquivo com mensagem
-        const result = await uploadDocument(attachedFile, undefined, message.trim() || undefined);
-
-        // Se há mensagem, também enviar como mensagem de chat
-        if (message.trim()) {
-          // Criar URL para visualização local da imagem se for imagem
-          const imageUrl = attachedFile.type.startsWith('image/')
-            ? URL.createObjectURL(attachedFile)
-            : undefined;
-
-          // Enviar mensagem explicando o que fazer com o arquivo
-          onSend(message.trim(), undefined, imageUrl);
+        const text = await transcribeAudio(audioBlob);
+        if (text && text.trim()) {
+          onSend(text);
+          clearRecording();
         }
+      } catch (error) {
+        console.error("Erro na transcrição:", error);
+      }
+    }
+  }, [audioBlob, transcribeAudio, clearRecording, onSend]);
+
+  const handleSubmit = async (e?: FormEvent) => {
+    if (e) e.preventDefault();
+
+    const currentMessage = message.trim();
+    const isProcessing = isLoading || isTranscribing || isUploading;
+
+    if (isProcessing) return;
+
+    try {
+      let imageUrl: string | undefined = undefined;
+
+      // 1. Prioridade: Upload de Documento/Imagem
+      if (attachedFile) {
+        // Criar URL para visualização local imediata (UX)
+        const localPreviewUrl = attachedFile.type.startsWith('image/')
+          ? createSecureBlobUrl(attachedFile)
+          : undefined;
+
+        // Se for imagem, converter para base64 para o backend realmente "ver" o conteúdo
+        if (attachedFile.type.startsWith('image/')) {
+          imageUrl = await fileToBase64(attachedFile);
+        }
+
+        // Upload oficial para o RAG (Base de conhecimento)
+        const result = await uploadDocument(attachedFile, undefined, currentMessage || undefined);
 
         if (onDocumentUploaded) {
           onDocumentUploaded(attachedFile.name, result.chunksIndexed);
         }
 
-        // Limpar estado
+        const chatText = currentMessage || `[Arquivo: ${attachedFile.name}]`;
+        // Passamos o localPreviewUrl para a bolha do chat (eficiência) e o base64 real para o Hook/Backend
+        onSend(chatText, undefined, imageUrl || localPreviewUrl);
+
+        // Limpar estado de anexo
         setAttachedFile(null);
         setCameraPreview(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
         setMessage("");
-        if (fileInputRef.current) {
-          fileInputRef.current.value = "";
-        }
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "Erro desconhecido ao fazer upload";
-        if (onDocumentUploadError) {
-          onDocumentUploadError(errorMessage);
-        }
-        console.error("Erro ao fazer upload:", error);
+        return;
       }
-      return;
-    }
 
-    // Comportamento normal: apenas enviar mensagem
-    if (message.trim() && !isLoading && !isTranscribing) {
-      onSend(message);
-      setMessage("");
-    }
-  };
-
-  const handleAudioRecord = async () => {
-    if (isRecording) {
-      stopRecording();
-    } else {
-      try {
-        await startRecording();
-      } catch (error) {
-        console.error("Erro ao iniciar gravação:", error);
+      // 2. Transcrição pendente de áudio (se o usuário clicar em enviar com áudio gravado mas não transcrito)
+      if (audioBlob && !currentMessage) {
+        await handleTranscribe();
+        return;
       }
-    }
-  };
 
-  const handleAudioSend = async () => {
-    if (!audioBlob) return;
-
-    try {
-      const transcript = await transcribeAudio(audioBlob, userId, conversationId);
-      if (transcript) {
-        onSend(transcript);
-        clearRecording();
+      // 3. Envio normal de texto
+      if (currentMessage) {
+        onSend(currentMessage);
+        setMessage("");
       }
     } catch (error) {
-      console.error("Erro ao transcrever áudio:", error);
+      const errorMessage = error instanceof Error ? error.message : "Erro no processamento";
+      if (onDocumentUploadError) onDocumentUploadError(errorMessage);
     }
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Apenas anexar o arquivo, não enviar ainda
-    setAttachedFile(file);
-
-    // Limpar input para permitir selecionar o mesmo arquivo novamente
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+    if (file) {
+      setAttachedFile(file);
+      setCameraPreview(null);
     }
-    setCameraPreview(null);
   };
 
   const handleCapturePhoto = (base64: string) => {
-    // Revocar URL anterior se existir para evitar vazamento de memória
-    if (cameraPreview && cameraPreview.startsWith('blob:')) {
-      URL.revokeObjectURL(cameraPreview);
-    }
     const file = base64ToFile(base64, `capture-${Date.now()}.jpg`);
     setAttachedFile(file);
     setCameraPreview(base64);
+    setIsCameraOpen(false);
   };
 
-  const handleRemoveFile = () => {
-    if (cameraPreview && cameraPreview.startsWith('blob:')) {
-      URL.revokeObjectURL(cameraPreview);
-    }
+  const handleRemoveFile = useCallback(() => {
     setAttachedFile(null);
     setCameraPreview(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }, []);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      if (!isMobile) {
+        e.preventDefault();
+        handleSubmit();
+      }
     }
   };
 
   const isProcessing = isLoading || isTranscribing || isUploading;
 
   return (
-    <div className={`border-t ${isHighContrast ? 'border-white bg-black' : 'border-treq-gray-200 bg-white'}`}>
-      {/* Sugestões contextuais para gestores */}
-      <ContextSuggestions
-        onSelectSuggestion={setMessage}
-        userId={userId}
+    <div className={`relative transition-all duration-300 ${isHighContrast ? 'bg-black' : 'bg-treq-gray-50'
+      }`}>
+      {/* Seção de Preview de Arquivo */}
+      <FilePreviewSection
+        attachedFile={attachedFile}
+        cameraPreview={cameraPreview}
+        onRemove={handleRemoveFile}
       />
 
-      {/* Área de áudio gravado - melhorada */}
-      {audioBlob && !isTranscribing && (
-        <div className={`px-4 py-3 border-b flex items-center justify-between animate-fade-in ${isHighContrast
-          ? 'bg-treq-yellow-dark border-treq-yellow'
-          : 'bg-treq-info-light border-treq-info'
-          }`}>
-          <div className="flex items-center gap-2">
-            <Mic className={`w-4 h-4 ${isHighContrast ? 'text-black' : 'text-treq-info'}`} />
-            <span className={`text-sm font-medium ${isHighContrast ? 'text-black' : 'text-treq-info-dark'
-              }`}>
-              Áudio gravado e pronto para envio
-            </span>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={clearRecording}
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-treq-yellow focus:ring-offset-2 ${isHighContrast
-                ? 'text-black hover:bg-treq-yellow-light'
-                : 'text-treq-info-dark hover:bg-treq-info'
-                }`}
-              aria-label="Cancelar gravação de áudio"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={handleAudioSend}
-              disabled={isProcessing}
-              className={`px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-treq-yellow focus:ring-offset-2 ${isHighContrast
-                ? 'bg-treq-yellow text-black hover:bg-treq-yellow-light'
-                : 'bg-treq-info text-white hover:bg-treq-info-dark'
-                }`}
-              aria-label="Enviar áudio gravado"
-            >
-              Enviar Áudio
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Seção de Áudio Gravado */}
+      <AudioRecorderSection
+        audioBlob={audioBlob}
+        isTranscribing={isTranscribing}
+        onClear={clearRecording}
+        onSend={handleTranscribe}
+        isProcessing={isProcessing}
+      />
 
-      {/* Área de arquivo anexado */}
-      {attachedFile && (
-        <div className={`px-4 py-3 border-b flex items-center justify-between animate-fade-in ${isHighContrast
-          ? 'bg-treq-yellow-dark border-treq-yellow'
-          : 'bg-treq-info-light border-treq-info'
-          }`}>
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden ${isHighContrast ? 'bg-treq-yellow' : 'bg-treq-info'
-              }`}>
-              {cameraPreview ? (
-                <img src={cameraPreview} alt="Preview" className="w-full h-full object-cover" />
-              ) : (
-                <Paperclip className={`w-5 h-5 ${isHighContrast ? 'text-black' : 'text-white'}`} />
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className={`text-sm font-medium truncate ${isHighContrast ? 'text-black' : 'text-treq-info-dark'
-                }`}>
-                {attachedFile.name}
-              </p>
-              <p className={`text-xs ${isHighContrast ? 'text-black/70' : 'text-treq-info-dark/70'
-                }`}>
-                {(attachedFile.size / 1024).toFixed(1)} KB
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={handleRemoveFile}
-            className={`flex-shrink-0 ml-2 p-1.5 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-treq-yellow focus:ring-offset-2 ${isHighContrast
-              ? 'text-black hover:bg-treq-yellow-light'
-              : 'text-treq-info-dark hover:bg-treq-info'
-              }`}
-            aria-label="Remover arquivo anexado"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      )}
-
-      {/* Área de input */}
-      <form onSubmit={handleSubmit} className="p-2 sm:p-3 md:p-4 lg:p-5">
-        <div className="flex gap-1.5 sm:gap-2 md:gap-3">
-          {/* Input de arquivo oculto */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf,.docx,.pptx,.xlsx,.xls,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.tif,.webp"
-            onChange={handleFileSelect}
+      <form onSubmit={handleSubmit} className="p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:p-3 md:p-4 lg:p-5">
+        <div className="flex items-center gap-2 max-w-5xl mx-auto">
+          {/* Botões de Ação */}
+          <InputActions
+            onCameraClick={() => setIsCameraOpen(true)}
+            onFileClick={() => fileInputRef.current?.click()}
+            onMicClick={isRecording ? stopRecording : startRecording}
+            isRecording={isRecording}
             disabled={isProcessing}
-            className="hidden"
-            id="file-upload"
-            aria-label="Selecionar arquivo para upload"
+            hasFile={!!attachedFile}
           />
 
-          {/* Botão de Câmera - PREMIUM */}
-          <button
-            type="button"
-            onClick={() => setIsCameraOpen(true)}
-            disabled={isProcessing || !!audioBlob}
-            className={`min-w-[44px] min-h-[44px] sm:min-w-[48px] sm:min-h-[48px] px-2 sm:px-3 rounded-xl font-medium transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-treq-yellow focus:ring-offset-2 hover:scale-110 active:scale-90 shadow-sm hover:shadow-md ${isHighContrast
-              ? 'bg-treq-yellow text-black hover:bg-treq-yellow-light'
-              : 'bg-white border border-treq-gray-200 text-treq-gray-600 hover:text-treq-yellow hover:border-treq-yellow'
-              }`}
-            title="Usar câmera"
-            aria-label="Abrir câmera"
-          >
-            <Camera className="w-5 h-5 sm:w-5.5 sm:h-5.5 transition-transform group-hover:rotate-6" />
-          </button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            className="hidden"
+            accept=".pdf,.docx,.pptx,.xlsx,.xls,image/*"
+            aria-hidden="true"
+          />
 
-          {/* Botão de anexar documento - Touch target 48px mínimo */}
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isProcessing || !!audioBlob}
-            className={`min-w-[44px] min-h-[44px] sm:min-w-[48px] sm:min-h-[48px] px-2 sm:px-3 rounded-xl font-medium transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-treq-yellow focus:ring-offset-2 hover:scale-110 active:scale-90 shadow-sm hover:shadow-md ${attachedFile
-              ? isHighContrast
-                ? 'bg-treq-yellow text-black hover:bg-treq-yellow-light'
-                : 'bg-treq-info text-white hover:bg-treq-info-dark'
-              : isHighContrast
-                ? 'bg-treq-yellow text-black hover:bg-treq-yellow-light'
-                : 'bg-white border border-treq-gray-200 text-treq-gray-600 hover:text-treq-info hover:border-treq-info'
-              }`}
-            title={attachedFile ? "Arquivo anexado - Clique para trocar" : "Anexar documento"}
-            aria-label={attachedFile ? "Arquivo anexado" : "Anexar documento"}
-          >
-            <Paperclip className={`w-5 h-5 sm:w-5.5 sm:h-5.5 transition-transform ${attachedFile ? 'rotate-45' : 'hover:scale-110'}`} />
-          </button>
+          {/* Área de Texto com Auto-resize */}
+          <ChatTextArea
+            value={message}
+            onChange={setMessage}
+            onKeyDown={handleKeyDown}
+            placeholder={
+              attachedFile ? "O que deseja fazer com este arquivo?" :
+                isTranscribing ? "Transcrevendo..." :
+                  isUploading ? "Enviando..." : "Digite sua mensagem..."
+            }
+            disabled={isProcessing}
+            isTranscribing={isTranscribing}
+          />
 
-          {/* Botão de gravação - Touch target 48px mínimo com feedback visual melhorado */}
-          <button
-            type="button"
-            onClick={handleAudioRecord}
-            disabled={isProcessing || !!audioBlob}
-            className={`min-w-[44px] min-h-[44px] sm:min-w-[48px] sm:min-h-[48px] px-2 sm:px-3 rounded-xl font-medium transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-treq-yellow focus:ring-offset-2 active:scale-90 shadow-sm hover:shadow-md ${isRecording
-              ? "bg-treq-error text-white hover:bg-treq-error-dark animate-pulse shadow-lg shadow-treq-error/50"
-              : isHighContrast
-                ? "bg-treq-yellow text-black hover:bg-treq-yellow-light hover:scale-110"
-                : "bg-white border border-treq-gray-200 text-treq-gray-600 hover:text-treq-error hover:border-treq-error hover:scale-110"
-              }`}
-            title={isRecording ? "Parar gravação" : "Gravar áudio"}
-            aria-label={isRecording ? "Parar gravação" : "Iniciar gravação de áudio"}
-            aria-pressed={isRecording}
-          >
-            <Mic className={`w-5 h-5 sm:w-5.5 sm:h-5.5 transition-transform ${isRecording ? 'animate-pulse scale-110' : ''}`} />
-          </button>
-
-          {/* Área de Texto com Auto-resize - Touch target 48px mínimo */}
-          <div className="flex-1 relative">
-            <textarea
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyDown={(e) => {
-                // Desktop: Enter envia, Shift+Enter cria nova linha
-                if (e.key === "Enter" && !e.shiftKey) {
-                  // Prevenir comportamento padrão apenas em desktop (não mobile)
-                  // No mobile, o Enter no teclado virtual costuma ser usado para nova linha
-                  // mas podemos habilitar o envio se quisermos. 
-                  // O usuário pediu "dinâmica diferente no mobile".
-                  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-                  if (!isMobile) {
-                    e.preventDefault();
-                    if (message.trim() && !isProcessing) {
-                      handleSubmit(e as any);
-                    }
-                  }
-                }
-              }}
-              placeholder={
-                attachedFile
-                  ? "O que você quer fazer com este arquivo?"
-                  : isTranscribing
-                    ? "Transcrevendo..."
-                    : isUploading
-                      ? "Enviando..."
-                      : "Digite sua mensagem..."
-              }
-              rows={1}
-              disabled={isProcessing || !!audioBlob}
-              className={`w-full min-h-[44px] sm:min-h-[48px] max-h-[150px] sm:max-h-[200px] px-3 sm:px-4 md:px-5 py-2.5 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base focus:outline-none focus:ring-2 disabled:opacity-50 transition-all resize-none overflow-y-auto scrollbar-hide ${isHighContrast
-                ? 'border-white bg-black text-white focus:ring-treq-yellow placeholder:text-treq-gray-400'
-                : 'border-treq-gray-300 bg-white text-treq-gray-900 focus:ring-treq-yellow focus:border-transparent placeholder:text-treq-gray-400'
-                }`}
-              style={{
-                fontSize: isHighContrast ? '1.125rem' : undefined,
-                height: 'auto',
-              }}
-              aria-label="Campo de entrada de mensagem"
-              aria-describedby={isTranscribing ? "transcribing-status" : undefined}
-              ref={(el) => {
-                if (el) {
-                  el.style.height = '0';
-                  el.style.height = (el.scrollHeight) + 'px';
-                }
-              }}
-            />
-            {isTranscribing && (
-              <span id="transcribing-status" className="sr-only">
-                Transcrevendo áudio, aguarde...
-              </span>
-            )}
-          </div>
-
-          {/* Botão de enviar - Touch target 48px mínimo */}
+          {/* Botão de Enviar */}
           <button
             type="submit"
-            disabled={isProcessing || (!message.trim() && !audioBlob && !attachedFile)}
-            className={`min-h-[44px] sm:min-h-[48px] px-3 sm:px-4 md:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-1 sm:gap-2 focus:outline-none focus:ring-2 focus:ring-treq-yellow focus:ring-offset-2 hover:scale-105 active:scale-95 disabled:hover:scale-100 ${theme === "dark"
-              ? 'bg-treq-yellow hover:bg-treq-yellow-light shadow-md hover:shadow-lg'
+            disabled={isProcessing || (!message.trim() && !attachedFile)}
+            className={`min-w-[44px] min-h-[44px] sm:min-w-[52px] sm:min-h-[52px] rounded-xl font-semibold transition-all duration-300 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-treq-yellow focus:ring-offset-2 ${isProcessing || (!message.trim() && !attachedFile)
+              ? 'bg-treq-gray-200 text-treq-gray-400 cursor-not-allowed translate-y-0 shadow-none'
               : isHighContrast
-                ? 'bg-treq-yellow hover:bg-treq-yellow-light shadow-md hover:shadow-lg'
-                : 'bg-treq-yellow hover:bg-treq-yellow-dark shadow-md hover:shadow-lg'
+                ? 'bg-treq-yellow text-black hover:bg-treq-yellow-light shadow-lg hover:shadow-treq-yellow/30'
+                : 'bg-treq-yellow text-treq-black hover:bg-treq-yellow-light shadow-lg hover:shadow-treq-yellow/20 hover:-translate-y-0.5 active:translate-y-0'
               }`}
-            style={{
-              color: "#000000", // Preto puro sempre para máximo contraste
-              fontWeight: theme === "dark" ? 700 : 600, // Mais pesado no modo escuro
-              WebkitFontSmoothing: "antialiased",
-              MozOsxFontSmoothing: "grayscale",
-            }}
-            aria-label={isProcessing ? "Processando, aguarde..." : "Enviar mensagem"}
+            aria-label="Enviar mensagem"
           >
             {isProcessing ? (
-              <>
-                <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
-                <span className="hidden sm:inline">
-                  {isUploading ? "Enviando..." : isTranscribing ? "Transcrevendo..." : "Enviando..."}
-                </span>
-              </>
+              <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin" />
             ) : (
-              <>
-                <Send className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span className="hidden sm:inline">Enviar</span>
-              </>
+              <Send className="w-5 h-5 sm:w-6 sm:h-6 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             )}
           </button>
         </div>
@@ -423,4 +248,3 @@ export function InputArea({
     </div>
   );
 }
-

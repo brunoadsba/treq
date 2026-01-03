@@ -37,7 +37,7 @@ O Treq é um assistente operacional desenvolvido para a Sotreq, combinando:
 
 | Funcionalidade | Prioridade | Status |
 |----------------|------------|--------|
-| **Deploy** | Alta | Pendente |
+| **Deploy** | Alta | 🟢 Em andamento |
 | **Lógica específica de métricas** | Alta | Placeholder implementado |
 | **Autenticação** | Média | Não implementado |
 | **Suporte DOCX/PPTX** | Baixa | Não suportado no MVP |

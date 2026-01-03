@@ -385,68 +385,69 @@ class DocumentConverterService:
             return None
 
         try:
-            logger.info(f"Usando Gemini Vision para processar: {filename}")
+            from src.features.vision.multimodal_service import MultimodalQuotaError
+            logger.info(f"Usando Gemini Vision (Comprehensive) para processar: {filename}")
             
-            # Obter descrição e análise estruturada
-            description = await multimodal_service.describe_image(image_bytes)
-            analysis = await multimodal_service.analyze_document_page(image_bytes)
+            # Uma única chamada para economizar cota (1 request em vez de 2)
+            analysis = await multimodal_service.comprehensive_analysis(image_bytes)
 
             # Montar Markdown rico
+            description = analysis.get("description", "Sem descrição disponível")
             md = [
                 f"## Análise Visual de {filename}",
                 f"**Descrição:** {description}\n",
             ]
 
-            if analysis:
-                if "summary" in analysis:
-                    md.append(f"### Resumo Analítico\n{analysis['summary']}\n")
-                if "tables" in analysis and analysis["tables"]:
-                    md.append("### Dados Extraídos (Tabelas)")
-                    for i, table in enumerate(analysis["tables"], 1):
-                        md.append(f"#### Tabela {i}")
-                        if isinstance(table, list) and len(table) > 0:
-                            # Tabela pode ser lista de listas ou lista de dicts
-                            if isinstance(table[0], dict):
-                                # Lista de dicionários
-                                all_keys = []
+            if "summary" in analysis:
+                md.append(f"### Resumo Analítico\n{analysis['summary']}\n")
+            
+            if "tables" in analysis and analysis["tables"]:
+                md.append("### Dados Extraídos (Tabelas)")
+                # ... resto da logica de tabelas ...
+                for i, table in enumerate(analysis["tables"], 1):
+                    md.append(f"#### Tabela {i}")
+                    if isinstance(table, list) and len(table) > 0:
+                        if isinstance(table[0], dict):
+                            all_keys = []
+                            for row in table:
+                                if isinstance(row, dict):
+                                    for k in row.keys():
+                                        if k not in all_keys:
+                                            all_keys.append(k)
+                            if all_keys:
+                                md.append("| " + " | ".join(all_keys) + " |")
+                                md.append("| " + " | ".join(["---"] * len(all_keys)) + " |")
                                 for row in table:
                                     if isinstance(row, dict):
-                                        for k in row.keys():
-                                            if k not in all_keys:
-                                                all_keys.append(k)
-                                
-                                if all_keys:
-                                    md.append("| " + " | ".join(all_keys) + " |")
-                                    md.append("| " + " | ".join(["---"] * len(all_keys)) + " |")
-                                    for row in table:
-                                        if isinstance(row, dict):
-                                            vals = [str(row.get(k, "")) for k in all_keys]
-                                            md.append("| " + " | ".join(vals) + " |")
-                            elif isinstance(table[0], list):
-                                # Lista de listas (row-based)
-                                for row_idx, row in enumerate(table):
-                                    md.append("| " + " | ".join(str(cell) for cell in row) + " |")
-                                    if row_idx == 0: # Header
-                                        md.append("| " + " | ".join(["---"] * len(row)) + " |")
-                        else:
-                            md.append(str(table))
-                        md.append("")
-                if "charts" in analysis and analysis["charts"]:
-                    md.append(f"### Insights de Gráficos\n{str(analysis['charts'])}\n")
-                if "alerts" in analysis and analysis["alerts"]:
-                    md.append(f"### ⚠️ Alertas e Pontos Críticos")
-                    if isinstance(analysis["alerts"], list):
-                        for alert in analysis["alerts"]:
-                            md.append(f"- {alert}")
+                                        vals = [str(row.get(k, "")) for k in all_keys]
+                                        md.append("| " + " | ".join(vals) + " |")
+                        elif isinstance(table[0], list):
+                            for row_idx, row in enumerate(table):
+                                md.append("| " + " | ".join(str(cell) for cell in row) + " |")
+                                if row_idx == 0:
+                                    md.append("| " + " | ".join(["---"] * len(row)) + " |")
                     else:
-                        md.append(str(analysis["alerts"]))
+                        md.append(str(table))
                     md.append("")
+            
+            if "charts" in analysis and analysis["charts"]:
+                md.append(f"### Insights de Gráficos\n{str(analysis['charts'])}\n")
+            
+            if "alerts" in analysis and analysis["alerts"]:
+                md.append(f"### ⚠️ Alertas e Pontos Críticos")
+                for alert in analysis["alerts"]:
+                    md.append(f"- {alert}")
+                md.append("")
 
             return "\n".join(md)
 
+        except MultimodalQuotaError:
+            logger.warning(f"Cota Gemini atingida para {filename}. Usando OCR como fallback.")
+            if self.enable_ocr and self.ocr_service:
+                return self.convert_image_to_markdown(image_bytes, filename)
+            return None
         except Exception as e:
             logger.error(f"Erro ao processar imagem via Vision: {e}")
-            # Fallback para OCR tradicional se disponível
             if self.enable_ocr and self.ocr_service:
                 logger.info("Tentando fallback para OCR tradicional...")
                 return self.convert_image_to_markdown(image_bytes, filename)

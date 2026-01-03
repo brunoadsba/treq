@@ -18,6 +18,7 @@ class ChatRequest(BaseModel):
     visualization: Optional[bool] = Field(False, description="Se True, ativa modo visualização gráfica")
     action_id: Optional[str] = Field(None, description="ID da ação rápida (ex: 'alertas', 'status-recife')")
     show_reasoning: Optional[bool] = Field(False, description="Se True, inclui reasoning/CoT na resposta")
+    image_url: Optional[str] = Field(None, description="URL da imagem anexada (opcional)")
 
 
 class ChatResponse(BaseModel):

@@ -44,27 +44,7 @@ def detect_social_interaction(query: str) -> Optional[str]:
         return "Olá! Sou o Assistente Operacional da Treq. Como posso ajudar você hoje?"
     
     # 2. Perguntas sobre capacidades (análise de documentos)
-    capability_keywords = [
-        "arquivo", "documento", "pdf", "docx", "pptx", "excel", "xlsx",
-        "extrair", "ler", "analisar", "processar", "aceitar",
-        "suporta", "trabalha com", "formato", "tipo de arquivo"
-    ]
-    capability_questions = [
-        r"você\s+(é|está|pode|consegue|faz|realiza|analisa|extrai|lê|le)",
-        r"(você|vc)\s+(pode|consegue|faz|realiza|analisa|extrai|lê|le)",
-        r"que\s+tipo\s+(de\s+)?(arquivo|documento|formato)",
-        r"quais\s+(tipos|formatos)\s+(de\s+)?(arquivo|documento)",
-        r"você\s+(aceita|suporta|trabalha\s+com)",
-        r"(é|está)\s+capaz\s+(de|de\s+extrair|de\s+ler|de\s+analisar)",
-    ]
-    
-    if has_exact(capability_keywords, query_lower) or any(re.search(p, query_lower) for p in capability_questions):
-        logger.info(f"Interação detectada: pergunta sobre capacidades - '{query}'")
-        return (
-            "Sim, consigo analisar arquivos PDF, DOCX, PPTX e Excel (.xlsx, .xls). "
-            "Meu foco é em informações operacionais como procedimentos, métricas e alertas. "
-            "Por favor, envie o arquivo usando o botão de anexo na interface e me diga qual informação específica você gostaria de extrair."
-        )
+    # REMOVIDO: Agora processado pelo query_classifier e context_handler para suportar contexto de anexo
     
     # 3. Perguntas sobre o assistente
     about_assistant = [

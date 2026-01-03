@@ -4,6 +4,7 @@ Separa a lógica de classificação do gerenciamento de contexto.
 """
 from typing import List
 from loguru import logger
+import re
 
 
 def classify_query(query: str, message_history: List = None) -> str:
@@ -22,32 +23,35 @@ def classify_query(query: str, message_history: List = None) -> str:
     
     # 0. Detectar perguntas sobre CAPACIDADES DO ASSISTENTE (prioridade máxima)
     # Essas perguntas devem ser respondidas diretamente, sem buscar no RAG
-    capability_patterns = [
-        r"você\s+(é|está|pode|consegue|faz|realiza|analisa|extrai|lê|le)",
-        r"(você|vc)\s+(pode|consegue|faz|realiza|analisa|extrai|lê|le)",
-        r"que\s+tipo\s+(de\s+)?(arquivo|documento|formato)",
-        r"quais\s+(tipos|formatos)\s+(de\s+)?(arquivo|documento)",
-        r"você\s+(aceita|suporta|trabalha\s+com)",
-        r"(é|está)\s+capaz\s+(de|de\s+extrair|de\s+ler|de\s+analisar)",
-        r"capaz\s+(de|de\s+extrair|de\s+ler|de\s+analisar)",
-        r"que\s+(você|vc)\s+(pode|consegue|faz)",
-        r"o\s+que\s+(você|vc)\s+(pode|consegue|faz)",
-        r"quais\s+(são\s+)?(suas\s+)?(capacidades|funcionalidades|recursos)",
-    ]
-    
-    import re
-    for pattern in capability_patterns:
-        if re.search(pattern, query_lower):
-            # Verificar se menciona arquivos/documentos/formats/imagens
-            file_related_keywords = [
-                "arquivo", "documento", "pdf", "docx", "pptx", "excel", "xlsx",
-                "formato", "tipo", "extrair", "ler", "le", "analisar", "processar",
-                "imagem", "imagens", "jpeg", "jpg", "png", "gif", "bmp", "tiff", "webp",
-                "foto", "fotos", "fotografia", "ocr", "reconhecimento"
-            ]
-            if any(keyword in query_lower for keyword in file_related_keywords):
-                logger.debug(f"Query classificada como CAPACIDADE (sobre arquivos): '{query}'")
-                return "capacidade"
+    # EXCEÇÃO: Se for um comando direto ou anexo automático, NÃO é capacidade.
+    if re.search(r"^(analise|leia|veja|processe|\[arquivo:)\s*(o\s+)?(arquivo|isso|imagem|foto|pdf)?", query_lower):
+        logger.debug(f"Query identificada como COMANDO OU ANEXO, ignorando categoria capacidade: '{query}'")
+    else:
+        capability_patterns = [
+            r"você\s+(é|está|pode|consegue|faz|realiza|analisa|extrai|lê|le)",
+            r"(você|vc)\s+(pode|consegue|faz|realiza|analisa|extrai|lê|le)",
+            r"que\s+tipo\s+(de\s+)?(arquivo|documento|formato)",
+            r"quais\s+(tipos|formatos)\s+(de\s+)?(arquivo|documento)",
+            r"você\s+(aceita|suporta|trabalha\s+com)",
+            r"(é|está)\s+capaz\s+(de|de\s+extrair|de\s+ler|de\s+analisar)",
+            r"capaz\s+(de|de\s+extrair|de\s+ler|de\s+analisar)",
+            r"que\s+(você|vc)\s+(pode|consegue|faz)",
+            r"o\s+que\s+(você|vc)\s+(pode|consegue|faz)",
+            r"quais\s+(são\s+)?(suas\s+)?(capacidades|funcionalidades|recursos)",
+        ]
+        
+        for pattern in capability_patterns:
+            if re.search(pattern, query_lower):
+                # Verificar se menciona arquivos/documentos/formats/imagens
+                file_related_keywords = [
+                    "arquivo", "documento", "pdf", "docx", "pptx", "excel", "xlsx",
+                    "formato", "tipo", "extrair", "ler", "le", "analisar", "processar",
+                    "imagem", "imagens", "jpeg", "jpg", "png", "gif", "bmp", "tiff", "webp",
+                    "foto", "fotos", "fotografia", "ocr", "reconhecimento"
+                ]
+                if any(keyword in query_lower for keyword in file_related_keywords):
+                    logger.debug(f"Query classificada como CAPACIDADE (sobre arquivos): '{query}'")
+                    return "capacidade"
     
     # Verificar também no histórico se é follow-up sobre capacidades
     if message_history:
@@ -157,13 +161,12 @@ def classify_query(query: str, message_history: List = None) -> str:
     
     # 3. Detectar PROCEDIMENTOS (antes de alertas - "como fazer" tem prioridade)
     # Padrões mais amplos para detectar procedimentos
-    import re
     procedimento_patterns = [
         r"como\s+(fazer|executar|realizar|implementar|aplicar)",
-        r"qual\s+(o|a)\s+(procedimento|processo|passo|método|forma)",
+        r"(qual|quais)\s+(?:são\s+)?(?:o|a|os|as)?\s*(procedimento|procedimentos|processo|processos|passo|passos|método|forma)",
         r"(passo\s+a\s+passo|passos\s+para|instruções\s+para)",
         r"como\s+(devo|devemos|posso|podemos)\s+",
-        r"(procedimento|protocolo|processo)\s+(de|para|para fazer)",
+        r"(procedimento|procedimentos|protocolo|processo)\s+(de|para|para fazer)",
         r"como\s+(fazer|executar|realizar)\s+\w+",  # "como fazer X" - captura qualquer ação
     ]
     

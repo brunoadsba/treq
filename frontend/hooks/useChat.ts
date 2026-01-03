@@ -292,6 +292,7 @@ export function useChat(userId: string = "default-user") {
               stream: true,
               visualization: visualization || false,
               action_id: actionId,
+              image_url: imageUrl,
             }),
             signal: abortController.signal,
           });

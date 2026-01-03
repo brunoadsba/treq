@@ -9,10 +9,19 @@ from typing import List, Dict, Any, Optional
 from PIL import Image
 from google import genai
 from loguru import logger
+from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception, before_sleep_log
 
 from app.config import get_settings
 
 settings = get_settings()
+
+class MultimodalError(Exception):
+    """Exceção base para erros no serviço multimodal."""
+    pass
+
+class MultimodalQuotaError(MultimodalError):
+    """Exceção para erros de cota/rate limit."""
+    pass
 
 class MultimodalService:
     def __init__(self):
@@ -35,9 +44,16 @@ class MultimodalService:
             self._client = genai.Client(api_key=self.api_key)
         return self._client
 
+    @retry(
+        wait=wait_exponential(multiplier=2, min=4, max=20),
+        stop=stop_after_attempt(3),
+        retry=retry_if_exception(lambda e: "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e) or "quota" in str(e).lower()),
+        before_sleep=before_sleep_log(logger, "WARNING"),
+        reraise=True
+    )
     async def describe_image(self, image_bytes: bytes, prompt: Optional[str] = None) -> str:
         """
-        Gera uma descrição semântica detalhada da imagem.
+        Gera uma descrição semântica detalhada da imagem com retentativa para quota.
         """
         try:
             client = self._get_client()
@@ -51,10 +67,20 @@ class MultimodalService:
                 model='gemini-2.0-flash',
                 contents=[prompt or default_prompt, img]
             )
+            
+            if not response or not response.text:
+                raise MultimodalError("Resposta vazia do Gemini Vision")
+                
             return response.text
         except Exception as e:
+            # Se for 429, o retry vai cuidar. Se esgotar tentativas, cai aqui.
+            error_msg = str(e)
+            if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg:
+                logger.error(f"Quota Gemini excedida persistentemente: {e}")
+                raise MultimodalQuotaError("Limite de uso do serviço de visão atingido.")
+            
             logger.error(f"Erro ao descrever imagem: {e}")
-            return f"Erro no processamento visual: {str(e)}"
+            raise MultimodalError(f"Falha no processamento visual: {error_msg}")
 
     def _clean_json_text(self, text: str) -> str:
         """Limpa o texto para extrair apenas o conteúdo JSON."""
@@ -71,6 +97,13 @@ class MultimodalService:
             
         return text
 
+    @retry(
+        wait=wait_exponential(multiplier=2, min=4, max=20),
+        stop=stop_after_attempt(3),
+        retry=retry_if_exception(lambda e: "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e)),
+        before_sleep=before_sleep_log(logger, "WARNING"),
+        reraise=True
+    )
     async def extract_structured_data(self, image_bytes: bytes, target_type: str = "table") -> Dict[str, Any]:
         """
         Extrai dados estruturados (tabelas ou gráficos) no formato JSON.
@@ -100,6 +133,54 @@ class MultimodalService:
             logger.error(f"Erro na extração estruturada ({target_type}): {e}")
             return {"success": False, "error": str(e)}
 
+    @retry(
+        wait=wait_exponential(multiplier=2, min=4, max=20),
+        stop=stop_after_attempt(3),
+        retry=retry_if_exception(lambda e: "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e)),
+        before_sleep=before_sleep_log(logger, "WARNING"),
+        reraise=True
+    )
+    async def comprehensive_analysis(self, image_bytes: bytes) -> Dict[str, Any]:
+        """
+        Realiza análise completa (descrição + estruturado) em uma única chamada para economizar cota.
+        """
+        client = self._get_client()
+        prompt = """
+        Realize uma análise técnica completa desta imagem/documento operacional.
+        Retorne um JSON com a seguinte estrutura:
+        {
+          "description": "Descrição detalhada da cena, objetos, máquinas e avisos de segurança",
+          "summary": "Resumo executivo do conteúdo técnico/procedimento",
+          "tables": [], 
+          "charts": "Descrição de tendências e dados visuais se houver",
+          "alerts": ["Lista de pontos de atenção, erros ou riscos detectados"]
+        }
+        Retorne APENAS o JSON válido.
+        """
+        try:
+            img = Image.open(io.BytesIO(image_bytes))
+            response = await asyncio.to_thread(
+                client.models.generate_content,
+                model='gemini-2.0-flash',
+                contents=[prompt, img]
+            )
+            
+            clean_text = self._clean_json_text(response.text)
+            return json.loads(clean_text)
+        except Exception as e:
+            error_msg = str(e)
+            if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg:
+                 raise MultimodalQuotaError("Limite de cota atingido")
+            logger.error(f"Erro na análise completa: {e}")
+            raise MultimodalError(f"Falha na análise multimodal: {error_msg}")
+
+    @retry(
+        wait=wait_exponential(multiplier=2, min=4, max=20),
+        stop=stop_after_attempt(3),
+        retry=retry_if_exception(lambda e: "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e)),
+        before_sleep=before_sleep_log(logger, "WARNING"),
+        reraise=True
+    )
     async def analyze_document_page(self, image_bytes: bytes) -> Dict[str, Any]:
         """
         Análise completa de uma página de documento (texto + tabelas + insights).

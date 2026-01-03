@@ -172,5 +172,11 @@ def select_model(
         logger.debug(f"Usando modelo 70B para query complexa: {query_type}")
         return (model_70b, "groq")
     
-    # Nível 1: Simples (Llama 8B)
+    # Nível 1: Simples ou Infraestrutura (Llama 8B)
+    # Planning e Validation devem ser rápidos para não somar muita latência
+    infra_tasks = ["planning", "validation", "greeting", "social"]
+    if query_type in infra_tasks:
+        logger.debug(f"Usando modelo 8B para tarefa de infraestrutura: {query_type}")
+        return (model_8b, "groq")
+        
     return (model_8b, "groq")

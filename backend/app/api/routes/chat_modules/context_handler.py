@@ -24,6 +24,8 @@ from app.api.routes.chat_helpers import (
 from .models import ChatRequest
 from .dependencies import get_context_cache, get_llm_service
 from app.core.cot_planner import generate_cot_plan
+from src.features.vision.multimodal_service import multimodal_service
+import base64
 
 async def prepare_chat_context(
     chat_request: ChatRequest,
@@ -45,13 +47,15 @@ async def prepare_chat_context(
     user_message = sanitized_message
     
     # 1. Detectar interações sociais
+    # Se houver imagem, ignoramos interações sociais simples para priorizar análise multimodal
     social_response = detect_social_interaction(user_message)
-    if social_response:
+    if social_response and not chat_request.image_url:
         logger.info(f"Interação social detectada - resposta direta sem RAG")
         return {"special_response": social_response, "type": "social"}
     
     # 2. Detectar consultoria inicial ou necessidade de clarificação
-    if detect_initial_consultoria(user_message):
+    # Se houver imagem, ignoramos consultoria inicial para priorizar análise multimodal
+    if detect_initial_consultoria(user_message) and not chat_request.image_url:
         logger.info("Consultoria inicial detectada - retornando pergunta interativa")
         initial_response = get_initial_consultoria_response()
         return {"special_response": initial_response, "type": "consultoria"}
@@ -96,7 +100,8 @@ async def prepare_chat_context(
     query_type = context_manager.classify_query(user_message)
     
     # 7.1. Se for pergunta sobre capacidades, retornar resposta direta sem RAG
-    if query_type == "capacidade":
+    # Se houver imagem, ignoramos a resposta estática para permitir análise multimodal
+    if query_type == "capacidade" and not chat_request.image_url:
         logger.info(f"Pergunta sobre capacidades detectada - resposta direta sem RAG: '{user_message}'")
         capability_response = (
             "Sim, consigo analisar arquivos PDF, DOCX, PPTX e Excel (.xlsx, .xls). "
@@ -130,6 +135,41 @@ async def prepare_chat_context(
         is_follow_up=is_follow_up,
         rag_service=rag_service
     )
+    
+    # 9.1. Processar Imagem (Multimodal) se presente
+    if chat_request.image_url and "base64," in chat_request.image_url:
+        from src.features.vision.multimodal_service import MultimodalError, MultimodalQuotaError
+        try:
+            logger.info("📸 Processando imagem multimodal no chat...")
+            # Extrair bytes do base64
+            try:
+                header, encoded = chat_request.image_url.split(",", 1)
+                image_bytes = base64.b64decode(encoded)
+            except Exception as b64_err:
+                logger.error(f"Erro na decodificação base64 da imagem: {b64_err}")
+                return {
+                    "special_response": "Houve um problema ao processar o formato da imagem enviada. Por favor, tente enviar novamente em outro formato (PNG ou JPEG).",
+                    "type": "error"
+                }
+            
+            # Obter descrição da imagem via Gemini
+            description = await multimodal_service.describe_image(image_bytes)
+            
+            if description:
+                logger.debug(f"✅ Imagem descrita com sucesso")
+                # Injetar como contexto prioritário
+                image_context = f"DESCRIÇÃO VISUAL DA IMAGEM ENVIADA PELO USUÁRIO:\n{description}"
+                combined_context.insert(0, image_context)
+        except MultimodalQuotaError:
+            logger.warning("Limite de cota visual atingido")
+            return {
+                "special_response": "Notei que você enviou uma imagem, mas meu serviço de análise visual atingiu o limite temporário. Por favor, tente novamente em um minuto ou descreva em texto o que deseja analisar.",
+                "type": "error"
+            }
+        except MultimodalError as img_err:
+            logger.error(f"Erro multimodal: {img_err}")
+            # Se for erro genérico, continuamos sem a imagem mas logamos
+    
     
     # 10. Executar CoT Planner (Fase 3 Feature)
     cot_plan = None

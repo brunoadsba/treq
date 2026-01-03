@@ -163,8 +163,19 @@
 }
 
 @layer utilities {
-  /* Animações suaves */
-  @keyframes fade-in {
+  @keyframes soundwave {
+    0%, 100% {
+      transform: scaleY(0.4);
+      opacity: 0.5;
+    }
+    50% {
+      transform: scaleY(1);
+      opacity: 1;
+    }
+  }
+
+  /* Classes de animação */
+  .animate-fade-in {
     from {
       opacity: 0;
       transform: translateY(4px);
@@ -262,6 +273,10 @@
 
   .animate-scale-in {
     animation: scale-in 0.2s ease-out;
+  }
+
+  .animate-soundwave {
+    animation: soundwave 0.6s ease-in-out infinite;
   }
 
   /* Transições suaves globais */

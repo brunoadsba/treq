@@ -29,6 +29,7 @@ def get_converter_service() -> 'DocumentConverterService':
     """Retorna instância singleton do DocumentConverterService."""
     global _converter_service
     if _converter_service is None:
+        from app.services.document_converter import DocumentConverterService
         # Habilitar OCR por padrão para suportar PDFs escaneados e imagens
         _converter_service = DocumentConverterService(enable_ocr=True)
     return _converter_service
@@ -38,6 +39,7 @@ def get_chunking_service() -> 'ChunkingService':
     """Retorna instância singleton do ChunkingService."""
     global _chunking_service
     if _chunking_service is None:
+        from app.core.chunking_service import ChunkingService
         # Fase 2: Aumentado de 500 para 1200 para preservar mais contexto
         _chunking_service = ChunkingService(chunk_size=1200, chunk_overlap=250)
     return _chunking_service
@@ -47,6 +49,7 @@ def get_rag_service() -> 'RAGService':
     """Retorna instância singleton do RAGService."""
     global _rag_service
     if _rag_service is None:
+        from app.core.rag_service import RAGService
         _rag_service = RAGService()
     return _rag_service
 
@@ -192,9 +195,14 @@ async def upload_document(
         markdown_content = await converter.convert_bytes(file_content, file.filename)
         
         if not markdown_content:
+            if file_extension in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.tif', '.webp']:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Não foi possível extrair texto ou descrever o conteúdo desta imagem. Tente uma imagem mais nítida ou aguarde um minuto caso o limite de uso tenha sido atingido."
+                )
             raise HTTPException(
-                status_code=500,
-                detail="Erro ao converter documento. Verifique se o arquivo é válido."
+                status_code=400,
+                detail="O documento parece estar vazio ou não contém texto extraível."
             )
         
         logger.info(f"Documento convertido: {len(markdown_content)} caracteres")

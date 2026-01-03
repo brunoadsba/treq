@@ -194,7 +194,11 @@ async def fetch_context_and_tools(
     should_use_rag = should_use_rag_first(query_type, strategy)
     should_use_tool = should_use_tool_first(query_type, strategy)
     
-    tool_result = None
+    # 1. Preparar tarefas para execução paralela
+    tool_task = None
+    rag_task = None
+    
+    # Tool Execution Task
     if should_use_tool:
         if query_type in ["metrica_temporal", "status_temporal"] or "metric" in strategy_params.get("type", ""):
             metrics_tool = MetricsTool()
@@ -203,23 +207,15 @@ async def fetch_context_and_tools(
                 query_type=query_type,
                 entities=entities
             )
-            tool_result = await metrics_tool.execute(**tool_params)
-            if not tool_result.success:
-                should_use_rag = True
-    
-    rag_results = []
-    context_texts = []
-    sources = []
-    
+            tool_task = metrics_tool.execute(**tool_params)
+            
+    # RAG Search Task
     if should_use_rag:
         from app.core.search_utils import should_use_hybrid_search, search_hybrid_with_fallback
-        
         top_k = get_adaptive_top_k(query_type)
         
-        # Usar busca híbrida para termos exatos ou queries curtas
         if should_use_hybrid_search(search_query):
-            logger.debug(f"Usando busca híbrida para query: {search_query[:50]}...")
-            rag_results, used_threshold, search_type = await search_hybrid_with_fallback(
+            rag_task = search_hybrid_with_fallback(
                 query=search_query,
                 query_type=query_type,
                 rag_service=rag_service,
@@ -228,8 +224,7 @@ async def fetch_context_and_tools(
                 filters=None
             )
         else:
-            # Busca vetorial padrão para queries longas/conversacionais
-            rag_results, used_threshold = await search_with_fallback(
+            rag_task = search_with_fallback(
                 query=search_query,
                 query_type=query_type,
                 rag_service=rag_service,
@@ -237,45 +232,84 @@ async def fetch_context_and_tools(
                 min_docs=2,
                 filters=None
             )
-            search_type = "vector"
+
+    # 2. Executar em paralelo
+    import asyncio
+    tool_result = None
+    rag_data = ([], 0.0, "vector") # Default (results, threshold, search_type)
+    
+    tasks = []
+    if tool_task: tasks.append(tool_task)
+    if rag_task: tasks.append(rag_task)
+    
+    if tasks:
+        results = await asyncio.gather(*tasks, return_exceptions=True)
         
-        context_texts = [result["content"] for result in rag_results]
-        sources = [
-            {
-                "content": result["content"][:200] + "..." if len(result["content"]) > 200 else result["content"],
-                "similarity": round(result.get("similarity", result.get("score", 0.0)), 3),
-                "metadata": result.get("metadata", {}),
-                "search_type": result.get("search_type", search_type)
-            }
-            for result in rag_results
-        ]
-        logger.debug(f"RAG retornou {len(context_texts)} documentos (threshold: {used_threshold})")
+        # Mapear resultados de volta
+        res_idx = 0
+        if tool_task:
+            tool_result = results[res_idx]
+            if isinstance(tool_result, Exception):
+                logger.error(f"Erro na Tool: {tool_result}")
+                tool_result = None
+                should_use_rag = True # Fallback para RAG se tool falhar (já planejado antes)
+            res_idx += 1
+            
+        if rag_task:
+            rag_res = results[res_idx]
+            if isinstance(rag_res, Exception):
+                logger.error(f"Erro no RAG: {rag_res}")
+                rag_data = ([], 0.0, "error")
+            else:
+                # search_hybrid_with_fallback retorna (results, threshold, search_type)
+                # search_with_fallback retorna (results, threshold)
+                if len(rag_res) == 2:
+                    rag_data = (rag_res[0], rag_res[1], "vector")
+                else:
+                    rag_data = rag_res
+            res_idx += 1
+
+    # 3. Processar resultados
+    rag_results, used_threshold, search_type = rag_data
+    
+    # FILTRAGEM DE RELEVÂNCIA (Clean-RAG):
+    # Se a query for sobre procedimentos ou alertas, ignorar documentos que parecem ser currículos/CVs
+    # a menos que o usuário tenha explicitamente perguntado sobre uma pessoa.
+    filtered_results = []
+    is_personal_query = any(word in request_message.lower() for word in ["bruno", "quem é", "cargo", "experiência"])
+    
+    for doc in rag_results:
+        source_name = doc.get("metadata", {}).get("source", "").lower()
+        content_preview = doc.get("content", "").lower()[:200]
         
-        # Logging estruturado para consultoria (Problema 5)
-        if query_type == "consultoria":
-            context_quality = {
-                "document_count": len(context_texts),
-                "has_sufficient_context": len(context_texts) >= 2,
-                "avg_similarity": round(
-                    sum(s.get("similarity", 0.0) for s in sources) / len(sources) if sources else 0.0,
-                    3
-                ),
-                "min_similarity": round(
-                    min(s.get("similarity", 0.0) for s in sources) if sources else 0.0,
-                    3
-                )
-            }
-            logger.info(
-                f"[CONSULTATION_LOG] Query: '{request_message[:100]}...' | "
-                f"Context quality: {context_quality} | "
-                f"Top-K: {top_k} | Threshold: {used_threshold}"
-            )
+        is_cv = any(term in source_name or term in content_preview for term in ["currículo", "curriculo", "cv", "resume", "biografia"])
+        
+        # Filtro agressivo em geral, procedimento, alerta e status
+        if is_cv and query_type in ["procedimento", "alerta", "status", "geral"] and not is_personal_query:
+            logger.info(f"Filtro Clean-RAG: Ignorando chunk de CV '{source_name}' para query {query_type}")
+            continue
+        filtered_results.append(doc)
+    
+    rag_results = filtered_results
+    context_texts = [result["content"] for result in rag_results]
+    sources = [
+        {
+            "content": result["content"][:200] + "..." if len(result["content"]) > 200 else result["content"],
+            "similarity": round(result.get("similarity", result.get("score", 0.0)), 3),
+            "metadata": result.get("metadata", {}),
+            "search_type": result.get("search_type", search_type)
+        }
+        for result in rag_results
+    ]
+    
+    if context_texts:
+        logger.debug(f"RAG retornou {len(context_texts)} documentos úteis após filtragem")
     
     # Combinar contexto RAG + Tool
     combined_context = []
     if context_texts:
         combined_context.extend(context_texts)
-    if tool_result and tool_result.success:
+    if tool_result and getattr(tool_result, 'success', False):
         combined_context.append(f"DADOS EM TEMPO REAL:\n{_format_tool_result(tool_result.data)}")
         logger.debug(f"Contexto combinado: RAG ({len(context_texts)} docs) + Tool (1 resultado)")
     

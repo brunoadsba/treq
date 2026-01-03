@@ -13,15 +13,29 @@ interface MessageListProps {
 export function MessageList({ messages, isLoading = false }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Scroll automático para a última mensagem
+  const lastMessagesLength = useRef(messages.length);
+
+  // Smart Scroll Logic
   useEffect(() => {
-    if (scrollRef.current) {
-      const { scrollHeight, clientHeight } = scrollRef.current;
-      scrollRef.current.scrollTo({
+    const scrollContainer = scrollRef.current;
+    if (!scrollContainer) return;
+
+    const { scrollHeight, clientHeight, scrollTop } = scrollContainer;
+    // Threshold de 150px para considerar que o usuário está "no fundo"
+    const isNearBottom = scrollHeight - clientHeight - scrollTop < 150;
+
+    // Verificar se a última mensagem é do usuário (forçar scroll)
+    const lastMessageIsUser = messages.length > 0 && messages[messages.length - 1].role === "user";
+    const hasNewMessage = messages.length > lastMessagesLength.current;
+
+    if (isNearBottom || (hasNewMessage && lastMessageIsUser)) {
+      scrollContainer.scrollTo({
         top: scrollHeight - clientHeight,
-        behavior: "smooth",
+        behavior: lastMessageIsUser ? "smooth" : "auto",
       });
     }
+
+    lastMessagesLength.current = messages.length;
   }, [messages, isLoading]);
   if (messages.length === 0) {
     return (

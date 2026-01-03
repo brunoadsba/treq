@@ -5,6 +5,7 @@ import io
 from typing import Optional
 from loguru import logger
 import httpx
+from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception, before_sleep_log
 from app.config import get_settings
 
 settings = get_settings()
@@ -20,20 +21,20 @@ class STTService:
         self.base_url = "https://api.groq.com/openai/v1"
         logger.info("✅ STTService inicializado (Groq Whisper)")
     
+    @retry(
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        stop=stop_after_attempt(3),
+        retry=retry_if_exception(lambda e: "429" in str(e) or "rate limit" in str(e).lower() or isinstance(e, httpx.TimeoutException)),
+        before_sleep=before_sleep_log(logger, "WARNING"),
+        reraise=True
+    )
     async def transcribe_audio(
         self,
         audio_data: bytes,
         language: Optional[str] = "pt"
     ) -> str:
         """
-        Transcreve áudio para texto usando Groq Whisper API.
-        
-        Args:
-            audio_data: Dados de áudio em bytes (formato: WAV, MP3, WebM, etc.)
-            language: Código de idioma (padrão: "pt" para português)
-            
-        Returns:
-            str: Texto transcrito
+        Transcreve áudio para texto usando Groq Whisper API com retentativas.
         """
         try:
             # Criar arquivo temporário em memória
@@ -60,6 +61,9 @@ class STTService:
                     data=data,
                     headers=headers
                 )
+                
+                if response.status_code == 429:
+                    raise ValueError(f"Rate limit atingido na Groq (429): {response.text}")
                 
                 if response.status_code != 200:
                     error_msg = response.text

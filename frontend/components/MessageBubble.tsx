@@ -121,8 +121,8 @@ export function MessageBubble({ message, isLoading: isGlobalLoading }: MessageBu
         }`}
     >
       <div
-        className={`max-w-[90%] sm:max-w-[85%] md:max-w-[80%] lg:max-w-[75%] xl:max-w-[70%] rounded-lg transition-all duration-200 hover:shadow-md ${isUser
-          ? "bg-treq-yellow text-treq-black px-3 py-2 sm:px-4 sm:py-3"
+        className={`max-w-[90%] sm:max-w-[85%] md:max-w-[80%] lg:max-w-[75%] xl:max-w-[70%] rounded-lg transition-all duration-300 hover:shadow-lg ${isUser
+          ? "bg-treq-yellow text-treq-black px-3 py-2 sm:px-4 sm:py-3 shadow-sm hover:shadow-treq-yellow/20"
           : "bg-white border border-treq-gray-200 shadow-sm px-4 py-3 sm:px-5 sm:py-4 md:px-6 md:py-5 lg:px-7 lg:py-6"
           }`}
       >
