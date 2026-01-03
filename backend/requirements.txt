@@ -23,7 +23,8 @@ psycopg2-binary>=2.9.0,<3.0.0   # Driver PostgreSQL
 # -----------------------------------------------------------------------------
 # Embeddings & RAG
 # -----------------------------------------------------------------------------
-sentence-transformers>=2.2.0,<4.0.0  # Modelos de embedding
+# sentence-transformers removido para economizar espaço no Render Free Tier
+# Usaremos Google Gemini Embeddings (API)
 langchain>=0.3.27,<0.4.0             # Framework LLM
 langchain-community>=0.3.27,<0.4.0   # Integrações da comunidade
 langsmith>=0.1.0                 # Observabilidade e tracing
