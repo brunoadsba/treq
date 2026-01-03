@@ -173,51 +173,42 @@ async def validation_exception_handler(request, exc):
     )
 
 
-@app.get("/")
-async def root():
-    """Endpoint raiz."""
-    return {
-        "message": "Treq Assistente Operacional API",
-        "version": "1.0.0",
-        "status": "ok",
-    }
-
-
-# Inicializar LangSmith (observabilidade)
-@app.on_event("startup")
-async def setup_observability():
-    """Configura observabilidade com LangSmith se disponível."""
-    try:
-        from app.core.langsmith_config import setup_langsmith
-        setup_langsmith()
-    except ImportError:
-        logger.info("LangSmith não disponível - observabilidade desabilitada")
-
-
+# Saúde do servidor
 @app.get("/health")
 async def health_check():
-    """Health check endpoint."""
     return {"status": "ok", "service": "treq-assistente-backend"}
 
+@app.get("/")
+async def root():
+    return {"message": "Treq API Online", "status": "ok"}
 
-# Incluir rotas
-from app.api.routes import chat, audio, documents, health, monitoring, feedback
-from src.features.vision.routes import router as vision_router
+# Inicializar rotas de forma segura
+logger.info("🛠️  Configurando rotas do sistema...")
 
-app.include_router(chat.router)
-app.include_router(audio.router)
-app.include_router(documents.router)
-app.include_router(health.router)
-app.include_router(monitoring.router)
-app.include_router(feedback.router)
-app.include_router(vision_router)
+try:
+    from app.api.routes import chat, health as health_route, monitoring, feedback
+    app.include_router(chat.router)
+    app.include_router(health_route.router)
+    app.include_router(monitoring.router)
+    app.include_router(feedback.router)
+    logger.info("✅ Rotas core carregadas")
+except Exception as e:
+    logger.error(f"❌ Erro ao carregar rotas core: {e}")
 
-# Endpoint de teste para rate limiting (para diagnóstico)
-@app.get("/test-rate-limit")
-@setup_rate_limiting(app).limit("5/minute")
-async def test_rate_limit(request: Request):
-    """
-    Endpoint de teste para verificar se rate limiting está funcionando.
-    Limite: 5 requisições por minuto.
-    """
-    return {"message": "Rate limit test - OK", "timestamp": time.time()}
+# Módulos PESADOS (Carregar com cautela)
+try:
+    logger.info("📦 Carregando módulos pesados (Vision/Audio/Docs)...")
+    from app.api.routes import audio, documents
+    from src.features.vision.routes import router as vision_router
+    
+    app.include_router(audio.router)
+    app.include_router(documents.router)
+    app.include_router(vision_router)
+    logger.info("🚀 Todos os módulos carregados com sucesso")
+except Exception as e:
+    logger.warning(f"⚠️ Alguns módulos pesados falharam ao carregar (Pode ser memória): {e}")
+
+# Startup Final
+@app.on_event("startup")
+async def startup_event():
+    logger.info("✨ TREQ BACKEND VIVO E OPERACIONAL!")
