@@ -72,9 +72,9 @@ class TTSService:
             logger.info(f"🎙️ Iniciando síntese TTS para {len(clean_text)} caracteres (Voz: {target_voice})")
             
             # 3. Chamada ao modelo Gemini para geração de áudio
-            # Usando gemini-2.0-flash (GA) ou flash-exp conforme disponibilidade
+            # Usando gemini-1.5-flash para maior estabilidade de cota no Free Tier
             response = client.models.generate_content(
-                model="gemini-2.0-flash",
+                model="gemini-1.5-flash",
                 contents=clean_text,
                 config={
                     "speech_config": {
