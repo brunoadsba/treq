@@ -186,6 +186,38 @@ async def root():
 async def list_routes():
     return [{"path": route.path, "name": route.name} for route in app.routes]
 
+@app.get("/debug/test-services")
+async def test_services():
+    results = {}
+    
+    # 1. Testar Config
+    from app.config import get_settings
+    settings = get_settings()
+    results["config"] = {
+        "gemini_api_key_set": bool(settings.gemini_api_key),
+        "groq_api_key_set": bool(settings.groq_api_key),
+        "supabase_url_set": bool(settings.supabase_url)
+    }
+    
+    # 2. Testar Gemini Embeddings
+    try:
+        from app.services.embedding_service import generate_embedding
+        emb = generate_embedding("teste")
+        results["gemini"] = {"success": True, "dim": len(emb)}
+    except Exception as e:
+        results["gemini"] = {"success": False, "error": str(e)}
+        
+    # 3. Testar Supabase
+    try:
+        from app.services.supabase_service import get_supabase_client
+        supabase = get_supabase_client()
+        res = supabase.table("knowledge_base").select("id", count="exact").limit(1).execute()
+        results["supabase"] = {"success": True, "count": res.count}
+    except Exception as e:
+        results["supabase"] = {"success": False, "error": str(e)}
+        
+    return results
+
 # INCLUIR ROTAS (Agora são leves devido ao lazy loading nos routes)
 logger.info("📦 Iniciando registro individual de rotas...")
 
