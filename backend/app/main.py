@@ -173,42 +173,43 @@ async def validation_exception_handler(request, exc):
     )
 
 
-# Saúde do servidor
+# Saúde do servidor (Rota mínima para o Render ver que estamos vivos)
 @app.get("/health")
 async def health_check():
-    return {"status": "ok", "service": "treq-assistente-backend"}
+    return {"status": "ok", "service": "treq-backend", "up": True}
 
 @app.get("/")
 async def root():
-    return {"message": "Treq API Online", "status": "ok"}
+    return {"status": "online", "message": "TREQ API"}
 
-# Inicializar rotas de forma segura
-logger.info("🛠️  Configurando rotas do sistema...")
-
-try:
-    from app.api.routes import chat, health as health_route, monitoring, feedback
-    app.include_router(chat.router)
-    app.include_router(health_route.router)
-    app.include_router(monitoring.router)
-    app.include_router(feedback.router)
-    logger.info("✅ Rotas core carregadas")
-except Exception as e:
-    logger.error(f"❌ Erro ao carregar rotas core: {e}")
-
-# Módulos PESADOS (Carregar com cautela)
-try:
-    logger.info("📦 Carregando módulos pesados (Vision/Audio/Docs)...")
-    from app.api.routes import audio, documents
-    from src.features.vision.routes import router as vision_router
-    
-    app.include_router(audio.router)
-    app.include_router(documents.router)
-    app.include_router(vision_router)
-    logger.info("🚀 Todos os módulos carregados com sucesso")
-except Exception as e:
-    logger.warning(f"⚠️ Alguns módulos pesados falharam ao carregar (Pode ser memória): {e}")
+# FUNÇÃO DE CARREGAMENTO DIFERIDO (Lazy Loading)
+def load_all_routes():
+    """Carrega as rotas pesadas em segundo plano para não travar o boot."""
+    try:
+        logger.info("🛠️  Iniciando carregamento diferido de módulos...")
+        
+        # Importações locais para não pesar o topo do arquivo
+        from app.api.routes import chat, health as health_route, monitoring, feedback, audio, documents
+        from src.features.vision.routes import router as vision_router
+        
+        # Incluir routers
+        app.include_router(chat.router)
+        app.include_router(health_route.router)
+        app.include_router(monitoring.router)
+        app.include_router(feedback.router)
+        app.include_router(audio.router)
+        app.include_router(documents.router)
+        app.include_router(vision_router)
+        
+        logger.info("✅ Todos os módulos e rotas carregados com sucesso!")
+    except Exception as e:
+        logger.error(f"❌ Erro crítico no carregamento diferido: {e}")
 
 # Startup Final
 @app.on_event("startup")
 async def startup_event():
-    logger.info("✨ TREQ BACKEND VIVO E OPERACIONAL!")
+    logger.info("🚀 Boot prioritário concluído! Abrindo porta para o Render...")
+    # Agendar o carregamento pesado para DEPOIS que a porta estiver aberta
+    import asyncio
+    asyncio.create_task(asyncio.to_thread(load_all_routes))
+    logger.info("✨ TREQ BACKEND VIVO (Modo Econômico)")
