@@ -43,9 +43,9 @@ export function ChatTextArea({
                 placeholder={placeholder}
                 rows={1}
                 disabled={disabled}
-                className={`w-full min-h-[44px] sm:min-h-[52px] max-h-[150px] sm:max-h-[200px] px-3 sm:px-4 md:px-5 py-3 sm:py-3.5 rounded-xl text-sm sm:text-base focus:outline-none focus:ring-2 disabled:opacity-50 transition-all resize-none overflow-y-auto scrollbar-hide ${isHighContrast
-                    ? "border-white bg-black text-white focus:ring-treq-yellow placeholder:text-treq-gray-400"
-                    : "border-treq-gray-200 bg-white text-treq-gray-900 focus:ring-treq-yellow focus:border-transparent placeholder:text-treq-gray-400"
+                className={`w-full min-h-[44px] sm:min-h-[52px] max-h-[150px] sm:max-h-[200px] px-2 py-3 rounded-xl text-sm sm:text-base focus:outline-none disabled:opacity-50 transition-all resize-none overflow-y-auto scrollbar-hide bg-transparent ${isHighContrast
+                    ? "text-white placeholder:text-treq-gray-400"
+                    : "text-treq-gray-900 placeholder:text-treq-gray-400"
                     }`}
                 style={{
                     fontSize: isHighContrast ? "1.125rem" : undefined,

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, FormEvent, useCallback, useEffect } from "react";
-import { Send, Loader2 } from "lucide-react";
+import { Send, Loader2, Mic } from "lucide-react";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { useAudioTranscription } from "@/hooks/useAudioTranscription";
 import { useDocumentUpload } from "@/hooks/useDocumentUpload";
@@ -164,8 +164,7 @@ export function InputArea({
   const isProcessing = isLoading || isTranscribing || isUploading;
 
   return (
-    <div className={`relative transition-all duration-300 ${isHighContrast ? 'bg-black' : 'bg-treq-gray-50'
-      }`}>
+    <div className={`relative transition-all duration-300 ${isHighContrast ? 'bg-black' : 'bg-treq-gray-50'}`}>
       {/* Seção de Preview de Arquivo */}
       <FilePreviewSection
         attachedFile={attachedFile}
@@ -182,17 +181,22 @@ export function InputArea({
         isProcessing={isProcessing}
       />
 
-      <form onSubmit={handleSubmit} className="p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:p-3 md:p-4 lg:p-5">
-        <div className="flex items-center gap-2 max-w-5xl mx-auto">
-          {/* Botões de Ação */}
-          <InputActions
-            onCameraClick={() => setIsCameraOpen(true)}
-            onFileClick={() => fileInputRef.current?.click()}
-            onMicClick={isRecording ? stopRecording : startRecording}
-            isRecording={isRecording}
-            disabled={isProcessing}
-            hasFile={!!attachedFile}
-          />
+      <form onSubmit={handleSubmit} className="p-3 sm:p-4 max-w-5xl mx-auto">
+        <div className={`relative flex items-end gap-2 p-2 rounded-[28px] border transition-all ${isHighContrast
+          ? 'border-white bg-black'
+          : 'border-treq-gray-200 bg-white shadow-sm focus-within:shadow-md focus-within:border-treq-yellow'
+          }`}>
+          {/* Menu de Anexos (Esquerda Style Grok) */}
+          <div className="mb-1 ml-1">
+            <InputActions
+              onCameraClick={() => setIsCameraOpen(true)}
+              onFileClick={() => fileInputRef.current?.click()}
+              onMicClick={isRecording ? stopRecording : startRecording}
+              isRecording={isRecording}
+              disabled={isProcessing}
+              hasFile={!!attachedFile}
+            />
+          </div>
 
           <input
             type="file"
@@ -203,38 +207,45 @@ export function InputArea({
             aria-hidden="true"
           />
 
-          {/* Área de Texto com Auto-resize */}
-          <ChatTextArea
-            value={message}
-            onChange={setMessage}
-            onKeyDown={handleKeyDown}
-            placeholder={
-              attachedFile ? "O que deseja fazer com este arquivo?" :
-                isTranscribing ? "Transcrevendo..." :
-                  isUploading ? "Enviando..." : "Digite sua mensagem..."
-            }
-            disabled={isProcessing}
-            isTranscribing={isTranscribing}
-          />
+          <div className="flex-1 mb-1">
+            {/* Área de Texto */}
+            <ChatTextArea
+              value={message}
+              onChange={setMessage}
+              onKeyDown={handleKeyDown}
+              placeholder="Fazer uma pergunta..."
+              disabled={isProcessing}
+              isTranscribing={isTranscribing}
+            />
+          </div>
 
-          {/* Botão de Enviar */}
-          <button
-            type="submit"
-            disabled={isProcessing || (!message.trim() && !attachedFile)}
-            className={`min-w-[44px] min-h-[44px] sm:min-w-[52px] sm:min-h-[52px] rounded-xl font-semibold transition-all duration-300 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-treq-yellow focus:ring-offset-2 ${isProcessing || (!message.trim() && !attachedFile)
-              ? 'bg-treq-gray-200 text-treq-gray-400 cursor-not-allowed translate-y-0 shadow-none'
-              : isHighContrast
-                ? 'bg-treq-yellow text-black hover:bg-treq-yellow-light shadow-lg hover:shadow-treq-yellow/30'
-                : 'bg-treq-yellow text-treq-black hover:bg-treq-yellow-light shadow-lg hover:shadow-treq-yellow/20 hover:-translate-y-0.5 active:translate-y-0'
-              }`}
-            aria-label="Enviar mensagem"
-          >
-            {isProcessing ? (
-              <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin" />
+          {/* Ações de Envio / Mic */}
+          <div className="flex items-center gap-2 mb-1 mr-1">
+            {!message.trim() && !attachedFile ? (
+              <button
+                type="button"
+                onClick={isRecording ? stopRecording : startRecording}
+                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${isRecording
+                  ? 'bg-treq-error text-white animate-pulse'
+                  : 'bg-treq-gray-100 text-treq-gray-600 hover:text-treq-yellow'
+                  }`}
+              >
+                <Mic className="w-5 h-5" />
+              </button>
             ) : (
-              <Send className="w-5 h-5 sm:w-6 sm:h-6 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+              <button
+                type="submit"
+                disabled={isProcessing}
+                className="w-10 h-10 rounded-full bg-treq-yellow text-treq-gray-900 flex items-center justify-center hover:bg-treq-yellow-light transition-all shadow-md active:scale-95"
+              >
+                {isProcessing ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4 ml-0.5" />
+                )}
+              </button>
             )}
-          </button>
+          </div>
         </div>
       </form>
 

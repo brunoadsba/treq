@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Camera, Paperclip, Mic } from "lucide-react";
+import { Camera, Paperclip } from "lucide-react";
 import { useHighContrast } from "@/hooks/useHighContrast";
 
 interface InputActionsProps {
@@ -22,73 +22,48 @@ export function InputActions({
     hasFile,
 }: InputActionsProps) {
     const isHighContrast = useHighContrast();
+    const [isOpen, setIsOpen] = React.useState(false);
 
     return (
-        <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3">
-            {/* Botão de Câmera */}
+        <div className="relative flex items-center">
+            {/* Botão Único de Anexo (Grok Style) */}
             <button
                 type="button"
-                onClick={onCameraClick}
+                onClick={() => setIsOpen(!isOpen)}
                 disabled={disabled}
-                className={`min-w-[44px] min-h-[44px] sm:min-w-[52px] sm:min-h-[52px] px-2 sm:px-3 rounded-xl font-medium transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-treq-yellow focus:ring-offset-2 hover:scale-110 active:scale-90 shadow-sm hover:shadow-md ${isHighContrast
-                    ? "bg-treq-yellow text-black hover:bg-treq-yellow-light"
-                    : "bg-white border border-treq-gray-200 text-treq-gray-600 hover:text-treq-yellow hover:border-treq-yellow"
-                    }`}
-                title="Usar câmera"
-                aria-label="Abrir câmera"
+                className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all duration-200 hover:bg-treq-gray-100 focus:outline-none ${isOpen ? 'rotate-45' : ''}`}
+                aria-label="Abrir menu de anexos"
             >
-                <Camera className="w-5 h-5 sm:w-5.5 sm:h-5.5 transition-transform" />
+                <Paperclip className={`w-5 h-5 transition-colors ${isOpen ? 'text-treq-yellow' : 'text-treq-gray-400'}`} />
             </button>
 
-            {/* Botão de anexar documento */}
-            <button
-                type="button"
-                onClick={onFileClick}
-                disabled={disabled}
-                className={`min-w-[44px] min-h-[44px] sm:min-w-[52px] sm:min-h-[52px] px-2 sm:px-3 rounded-xl font-medium transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-treq-yellow focus:ring-offset-2 hover:scale-110 active:scale-90 shadow-sm hover:shadow-md ${hasFile
-                    ? isHighContrast
-                        ? "bg-treq-yellow text-black hover:bg-treq-yellow-light"
-                        : "bg-treq-info text-white hover:bg-treq-info-dark"
-                    : isHighContrast
-                        ? "bg-treq-yellow text-black hover:bg-treq-yellow-light"
-                        : "bg-white border border-treq-gray-200 text-treq-gray-600 hover:text-treq-info hover:border-treq-info"
-                    }`}
-                title={hasFile ? "Arquivo anexado - Clique para trocar" : "Anexar documento"}
-                aria-label={hasFile ? "Arquivo anexado" : "Anexar documento"}
-            >
-                <Paperclip
-                    className={`w-5 h-5 sm:w-5.5 sm:h-5.5 transition-transform ${hasFile ? "rotate-45" : ""
-                        }`}
-                />
-            </button>
-
-            {/* Botão de gravação */}
-            <button
-                type="button"
-                onClick={onMicClick}
-                disabled={disabled}
-                className={`relative min-w-[44px] min-h-[44px] sm:min-w-[52px] sm:min-h-[52px] px-2 sm:px-3 rounded-xl font-medium transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-treq-yellow focus:ring-offset-2 active:scale-90 shadow-sm hover:shadow-md ${isRecording
-                    ? "bg-treq-error text-white hover:bg-treq-error-dark shadow-lg shadow-treq-error/50"
-                    : isHighContrast
-                        ? "bg-treq-yellow text-black hover:bg-treq-yellow-light hover:scale-110"
-                        : "bg-white border border-treq-gray-200 text-treq-gray-600 hover:text-treq-error hover:border-treq-error hover:scale-110"
-                    }`}
-                title={isRecording ? "Parar gravação" : "Gravar áudio"}
-                aria-label={isRecording ? "Parar gravação" : "Iniciar gravação de áudio"}
-                aria-pressed={isRecording}
-            >
-                {isRecording ? (
-                    <div className="flex items-center gap-0.75 h-5">
-                        <div className="w-1 h-3 bg-white rounded-full animate-soundwave" style={{ animationDelay: '0s' }}></div>
-                        <div className="w-1 h-5 bg-white rounded-full animate-soundwave" style={{ animationDelay: '0.1s' }}></div>
-                        <div className="w-1 h-4 bg-white rounded-full animate-soundwave" style={{ animationDelay: '0.2s' }}></div>
-                    </div>
-                ) : (
-                    <Mic
-                        className={`w-5 h-5 sm:w-5.5 sm:h-5.5 transition-transform`}
+            {/* Menu Suspenso de Ações */}
+            {isOpen && (
+                <>
+                    <div
+                        className="fixed inset-0 z-20"
+                        onClick={() => setIsOpen(false)}
                     />
-                )}
-            </button>
+                    <div className="absolute bottom-14 left-0 z-30 w-48 bg-white border border-treq-gray-200 rounded-2xl shadow-xl p-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                        <button
+                            type="button"
+                            onClick={() => { onCameraClick(); setIsOpen(false); }}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-treq-gray-50 rounded-xl transition-colors text-treq-gray-700 font-medium text-sm"
+                        >
+                            <Camera className="w-5 h-5 text-treq-gray-400" />
+                            Câmera
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => { onFileClick(); setIsOpen(false); }}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-treq-gray-50 rounded-xl transition-colors text-treq-gray-700 font-medium text-sm"
+                        >
+                            <Paperclip className="w-5 h-5 text-treq-gray-400" />
+                            Arquivos
+                        </button>
+                    </div>
+                </>
+            )}
         </div>
     );
 }
