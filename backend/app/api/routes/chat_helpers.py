@@ -9,12 +9,12 @@ from app.core.query_router import should_use_tool_first, should_use_rag_first
 from app.core.tools import MetricsTool
 from app.core.param_extractor import extract_tool_params
 from app.utils.pii_anonymizer import anonymize_pii
+from app.core.context_manager import ContextManager
 from typing import List, Dict, Any, Optional, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.services.llm_service import LLMService
     from app.core.rag_service import RAGService
-    from app.core.context_manager import ContextManager
 
 
 def get_or_create_context_manager(

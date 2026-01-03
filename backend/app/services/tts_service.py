@@ -87,18 +87,30 @@ class TTSService:
                 }
             )
             
+            # LOG DE DEPURAÇÃO (Bruno, isso vai nos ajudar a ver o que o Google está enviando)
+            logger.debug(f"DEBUG TTS: Response received type: {type(response)}")
+            if hasattr(response, 'audio'):
+                logger.debug(f"DEBUG TTS: 'audio' attribute found. Size: {len(response.audio.data) if response.audio else 'None'}")
+            
             # 4. Extrair áudio da resposta 
-            # O áudio vem no corpo da resposta multimodal
-            if not response.audio:
-                # Fallback para extração manual das partes se o atributo .audio estiver vazio
-                # mas o dado estiver presente em parts
-                try:
-                    audio_bytes = response.candidates[0].content.parts[0].inline_data.data
-                except:
-                    logger.error("Gemini não retornou dados de áudio.")
-                    raise ValueError("Falha na síntese de áudio (Sem dados)")
-            else:
+            audio_bytes = None
+            
+            if hasattr(response, 'audio') and response.audio:
                 audio_bytes = response.audio.data
+            elif response.candidates and len(response.candidates) > 0:
+                # Percorrer partes em busca de áudio (Padrão Multimodal 2026)
+                for part in response.candidates[0].content.parts:
+                    if hasattr(part, 'inline_data') and part.inline_data:
+                        if 'audio' in part.inline_data.mime_type:
+                            audio_bytes = part.inline_data.data
+                            logger.info("✅ Áudio encontrado em inline_data")
+                            break
+                    if hasattr(part, 'file_data') and part.file_data:
+                        logger.info(f"📝 Gemini indicou audio em arquivo: {part.file_data.file_uri}")
+            
+            if not audio_bytes:
+                logger.error(f"Gemini não retornou dados de áudio. Conteúdo: {response.text[:100] if hasattr(response, 'text') else 'No text'}")
+                raise ValueError("Falha na síntese de áudio (Sem dados binários)")
             
             elapsed = time.time() - start_time
             logger.info(f"✅ TTS concluído com sucesso: {len(audio_bytes)} bytes em {elapsed:.2f}s")
