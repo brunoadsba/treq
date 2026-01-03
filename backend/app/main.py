@@ -20,6 +20,15 @@ settings = get_settings()
 # Configurar logging
 logger.remove()  # Remover handler padrão
 
+# Adicionar handler para stdout (Console) - ESSENCIAL PARA RENDER/VERCEL
+import sys
+logger.add(
+    sys.stdout,
+    level=settings.log_level,
+    format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <level>{message}</level>",
+    enqueue=True
+)
+
 # Sink customizado para logging em arquivo com rotation
 from pathlib import Path
 import os
@@ -30,44 +39,31 @@ log_dir.mkdir(exist_ok=True)
 log_file = log_dir / "app.log"
 
 def log_sink(message):
-    """Sink customizado que processa logs diretamente."""
+    """Sink customizado que processa logs diretamente para arquivo."""
     record = message.record
-    
-    # Obter request_id do contexto
     request_id = get_request_id()
     request_id_str = f"[{request_id}]" if request_id else "[--------]"
-    
-    # Formatar timestamp
     time_str = record["time"].strftime("%Y-%m-%d %H:%M:%S")
-    
-    # Formatar nível
     level_str = record["level"].name.ljust(8)
-    
-    # Mensagem (já formatada pelo Loguru, não precisa processar novamente)
     log_message = str(message)
     
-    # Exception (se houver)
     exception_str = ""
     if record["exception"]:
         exception_str = f"\n{record['exception']}"
     
-    # Formatar linha final
     formatted = f"{time_str} | {level_str} | {request_id_str: <10} | {log_message}{exception_str}\n"
     
-    # Escrever no arquivo (append mode)
     try:
         with open(log_file, "a", encoding="utf-8") as f:
             f.write(formatted)
     except Exception:
-        # Fallback para stderr se não conseguir escrever no arquivo
-        import sys
-        sys.stderr.write(formatted)
+        pass
 
-# Adicionar sink customizado (sem formato para evitar processamento duplo)
+# Adicionar sink de arquivo
 logger.add(
     log_sink,
     level=settings.log_level,
-    format="{message}",  # Formato simples, processamos tudo no sink
+    format="{message}",
 )
 
 app = FastAPI(
@@ -121,19 +117,10 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     """
-    Pré-carrega recursos pesados no startup para evitar latência na primeira requisição.
+    Startup event simplificado para deploy rápido.
+    Os modelos serão carregados sob demanda (lazy loading).
     """
-    logger.info("🚀 Iniciando pré-carregamento de recursos...")
-    
-    # Pré-carregar modelo de embedding (evita ~4s delay na primeira query RAG)
-    try:
-        from app.services.embedding_service import get_embedding_model
-        get_embedding_model()
-        logger.info("✅ Modelo de embedding pré-carregado")
-    except Exception as e:
-        logger.warning(f"⚠️ Falha ao pré-carregar modelo de embedding: {e}")
-    
-    logger.info("🚀 Servidor pronto para receber requisições")
+    logger.info("🚀 Servidor pronto para receber requisições (Modo Cloud)")
 
 
 # Exception Handlers Globais (DEVE SER ANTES DOS ROUTERS)
