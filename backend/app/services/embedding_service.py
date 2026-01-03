@@ -42,13 +42,19 @@ def generate_embedding(text: str) -> List[float]:
         return [0.0] * settings.embedding_dimension
 
     try:
+        from app.core.cache import cache_manager
+        
+        # 1. Tentar Cache
+        cached_embedding = await cache_manager.get("emb", text)
+        if cached_embedding:
+            return cached_embedding
+
         client = get_genai_client()
         # Higienização básica
         clean_text = text.replace("\n", " ")
         
-        # Chamada da API
-        # Nota: Usamos text-embedding-004 que permite truncamento via output_dimensionality
-        # Isso garante que o vetor caiba no pgvector(384) definido no DB.
+        # ... (restante da lógica de chamada da API)
+        # (Omitido para brevidade, mas mantendo a lógica de chamada)
         from google.genai import types
         
         result = client.models.embed_content(
@@ -60,9 +66,10 @@ def generate_embedding(text: str) -> List[float]:
         )
         
         if result and result.embeddings:
-            # O SDK retorna uma lista de embeddings (um por input)
-            embedding = result.embeddings[0].values
-            return [float(v) for v in embedding]
+            embedding = [float(v) for v in result.embeddings[0].values]
+            # 2. Gravar no Cache (TTL de 24h para embeddings já que são estáticos)
+            await cache_manager.set("emb", text, embedding, ttl=86400)
+            return embedding
             
         logger.error(f"Erro na resposta de embeddings do Gemini para: {text[:50]}...")
         return [0.0] * settings.embedding_dimension

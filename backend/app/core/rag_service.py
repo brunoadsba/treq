@@ -51,6 +51,12 @@ class RAGService:
             List[Dict]: Lista de documentos encontrados com metadata
         """
         try:
+            from app.core.cache import cache_manager
+            cached_results = await cache_manager.get("rag", f"{query}:{top_k}:{similarity_threshold}")
+            if cached_results:
+                logger.info(f"🎯 RAG Cache Hit para: {query[:50]}")
+                return cached_results
+
             # Gerar embedding da query
             query_embedding = generate_embedding(query)
             
@@ -91,15 +97,16 @@ class RAGService:
                         query=query,
                         num_results=len(documents),
                         top_similarity=max(d['similarity'] for d in documents),
-                        latency_ms=0,  # O tracer do LangSmith já pega a latência exata
+                        latency_ms=0,
                         search_type="vector"
                     )
                 
+                # GRAVAR NO CACHE (TTL de 10 minutos para buscas RAG)
+                from app.core.cache import cache_manager
+                await cache_manager.set("rag", f"{query}:{top_k}:{similarity_threshold}", documents, ttl=600)
+                
                 logger.info(
-                    f"Busca RAG retornou {len(documents)} documentos para query: {query[:50]}... "
-                    f"(threshold: {similarity_threshold}, similarity range: "
-                    f"{min(d['similarity'] for d in documents) if documents else 0:.3f}-"
-                    f"{max(d['similarity'] for d in documents) if documents else 0:.3f})"
+                    f"Busca RAG retornou {len(documents)} documentos para query: {query[:50]}..."
                 )
                 return documents
                 
