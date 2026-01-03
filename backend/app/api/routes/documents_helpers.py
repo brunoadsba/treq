@@ -1,13 +1,14 @@
 """
 Funções auxiliares para rotas de documentos.
 """
-from typing import Dict, Any, List
+from typing import Dict, Any, List, TYPE_CHECKING
 from datetime import datetime
 from pathlib import Path
 from loguru import logger
 
-from app.core.chunking_service import ChunkingService
-from app.core.rag_service import RAGService
+if TYPE_CHECKING:
+    from app.core.chunking_service import ChunkingService
+    from app.core.rag_service import RAGService
 
 
 def prepare_document_metadata(
@@ -39,7 +40,7 @@ def prepare_document_metadata(
 def index_document_chunks(
     chunks: List[Dict[str, Any]],
     base_metadata: Dict[str, Any],
-    rag_service: RAGService
+    rag_service: 'RAGService'
 ) -> tuple[int, int]:
     """
     Indexa chunks do documento no RAG.

@@ -3,16 +3,20 @@ Health check endpoints para monitoramento de serviços LLM.
 """
 from fastapi import APIRouter, Depends
 from loguru import logger
+from typing import TYPE_CHECKING, Optional, Any, Dict
+
 from app.core.llm_dependency_manager import LLMDependencyManager
-from app.services.llm_service import LLMService
 from app.api.routes.chat import get_llm_service
+
+if TYPE_CHECKING:
+    from app.services.llm_service import LLMService
 
 router = APIRouter(prefix="/health", tags=["health"])
 
 
 @router.get("/llm")
 async def llm_health_check(
-    llm_service: LLMService = Depends(get_llm_service)
+    llm_service: 'LLMService' = Depends(get_llm_service)
 ):
     """
     Health check específico para serviços LLM.

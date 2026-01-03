@@ -19,7 +19,7 @@ _stt_service: Optional['STTService'] = None
 _tts_service: Optional['TTSService'] = None
 
 
-def get_stt_service():
+def get_stt_service() -> 'STTService':
     """Retorna instância singleton do STT Service."""
     global _stt_service
     if _stt_service is None:
@@ -28,7 +28,7 @@ def get_stt_service():
     return _stt_service
 
 
-def get_tts_service():
+def get_tts_service() -> 'TTSService':
     """Retorna instância singleton do TTS Service."""
     global _tts_service
     if _tts_service is None:

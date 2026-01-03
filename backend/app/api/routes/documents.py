@@ -25,7 +25,7 @@ _chunking_service: Optional['ChunkingService'] = None
 _rag_service: Optional['RAGService'] = None
 
 
-def get_converter_service() -> DocumentConverterService:
+def get_converter_service() -> 'DocumentConverterService':
     """Retorna instância singleton do DocumentConverterService."""
     global _converter_service
     if _converter_service is None:
@@ -34,7 +34,7 @@ def get_converter_service() -> DocumentConverterService:
     return _converter_service
 
 
-def get_chunking_service() -> ChunkingService:
+def get_chunking_service() -> 'ChunkingService':
     """Retorna instância singleton do ChunkingService."""
     global _chunking_service
     if _chunking_service is None:
@@ -43,7 +43,7 @@ def get_chunking_service() -> ChunkingService:
     return _chunking_service
 
 
-def get_rag_service() -> RAGService:
+def get_rag_service() -> 'RAGService':
     """Retorna instância singleton do RAGService."""
     global _rag_service
     if _rag_service is None:
