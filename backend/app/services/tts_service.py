@@ -45,50 +45,60 @@ class TTSService:
     async def synthesize_speech(
         self,
         text: str,
-        voice: str = "Charon"  # Voz Padrão (Vibrant/Clear)
+        voice: str = "Charon",
+        language: str = "pt-BR"
     ) -> bytes:
         """
         Sintetiza texto em áudio usando os modelos multimodais do Gemini.
-        
-        Args:
-            text: Texto para converter em voz
-            voice: Nome da voz predefinida
-            
-        Returns:
-            bytes: Dados binários do áudio (geralmente MP3/WAV conforme config)
         """
         try:
-            # 1. Truncar texto para UX (500 chars max)
+            # 1. Mapear voz padrão se vier como "default"
+            voice_map = {
+                "default": "Charon",
+                "charon": "Charon",
+                "puck": "Puck",
+                "kore": "Kore",
+                "fenrir": "Fenrir",
+                "aoede": "Aoede"
+            }
+            target_voice = voice_map.get(voice.lower(), "Charon")
+            
+            # 2. Truncar texto para UX (500 chars max)
             clean_text = truncate_for_tts(text)
             
             client = self._get_client()
             start_time = time.time()
             
-            logger.info(f"🎙️ Iniciando síntese TTS para {len(clean_text)} caracteres (Voz: {voice})")
+            logger.info(f"🎙️ Iniciando síntese TTS para {len(clean_text)} caracteres (Voz: {target_voice})")
             
-            # 2. Chamada ao modelo Gemini para geração de áudio
-            # Usando a sintaxe do SDK 2026 (google-genai)
+            # 3. Chamada ao modelo Gemini para geração de áudio
+            # Usando gemini-2.0-flash (GA) ou flash-exp conforme disponibilidade
             response = client.models.generate_content(
-                model="gemini-2.0-flash-exp",
+                model="gemini-2.0-flash",
                 contents=clean_text,
                 config={
                     "speech_config": {
                         "voice_config": {
                             "prebuilt_voice_config": {
-                                "voice_name": voice 
+                                "voice_name": target_voice 
                             }
                         }
                     }
                 }
             )
             
-            # 3. Extrair áudio da resposta multimodal
-            # No novo SDK, o áudio vem em parts[0].inline_data ou similar se for puro áudio
+            # 4. Extrair áudio da resposta 
+            # O áudio vem no corpo da resposta multimodal
             if not response.audio:
-                logger.error("Gemini não retornou dados de áudio na resposta.")
-                raise ValueError("Falha na síntese de áudio")
-                
-            audio_bytes = response.audio.data
+                # Fallback para extração manual das partes se o atributo .audio estiver vazio
+                # mas o dado estiver presente em parts
+                try:
+                    audio_bytes = response.candidates[0].content.parts[0].inline_data.data
+                except:
+                    logger.error("Gemini não retornou dados de áudio.")
+                    raise ValueError("Falha na síntese de áudio (Sem dados)")
+            else:
+                audio_bytes = response.audio.data
             
             elapsed = time.time() - start_time
             logger.info(f"✅ TTS concluído com sucesso: {len(audio_bytes)} bytes em {elapsed:.2f}s")
@@ -97,6 +107,4 @@ class TTSService:
             
         except Exception as e:
             logger.error(f"❌ Erro crítico no TTSService: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
             raise ValueError(f"Erro na síntese de voz: {str(e)}")
