@@ -6,8 +6,7 @@ from pydantic import BaseModel, Field
 from typing import Optional
 from loguru import logger
 
-from app.services.stt_service import STTService
-from app.services.tts_service import TTSService
+# Imports pesados movidos para dentro dos getters (Lazy Loading)
 
 router = APIRouter(prefix="/audio", tags=["audio"])
 
@@ -16,18 +15,20 @@ _stt_service: Optional[STTService] = None
 _tts_service: Optional[TTSService] = None
 
 
-def get_stt_service() -> STTService:
+def get_stt_service():
     """Retorna instância singleton do STT Service."""
     global _stt_service
     if _stt_service is None:
+        from app.services.stt_service import STTService
         _stt_service = STTService()
     return _stt_service
 
 
-def get_tts_service() -> TTSService:
+def get_tts_service():
     """Retorna instância singleton do TTS Service."""
     global _tts_service
     if _tts_service is None:
+        from app.services.tts_service import TTSService
         _tts_service = TTSService()
     return _tts_service
 

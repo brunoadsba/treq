@@ -182,21 +182,24 @@ async def health_check():
 async def root():
     return {"status": "online", "message": "TREQ API"}
 
-# INCLUIR ROTAS IMEDIATAMENTE (Evita 404)
-# Importamos os routers rapidamente sem carregar a lógica pesada neles
-from app.api.routes import chat, health as health_route, monitoring, feedback, audio, documents
-from src.features.vision.routes import router as vision_router
+# INCLUIR ROTAS (Agora são leves devido ao lazy loading nos routes)
+try:
+    from app.api.routes import chat, health as health_route, monitoring, feedback, audio, documents
+    from src.features.vision.routes import router as vision_router
 
-app.include_router(chat.router)
-app.include_router(health_route.router)
-app.include_router(monitoring.router)
-app.include_router(feedback.router)
-app.include_router(audio.router)
-app.include_router(documents.router)
-app.include_router(vision_router)
+    app.include_router(chat.router)
+    app.include_router(health_route.router)
+    app.include_router(monitoring.router)
+    app.include_router(feedback.router)
+    app.include_router(audio.router)
+    app.include_router(documents.router)
+    app.include_router(vision_router)
+    logger.info("✅ Rotas registradas no sistema")
+except Exception as e:
+    logger.error(f"❌ Erro ao registrar rotas: {e}")
 
 # Startup Final
 @app.on_event("startup")
 async def startup_event():
-    logger.info("🚀 Servidor Iniciado! (Porta Aberta)")
+    logger.info("🚀 Servidor Pronto! (Modo Cloud)")
     logger.info("✨ TREQ BACKEND VIVO E OPERACIONAL")

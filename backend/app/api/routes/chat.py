@@ -7,9 +7,6 @@ from typing import Any
 from loguru import logger
 import json
 
-from app.services.llm_service import LLMService
-from app.core.rag_service import RAGService
-from app.core.consultant_validator import validate_consultant_response, assess_response_quality
 from app.middleware.rate_limiter import get_rate_limit, rate_limit
 from slowapi.errors import RateLimitExceeded
 from app.api.routes.chat_helpers import build_llm_messages
