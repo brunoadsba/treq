@@ -32,7 +32,7 @@ langchain-community>=0.3.27,<0.4.0   # Integrações da comunidade
 # -----------------------------------------------------------------------------
 groq>=0.36.0,<1.0.0              # API Groq (Llama models + Whisper)
 google-genai>=0.5.0              # Novo SDK Google GenAI (unificado para evitar conflitos)
-zai-sdk>=0.3.1,<1.0.0            # Zhipu AI (GLM 4)
+zai-sdk>=0.2.0,<1.0.0            # Zhipu AI (GLM 4)
 
 # -----------------------------------------------------------------------------
 # HTTP & Networking
