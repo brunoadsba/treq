@@ -39,7 +39,7 @@ export function MessageList({ messages, isLoading = false }: MessageListProps) {
   }, [messages, isLoading]);
   if (messages.length === 0) {
     return (
-      <div className="h-full w-full flex flex-col items-center justify-center text-treq-gray-500 bg-treq-gray-50 p-4 sm:p-6 md:p-8 lg:p-10 overflow-hidden">
+      <div className="h-full w-full flex flex-col items-center text-treq-gray-500 bg-treq-gray-50 p-4 sm:p-6 md:p-8 lg:p-10 overflow-y-auto py-8">
         <div className="w-full max-w-4xl mx-auto">
           <div className="bg-white rounded-xl shadow-md p-6 sm:p-8 md:p-10 lg:p-12 text-left">
             {/* Título */}

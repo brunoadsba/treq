@@ -135,10 +135,9 @@ export default function ChatPage() {
 
   return (
     <div
-      className="flex flex-col h-[100dvh] overflow-hidden bg-treq-gray-50"
+      className="fixed inset-0 flex flex-col overflow-hidden bg-treq-gray-50"
       role="main"
       aria-label="Chat do Assistente Operacional Treq"
-      style={{ maxHeight: '100dvh', height: '100dvh' }}
     >
       <Header
         hasMessages={messages.length > 0}
@@ -161,11 +160,10 @@ export default function ChatPage() {
         />
       </div>
 
-      <div className="flex-shrink-0">
+      <div className="sticky bottom-0 z-10 flex-shrink-0 w-full bg-treq-gray-50 border-t border-treq-gray-200">
         <InputArea
           onSend={handleSendMessage}
           isLoading={isLoading}
-          conversationId={conversationId || undefined}
           onDocumentUploaded={(fileName, chunksIndexed) => {
             showToast(
               `Documento "${fileName}" enviado com sucesso! ${chunksIndexed} chunks indexados.`,

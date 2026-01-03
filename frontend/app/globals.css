@@ -6,33 +6,44 @@
   :root {
     --background: #ffffff;
     --foreground: #000000;
-    
+
     /* Escala Tipográfica - Manual de Identidade Visual */
-    --font-size-h1: 2rem;      /* 32px - Título principal */
-    --font-size-h2: 1.5rem;   /* 24px - Subtítulos */
-    --font-size-h3: 1.25rem;  /* 20px - Seções */
-    --font-size-base: 1rem;   /* 16px - Texto padrão */
-    --font-size-lg: 1.125rem; /* 18px - Texto destacado */
-    --font-size-sm: 0.875rem; /* 14px - Texto secundário */
-    --font-size-xs: 0.75rem;  /* 12px - Labels, timestamps */
-    
+    --font-size-h1: 2rem;
+    /* 32px - Título principal */
+    --font-size-h2: 1.5rem;
+    /* 24px - Subtítulos */
+    --font-size-h3: 1.25rem;
+    /* 20px - Seções */
+    --font-size-base: 1rem;
+    /* 16px - Texto padrão */
+    --font-size-lg: 1.125rem;
+    /* 18px - Texto destacado */
+    --font-size-sm: 0.875rem;
+    /* 14px - Texto secundário */
+    --font-size-xs: 0.75rem;
+    /* 12px - Labels, timestamps */
+
     /* Line Heights */
-    --line-height-tight: 1.25;   /* Títulos */
-    --line-height-normal: 1.5;    /* Corpo padrão */
-    --line-height-relaxed: 1.75; /* Texto longo, mensagens */
+    --line-height-tight: 1.25;
+    /* Títulos */
+    --line-height-normal: 1.5;
+    /* Corpo padrão */
+    --line-height-relaxed: 1.75;
+    /* Texto longo, mensagens */
   }
 
   html {
     height: 100%;
-    overflow: hidden;
+    overflow-x: hidden;
   }
 
   body {
     @apply font-sans text-treq-gray-900 bg-treq-gray-50;
     font-size: var(--font-size-base);
     line-height: var(--line-height-relaxed);
-    height: 100%;
-    overflow: hidden;
+    min-height: 100%;
+    height: auto;
+    overflow-x: hidden;
     width: 100%;
     margin: 0;
     padding: 0;
@@ -145,6 +156,7 @@
 }
 
 @layer components {
+
   /* Utilitários de tipografia */
   .text-h1 {
     font-size: var(--font-size-h1);
@@ -164,10 +176,13 @@
 
 @layer utilities {
   @keyframes soundwave {
-    0%, 100% {
+
+    0%,
+    100% {
       transform: scaleY(0.4);
       opacity: 0.5;
     }
+
     50% {
       transform: scaleY(1);
       opacity: 1;
@@ -180,6 +195,7 @@
       opacity: 0;
       transform: translateY(4px);
     }
+
     to {
       opacity: 1;
       transform: translateY(0);
@@ -191,6 +207,7 @@
       opacity: 0;
       transform: translateX(100%);
     }
+
     to {
       opacity: 1;
       transform: translateX(0);
@@ -202,6 +219,7 @@
       opacity: 0;
       transform: translateX(-100%);
     }
+
     to {
       opacity: 1;
       transform: translateX(0);
@@ -212,24 +230,31 @@
     from {
       transform: rotate(0deg);
     }
+
     to {
       transform: rotate(360deg);
     }
   }
 
   @keyframes pulse {
-    0%, 100% {
+
+    0%,
+    100% {
       opacity: 1;
     }
+
     50% {
       opacity: 0.5;
     }
   }
 
   @keyframes bounce {
-    0%, 100% {
+
+    0%,
+    100% {
       transform: translateY(0);
     }
+
     50% {
       transform: translateY(-4px);
     }
@@ -240,6 +265,7 @@
       opacity: 0;
       transform: scale(0.95);
     }
+
     to {
       opacity: 1;
       transform: scale(1);
@@ -331,4 +357,3 @@
     display: none;
   }
 }
-
