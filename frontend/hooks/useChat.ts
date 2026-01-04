@@ -243,15 +243,6 @@ export function useChat(userId: string = "default-user") {
       setIsLoading(true);
       setError(null);
 
-      // Variável para armazenar mensagem de fallback
-      let fallbackMessage: string | undefined = undefined;
-
-      // Cancelar stream anterior se existir
-      if (currentStreamAbortControllerRef.current) {
-        currentStreamAbortControllerRef.current.abort();
-        currentStreamAbortControllerRef.current = null;
-      }
-
       // Adicionar mensagem do usuário imediatamente
       const userMessage: ChatMessage = {
         role: "user",
@@ -263,325 +254,65 @@ export function useChat(userId: string = "default-user") {
       setMessages((prev) => [...prev, userMessage]);
 
       try {
-        // Criar mensagem do assistente vazia para streaming
-        const assistantMessageId = Date.now();
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            message,
+            history: messages.map(m => ({
+              role: m.role,
+              content: m.content
+            })),
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Falha ao comunicar com o assistente");
+        }
+
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error("Stream não habilitado");
+
+        const decoder = new TextDecoder();
+        let fullResponse = "";
+
+        // Adicionar mensagem do assistente vazia para streaming
         const assistantMessage: ChatMessage = {
           role: "assistant",
           content: "",
           timestamp: new Date().toISOString(),
-          isThinking: true, // Começa pensando
+          isThinking: true,
         };
+        setMessages((prev) => [...prev, assistantMessage]);
 
-        const startTime = Date.now();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-        if (useStream) {
-          // Modo streaming via SSE
-          const abortController = new AbortController();
-          currentStreamAbortControllerRef.current = abortController;
+          const chunk = decoder.decode(value, { stream: true });
+          fullResponse += chunk;
 
-          const response = await fetch(`${apiUrl}/chat/`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              message,
-              user_id: userId,
-              conversation_id: conversationId,
-              context,
-              stream: true,
-              visualization: visualization || false,
-              action_id: actionId,
-              image_url: imageUrl,
-            }),
-            signal: abortController.signal,
-          });
-
-          if (!response.ok) {
-            throw new Error(`Erro na API: ${response.statusText}`);
-          }
-
-          // Adicionar mensagem vazia para começar a stream
-          setMessages((prev) => [...prev, assistantMessage]);
-
-          // Ler stream SSE
-          const reader = response.body?.getReader();
-          const decoder = new TextDecoder("utf-8", { fatal: false });
-
-          if (!reader) {
-            throw new Error("Stream não disponível");
-          }
-
-          let buffer = "";
-          let fullResponse = "";
-          let parseErrorCount = 0;
-          const MAX_PARSE_ERRORS = 5; // Limite de erros de parse antes de abortar (aumentado de 3 para 5)
-
-          try {
-            while (true) {
-              const { done, value } = await reader.read();
-
-              if (done) {
-                // Processar buffer restante antes de sair
-                if (buffer.trim()) {
-                  const lines = buffer.split("\n\n");
-                  for (const line of lines) {
-                    if (line.startsWith("data: ")) {
-                      try {
-                        const data = JSON.parse(line.slice(6));
-                        if (data.done) {
-                          // Processar evento done final
-                          if (data.conversation_id) {
-                            setConversationId(data.conversation_id);
-                          }
-                          // Atualizar runId se fornecido no evento final
-                          if (data.run_id) {
-                            setMessages((prev) =>
-                              prev.map((msg, idx) =>
-                                idx === prev.length - 1 && msg.role === "assistant"
-                                  ? { ...msg, runId: data.run_id }
-                                  : msg
-                              )
-                            );
-                          }
-                          // Atualizar mensagem final se houver conteúdo
-                          if (fullResponse) {
-                            setMessages((prev) =>
-                              prev.map((msg, idx) =>
-                                idx === prev.length - 1 && msg.role === "assistant"
-                                  ? { ...msg, content: fullResponse }
-                                  : msg
-                              )
-                            );
-                          }
-                        }
-                      } catch (e) {
-                        // Ignorar erros de parse no último buffer
-                        console.warn("Erro ao processar último buffer:", e);
-                      }
-                    }
-                  }
+          setMessages((prev) =>
+            prev.map((msg, idx) =>
+              idx === prev.length - 1 && msg.role === "assistant"
+                ? {
+                  ...msg,
+                  content: fullResponse,
+                  isThinking: false,
                 }
-                // Garantir que loading seja desativado ao sair do loop
-                isRequestInProgressRef.current = false;
-                currentStreamAbortControllerRef.current = null;
-                setIsLoading(false);
-                break;
-              }
-
-              // Decodificar com tratamento de erros UTF-8
-              try {
-                buffer += decoder.decode(value, { stream: true });
-              } catch (decodeError) {
-                console.error("Erro ao decodificar chunk UTF-8:", decodeError);
-                // Continuar mesmo com erro de decodificação
-                continue;
-              }
-
-              const lines = buffer.split("\n\n");
-              buffer = lines.pop() || "";
-
-              for (const line of lines) {
-                if (line.startsWith("data: ")) {
-                  try {
-                    const data = JSON.parse(line.slice(6));
-
-                    if (data.error) {
-                      throw new Error(data.error);
-                    }
-
-                    if (data.chunk) {
-                      fullResponse += data.chunk;
-                      // Atualizar mensagem do assistente incrementalmente
-                      setMessages((prev) =>
-                        prev.map((msg, idx) =>
-                          idx === prev.length - 1 && msg.role === "assistant"
-                            ? {
-                              ...msg,
-                              content: fullResponse,
-                              isThinking: false, // Parou de pensar ao receber o primeiro texto
-                              thinkingDuration: msg.thinkingDuration || Math.round((Date.now() - startTime) / 1000)
-                            }
-                            : msg
-                        )
-                      );
-                    }
-
-                    // NOVO: Detectar reasoning (CoT) no stream
-                    if (data.type === 'reasoning' && data.plan) {
-                      setMessages((prev) =>
-                        prev.map((msg, idx) =>
-                          idx === prev.length - 1 && msg.role === "assistant"
-                            ? { ...msg, reasoning: data.plan, runId: data.run_id }
-                            : msg
-                        )
-                      );
-                      continue;
-                    }
-
-                    // NOVO: Detectar chart_data no stream
-                    if (data.chart_data) {
-                      console.log("[CHAT] Chart data recebido:", {
-                        type: data.chart_data.type,
-                        title: data.chart_data.title,
-                        empty: data.chart_data.metadata?.empty,
-                        metrics_found: data.chart_data.metadata?.metrics_found,
-                        metrics_total: data.chart_data.metadata?.metrics_total,
-                        done: data.done,
-                      });
-
-                      // Criar mensagem especial com chart_data
-                      const chartMessage: ChatMessage = {
-                        role: "assistant",
-                        content: data.chart_data.title || "Gráfico gerado",
-                        timestamp: new Date().toISOString(),
-                        chartData: data.chart_data,
-                      };
-
-                      // Remover mensagem vazia do assistente se existir
-                      setMessages((prev) => {
-                        const filtered = prev.filter((msg) => msg.content !== "" || msg.role !== "assistant");
-                        return [...filtered, chartMessage];
-                      });
-
-                      // Atualizar conversation ID se fornecido
-                      if (data.conversation_id) {
-                        setConversationId(data.conversation_id);
-                      }
-
-                      // IMPORTANTE: Desativar loading mesmo quando chart_data vem com done
-                      isRequestInProgressRef.current = false;
-                      currentStreamAbortControllerRef.current = null;
-                      setIsLoading(false);
-
-                      // Log de sucesso
-                      if (data.chart_data.metadata?.empty) {
-                        console.warn("[CHAT] Gráfico gerado mas está vazio:", data.chart_data.metadata);
-                      } else {
-                        console.log("[CHAT] Gráfico gerado com sucesso");
-                      }
-
-                      // Se também tem done: true, não processar evento done separadamente
-                      if (data.done) {
-                        return {
-                          response: data.chart_data.title || "Gráfico gerado",
-                          conversation_id: data.conversation_id,
-                          chart_data: data.chart_data,
-                          context_summary: data.context_summary || "",
-                          sources: data.sources || [],
-                        };
-                      }
-
-                      // Se não tem done, continuar processando stream
-                      return {
-                        response: data.chart_data.title || "Gráfico gerado",
-                        conversation_id: data.conversation_id,
-                        chart_data: data.chart_data,
-                        context_summary: "",
-                        sources: [],
-                      };
-                    }
-
-                    if (data.done) {
-                      // Atualizar conversation ID se fornecido
-                      if (data.conversation_id) {
-                        setConversationId(data.conversation_id);
-                      }
-
-                      // Atualizar mensagem final com conteúdo completo
-                      if (fullResponse) {
-                        setMessages((prev) =>
-                          prev.map((msg, idx) =>
-                            idx === prev.length - 1 && msg.role === "assistant"
-                              ? { ...msg, content: fullResponse, runId: data.run_id }
-                              : msg
-                          )
-                        );
-                      }
-
-                      // Desativar loading imediatamente
-                      isRequestInProgressRef.current = false;
-                      currentStreamAbortControllerRef.current = null;
-                      setIsLoading(false);
-
-                      return {
-                        response: fullResponse,
-                        conversation_id: data.conversation_id,
-                        context_summary: data.context_summary || "",
-                        sources: data.sources || [],
-                        fallback: data.fallback || false,
-                        fallback_reason: data.fallback_reason,
-                        fallback_message: data.fallback_message,
-                        run_id: data.run_id
-                      };
-                    }
-
-                    // Resetar contador de erros após parse bem-sucedido
-                    parseErrorCount = 0;
-                  } catch (parseError) {
-                    parseErrorCount++;
-                    console.error(`Erro ao processar chunk SSE (${parseErrorCount}/${MAX_PARSE_ERRORS}):`, parseError);
-
-                    // Se exceder limite de erros, abortar stream
-                    if (parseErrorCount >= MAX_PARSE_ERRORS) {
-                      reader.cancel();
-                      // Notificar usuário sobre interrupção do streaming
-                      setError("Streaming interrompido. Mostrando resposta completa.");
-                      throw new Error("Muitos erros ao processar stream. Conexão pode estar corrompida.");
-                    }
-                  }
-                }
-              }
-            }
-          } catch (streamError) {
-            // Se for erro de abort, não fazer nada (stream foi cancelado intencionalmente)
-            if (streamError instanceof Error && streamError.name === "AbortError") {
-              console.log("Stream cancelado pelo usuário");
-              throw streamError;
-            }
-            // Para outros erros, propagar
-            throw streamError;
-          } finally {
-            // Garantir que isLoading seja false ao finalizar
-            isRequestInProgressRef.current = false;
-            currentStreamAbortControllerRef.current = null;
-            setIsLoading(false);
-          }
-        } else {
-          // Modo não-streaming (fallback)
-          const response = await fetch(`${apiUrl}/chat/`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              message,
-              user_id: userId,
-              conversation_id: conversationId,
-              context,
-              stream: false,
-              visualization: visualization || false,
-              action_id: actionId,
-            }),
-          });
-
-          if (!response.ok) {
-            throw new Error(`Erro na API: ${response.statusText}`);
-          }
-
-          const data: ChatResponse = await response.json();
-
-          if (data.conversation_id) {
-            setConversationId(data.conversation_id);
-          }
-
-          // Adicionar resposta do assistente com runId
-          assistantMessage.content = data.response;
-          assistantMessage.runId = data.run_id;
-          setMessages((prev) => [...prev, assistantMessage]);
-
-          return data;
+                : msg
+            )
+          );
         }
+
+        return {
+          response: fullResponse,
+          conversation_id: conversationId || undefined,
+          context_summary: "",
+          sources: [],
+        };
       } catch (err) {
         const errorMessage =
           err instanceof Error ? err.message : "Erro desconhecido";

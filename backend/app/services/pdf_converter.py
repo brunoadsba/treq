@@ -5,11 +5,6 @@ from typing import Optional
 import io
 from loguru import logger
 
-try:
-    import PyPDF2
-    PYPDF2_AVAILABLE = True
-except ImportError:
-    PYPDF2_AVAILABLE = False
 
 try:
     import pdfplumber
@@ -29,17 +24,12 @@ def convert_pdf_to_markdown(file_content: bytes, filename: str) -> Optional[str]
     Returns:
         str: Conteúdo Markdown ou None se erro
     """
-    if not PYPDF2_AVAILABLE:
-        logger.error("PDF não suportado - PyPDF2 não instalado")
+    if not PDFPLUMBER_AVAILABLE:
+        logger.error("PDF não suportado - pdfplumber não instalado")
         return None
     
     try:
-        # Tentar pdfplumber primeiro (melhor qualidade para tabelas)
-        if PDFPLUMBER_AVAILABLE:
-            return _convert_with_pdfplumber(file_content, filename)
-        else:
-            # Fallback para PyPDF2
-            return _convert_with_pypdf2(file_content, filename)
+        return _convert_with_pdfplumber(file_content, filename)
     except Exception as e:
         logger.error(f"Erro ao converter PDF '{filename}': {e}")
         import traceback
@@ -71,19 +61,6 @@ def _convert_with_pdfplumber(file_content: bytes, filename: str) -> str:
     return "".join(markdown_parts)
 
 
-def _convert_with_pypdf2(file_content: bytes, filename: str) -> str:
-    """Converte PDF usando PyPDF2 (fallback básico)."""
-    pdf_file = io.BytesIO(file_content)
-    pdf_reader = PyPDF2.PdfReader(pdf_file)
-    markdown_parts = [f"# {filename}\n\n"]
-    
-    for page_num, page in enumerate(pdf_reader.pages, start=1):
-        markdown_parts.append(f"## Página {page_num}\n\n")
-        text = page.extract_text()
-        if text:
-            markdown_parts.append(f"{text}\n\n")
-    
-    return "".join(markdown_parts)
 
 
 def _table_to_markdown(table: list) -> str:

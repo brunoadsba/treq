@@ -69,7 +69,6 @@ redis>=5.0.0                     # Cliente Redis para caching
 # -----------------------------------------------------------------------------
 # Document Processing
 # -----------------------------------------------------------------------------
-PyPDF2>=3.0.0                    # Extração de texto de PDFs
 pdfplumber>=0.11.0               # PDFs com suporte a tabelas
 openpyxl>=3.1.0                  # Leitura/escrita de Excel
 pandas>=2.0.0                    # Processamento de dados

@@ -41,11 +41,11 @@ except ImportError:
 
 # Verificar disponibilidade de bibliotecas
 try:
-    import PyPDF2
-    PYPDF2_AVAILABLE = True
+    import pdfplumber
+    PDF_AVAILABLE = True
 except ImportError:
-    PYPDF2_AVAILABLE = False
-    logger.warning("PyPDF2 não instalado. PDF não será suportado.")
+    PDF_AVAILABLE = False
+    logger.warning("pdfplumber não instalado. PDF não será suportado.")
 
 try:
     EXCEL_AVAILABLE = True
@@ -96,7 +96,7 @@ class DocumentConverterService:
 
         supported_formats = []
         
-        if PYPDF2_AVAILABLE:
+        if PDF_AVAILABLE:
             supported_formats.append("PDF")
         if EXCEL_AVAILABLE:
             supported_formats.append("Excel")
@@ -115,8 +115,8 @@ class DocumentConverterService:
             logger.warning("DocumentConverterService inicializado - Nenhum formato suportado (instale dependências)")
         
         # Logs de avisos para formatos não disponíveis
-        if not PYPDF2_AVAILABLE:
-            logger.warning("PDF não disponível - PyPDF2 não instalado")
+        if not PDF_AVAILABLE:
+            logger.warning("PDF não disponível - pdfplumber não instalado")
         if not EXCEL_AVAILABLE:
             logger.warning("Excel não disponível - pandas/openpyxl não instalados")
         if not DOCX_AVAILABLE:
@@ -151,8 +151,8 @@ class DocumentConverterService:
         
         # Verificar se é PDF
         if suffix == '.pdf':
-            if not PYPDF2_AVAILABLE:
-                logger.error("PDF não suportado - PyPDF2 não instalado")
+            if not PDF_AVAILABLE:
+                logger.error("PDF não suportado - pdfplumber não instalado")
                 return None
             return convert_pdf_to_markdown(path.read_bytes(), path.name)
         
@@ -182,8 +182,8 @@ class DocumentConverterService:
         
         # PDF
         if suffix == '.pdf':
-            if not PYPDF2_AVAILABLE:
-                logger.error("PDF não suportado - PyPDF2 não instalado")
+            if not PDF_AVAILABLE:
+                logger.error("PDF não suportado - pdfplumber não instalado")
                 return None
             
             # Tentar conversão normal primeiro
