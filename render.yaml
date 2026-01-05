@@ -1,4 +1,7 @@
 services:
+  # ================================
+  # BACKEND API
+  # ================================
   - type: web
     name: treq-backend
     env: python
@@ -6,31 +9,56 @@ services:
     startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     plan: free
     envVars:
-      - key: DATABASE_URL
-        sync: false
+      # Supabase
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+
+      # LLM APIs
       - key: GROQ_API_KEY
         sync: false
-      - key: GOOGLE_API_KEY
+      - key: GEMINI_API_KEY
         sync: false
+      - key: ZHIPU_API_KEY
+        sync: false
+
+      # LangSmith (Opcional)
       - key: LANGCHAIN_TRACING_V2
-        value: "true"
+        value: "false"
       - key: LANGCHAIN_API_KEY
         sync: false
-      - key: PYTHON_VERSION
-        value: "3.12.4"
-      - key: CORS_ORIGINS
-        value: "https://treq-bay.vercel.app"
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: treq-cache
-          property: connectionString
 
+      # Configurações
+      - key: PYTHON_VERSION
+        value: "3.10"
+      - key: CORS_ORIGINS
+        value: "https://treq-frontend.onrender.com,https://treq-bay.vercel.app,http://localhost:3000"
+      - key: LOG_LEVEL
+        value: "INFO"
+
+  # ================================
+  # FRONTEND (Next.js)
+  # ================================
+  - type: web
+    name: treq-frontend
+    env: node
+    buildCommand: cd frontend && npm install && npm run build
+    startCommand: cd frontend && npm start
+    plan: free
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: "https://treq-backend.onrender.com"
+      - key: NODE_VERSION
+        value: "18"
+
+  # ================================
+  # REDIS CACHE (Opcional)
+  # ================================
   - type: redis
     name: treq-cache
     plan: free
-    ipAllowList: [] # Permite acesso apenas de serviços internos do Render
+    ipAllowList: [] # Apenas serviços internos do Render
+    maxmemoryPolicy: allkeys-lru
