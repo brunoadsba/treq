@@ -1,0 +1,82 @@
+services:
+  # ================================
+  # BACKEND API - FastAPI
+  # ================================
+  - type: web
+    name: treq-backend
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+
+    # Auto-deploy on push to main branch
+    branch: main
+
+    envVars:
+      # ================================
+      # SUPABASE - PostgreSQL + pgvector
+      # ================================
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+
+      # ================================
+      # LLM APIS - Groq + Gemini + Zhipu
+      # ================================
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: ZHIPU_API_KEY
+        sync: false
+
+      # ================================
+      # CONFIGURAÇÕES
+      # ================================
+      - key: PYTHON_VERSION
+        value: "3.10"
+      - key: LANGCHAIN_TRACING_V2
+        value: "false"
+      - key: LOG_LEVEL
+        value: "INFO"
+      - key: ENVIRONMENT
+        value: "production"
+      - key: CORS_ORIGINS
+        value: "https://treq-frontend.onrender.com,https://treq-bay.vercel.app"
+
+  # ================================
+  # FRONTEND - Next.js 15
+  # ================================
+  - type: web
+    name: treq-frontend
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: cd frontend && npm install && npm run build
+    startCommand: cd frontend && npm start
+
+    # Auto-deploy on push to main branch
+    branch: main
+
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: "https://treq-backend.onrender.com"
+      - key: NODE_VERSION
+        value: "18"
+      - key: NODE_ENV
+        value: "production"
+
+  # ================================
+  # REDIS CACHE (Opcional)
+  # ================================
+  - type: redis
+    name: treq-cache
+    region: oregon
+    plan: free
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: [] # Apenas serviços internos
