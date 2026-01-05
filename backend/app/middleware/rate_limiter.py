@@ -56,12 +56,12 @@ def setup_rate_limiting(app):
     para garantir ordem correta dos handlers.
     """
     app.state.limiter = limiter
-    
-    # Adicionar SlowAPIMiddleware - necessário para que o decorator funcione corretamente
-    app.add_middleware(SlowAPIMiddleware)
-    
-    # Handler será registrado no main.py para garantir ordem correta
-    logger.info("✅ Rate limiting configurado (com SlowAPIMiddleware)")
+
+    # NOTA: SlowAPIMiddleware removido devido a incompatibilidade com Starlette 0.50+
+    # O rate limiting agora funciona via decorator @limiter.limit() nos endpoints
+    # O handler de exceção será registrado no main.py
+
+    logger.info("✅ Rate limiting configurado (sem SlowAPIMiddleware - usando decorator)")
     return limiter
 
 
