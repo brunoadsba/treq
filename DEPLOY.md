@@ -25,18 +25,18 @@ Adicione as seguintes variáveis:
 
 ```bash
 # Supabase
-SUPABASE_URL=https://taidcwtolloreyxjvegi.supabase.co
+SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 # Groq API
-GROQ_API_KEY=gsk_wm5CTNbnVdgSvzy2U12kWGdyb3FY1KlrYayBtF8...
+GROQ_API_KEY=gsk_your-groq-api-key-here
 
 # Gemini API
-GEMINI_API_KEY=AIzaSyBU2jCBTilyjPB-k6iNsoDcjHUo8lbRKzI
+GEMINI_API_KEY=your-gemini-api-key-here
 
 # Zhipu AI (opcional)
-ZHIPU_API_KEY=5aa3fec9311446f6b692263f8146d47d.taZ20qQpNd2plDKB
+ZHIPU_API_KEY=your-zhipu-api-key-here
 
 # Configurações
 LOG_LEVEL=INFO
