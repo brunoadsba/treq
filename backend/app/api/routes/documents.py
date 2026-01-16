@@ -16,6 +16,7 @@ from app.api.routes.documents_helpers import (
     prepare_document_metadata,
     index_document_chunks
 )
+from app.middleware.simple_auth import verify_api_key
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -93,7 +94,7 @@ def validate_file(file: UploadFile) -> None:
         )
 
 
-@router.post("/upload", response_model=DocumentUploadResponse)
+@router.post("/upload", response_model=DocumentUploadResponse, dependencies=[Depends(verify_api_key)])
 async def upload_document(
     file: UploadFile = File(...),
     document_type: Optional[str] = Form(None),

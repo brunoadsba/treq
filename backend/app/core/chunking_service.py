@@ -12,7 +12,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 class ChunkingService:
     """Serviço para dividir documentos em chunks semânticos."""
     
-    def __init__(self, chunk_size: int = 1000, chunk_overlap: int = 200):
+    def __init__(self, chunk_size: int = 1500, chunk_overlap: int = 300):
         """
         Inicializa o serviço de chunking.
         

@@ -139,12 +139,42 @@ Form Data:
 
 ## 🧪 Testes
 
-### Scripts Disponíveis
+### Executar Testes com Pytest
 
 ```bash
-# Backend
 cd treq/backend
 
+# Ativar ambiente virtual
+source ../venv/bin/activate  # ou treq-venv/bin/activate
+
+# Executar todos os testes
+pytest
+
+# Executar com cobertura
+pytest --cov=app --cov-report=html
+
+# Executar teste específico
+pytest tests/test_fase1_correcoes.py -v
+
+# Executar apenas testes unitários
+pytest -m unit
+
+# Executar apenas testes de integração
+pytest -m integration
+```
+
+### Testes Disponíveis
+
+| Arquivo | Descrição |
+|---------|-----------|
+| `test_fase1_correcoes.py` | Correções Fase 1 (JSON parsing, auth, retry) |
+| `test_new_logic.py` | Lógica de classificação de queries |
+| `test_query_classifier_status.py` | Classificador de status |
+| `test_technical_terms_filter.py` | Filtro de termos técnicos |
+
+### Scripts de Teste Manual
+
+```bash
 # Teste de streaming
 python scripts/test_streaming.py
 

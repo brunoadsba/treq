@@ -32,7 +32,8 @@ class RAGService:
         query: str,
         top_k: int = 5,
         similarity_threshold: float = 0.35,
-        filters: Optional[Dict[str, Any]] = None
+        filters: Optional[Dict[str, Any]] = None,
+        user_id: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
         Busca documentos similares usando busca vetorial nativa do PostgreSQL (pgvector).
@@ -45,6 +46,7 @@ class RAGService:
             top_k: Número de documentos a retornar
             similarity_threshold: Limite mínimo de similaridade (0-1)
             filters: Filtros opcionais por metadata (dict com chave-valor)
+            user_id: ID do usuário para filtro RLS (opcional)
             
         Returns:
             List[Dict]: Lista de documentos encontrados com metadata
@@ -82,13 +84,29 @@ class RAGService:
                 # Converter resultado para formato esperado
                 documents = []
                 for row in result.data:
+                    # Sanitizar similarity para evitar NaN (inválido em JSON)
+                    raw_sim = row.get('similarity')
+                    if raw_sim is None or (isinstance(raw_sim, float) and (raw_sim != raw_sim)):  # NaN check
+                        similarity = 0.0
+                    else:
+                        try:
+                            similarity = float(raw_sim)
+                            if similarity != similarity:  # NaN check
+                                similarity = 0.0
+                        except (ValueError, TypeError):
+                            similarity = 0.0
+                    
                     documents.append({
                         'id': row.get('id'),
                         'content': row.get('content', ''),
                         'metadata': row.get('metadata', {}),
-                        'similarity': float(row.get('similarity', 0.0)),
+                        'similarity': similarity,
                         'created_at': row.get('created_at')
                     })
+                
+                # Aplicar filtro RLS se user_id fornecido
+                if user_id and documents:
+                    documents = self._filter_by_rls(documents, user_id)
                 
                 # Registrar métricas RAG
                 if documents:
@@ -189,6 +207,10 @@ class RAGService:
                 # Calcular similaridade de cosseno
                 similarity = np.dot(query_vec, doc_vec) / (norm(query_vec) * norm(doc_vec))
                 
+                # Verificar NaN
+                if np.isnan(similarity):
+                    similarity = 0.0
+                
                 if similarity >= similarity_threshold:
                     documents_with_similarity.append({
                         'id': row['id'],
@@ -210,6 +232,56 @@ class RAGService:
             import traceback
             logger.error(traceback.format_exc())
             return []
+    
+    def _filter_by_rls(
+        self,
+        documents: List[Dict[str, Any]],
+        user_id: str
+    ) -> List[Dict[str, Any]]:
+        """
+        Filtra documentos aplicando Row Level Security.
+        
+        Regras:
+        - Documentos públicos (classification=public) são acessíveis a todos
+        - Documentos com allowed_users contendo "*" são acessíveis a todos
+        - Documentos com user_id na lista allowed_users são acessíveis ao usuário
+        
+        Args:
+            documents: Lista de documentos a filtrar
+            user_id: ID do usuário solicitante
+            
+        Returns:
+            List[Dict]: Documentos filtrados por RLS
+        """
+        filtered = []
+        
+        for doc in documents:
+            metadata = doc.get('metadata', {})
+            classification = metadata.get('classification', 'internal')
+            allowed_users = metadata.get('allowed_users', ['*'])
+            
+            # Documentos públicos são acessíveis a todos
+            if classification == 'public':
+                filtered.append(doc)
+                continue
+            
+            # Documentos com "*" são acessíveis a qualquer usuário autenticado
+            if '*' in allowed_users:
+                filtered.append(doc)
+                continue
+            
+            # Verificar se user_id está na lista de permitidos
+            if user_id in allowed_users:
+                filtered.append(doc)
+                continue
+        
+        if len(filtered) < len(documents):
+            logger.debug(
+                f"RLS filtrou {len(documents) - len(filtered)} documentos "
+                f"para user_id={user_id}"
+            )
+        
+        return filtered
     
     @trace_rag_pipeline(name="hybrid_search")
     async def search_hybrid(

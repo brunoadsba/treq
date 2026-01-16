@@ -5,7 +5,8 @@ from typing import List, Dict, Optional, Generator, Any
 from loguru import logger
 import time
 import json
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type, before_sleep_log
+import logging
 
 from app.utils.debug import trace_generator
 from app.middleware.request_id import get_request_id
@@ -16,6 +17,24 @@ from app.core.circuit_breaker import (
     CircuitBreakerError
 )
 from app.core.tracing import trace_llm_call
+
+# Importar RateLimitError do Groq para retry específico
+try:
+    from groq import RateLimitError as GroqRateLimitError
+except ImportError:
+    # Fallback se groq não estiver instalado
+    GroqRateLimitError = Exception
+
+# Logger para tenacity
+tenacity_logger = logging.getLogger("tenacity")
+
+
+def _log_retry_attempt(retry_state):
+    """Callback para logar tentativas de retry."""
+    logger.warning(
+        f"🔄 Rate limit Groq. Retry {retry_state.attempt_number}/3 "
+        f"em {retry_state.next_action.sleep:.1f}s"
+    )
 
 
 @retry(
@@ -91,6 +110,13 @@ def call_glm4(
         raise
 
 
+@retry(
+    retry=retry_if_exception_type(GroqRateLimitError),
+    wait=wait_exponential(multiplier=2, min=2, max=10),
+    stop=stop_after_attempt(3),
+    before_sleep=_log_retry_attempt,
+    reraise=True
+)
 @trace_llm_call(name="stream_groq", run_type="llm")
 @trace_generator("Groq_Stream")
 def stream_groq(
