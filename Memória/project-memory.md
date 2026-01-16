@@ -88,20 +88,21 @@ backend/app/features/
 
 ## Próximos Passos
 
-### Sprint 2.2 - Conector Slack
-- [ ] Criar SlackClient com mock
-- [ ] Modelo de mensagem
-- [ ] Endpoint de webhook
+## Próximos Passos
 
-### Sprint 2.3 - Ferramentas de Ação
-- [x] JiraCreateTicketTool (mock aprimorado)
-- [x] SlackSendMessageTool (integrada)
-- [ ] ConfluenceSearchTool
+### Sprint 3 - Governança e Observabilidade
+- [ ] Configurar LangSmith tracing
+- [ ] Implementar contagem de tokens
+- [ ] Implementar Rate Limiting por usuário
 
-### Sprint 3 - Governança
-- [ ] LangSmith tracing
-- [ ] Token counting
-- [ ] Rate limiting por usuário
+### Sprint 4 - Frontend Integration
+- [ ] Criar UI de chat do Agente
+- [ ] Renderizar tool outputs (cards para Jira/Slack)
+- [ ] Sincronização de estado via streaming
+
+### Pendências (Backlog)
+- [ ] ConfluenceSearchTool (Sprint 2.3 remanescente)
+- [ ] Webhook real do Slack (Sprint 2.2 remanescente)
 
 ---
 
