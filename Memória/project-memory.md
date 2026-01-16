@@ -18,7 +18,7 @@
 | 1.3 | Primeira Ferramenta | ✅ Completo (mock) | - |
 | 2.1 | Conector Confluence | ✅ Completo (mock) | 5 |
 | 2.2 | Conector Slack | ✅ Completo (mock) | 6 |
-| 2.3 | Ferramentas de Ação | ⏳ Pendente | - |
+| 2.3 | Ferramentas de Ação | ✅ Completo (integrado) | - |
 
 **Total de Testes:** 36 passando
 
@@ -94,8 +94,8 @@ backend/app/features/
 - [ ] Endpoint de webhook
 
 ### Sprint 2.3 - Ferramentas de Ação
-- [ ] JiraCreateTicketTool real (API)
-- [ ] SlackPostMessageTool real (API)
+- [x] JiraCreateTicketTool (mock aprimorado)
+- [x] SlackSendMessageTool (integrada)
 - [ ] ConfluenceSearchTool
 
 ### Sprint 3 - Governança

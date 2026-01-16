@@ -1,5 +1,6 @@
 """Ferramentas do agente."""
 from .base import BaseTool
-from .mocks import JiraCreateTicketTool, SlackNotifyTool
+from .jira import JiraCreateTicketTool
+from .slack import SlackSendMessageTool
 
-__all__ = ["BaseTool", "JiraCreateTicketTool", "SlackNotifyTool"]
+__all__ = ["BaseTool", "JiraCreateTicketTool", "SlackSendMessageTool"]

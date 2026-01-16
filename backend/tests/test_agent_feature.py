@@ -90,10 +90,10 @@ class TestToolsMock:
     
     @pytest.mark.asyncio
     async def test_slack_tool_returns_success(self):
-        """SlackNotifyTool retorna sucesso."""
-        from app.features.agent.tools import SlackNotifyTool
+        """SlackSendMessageTool retorna sucesso."""
+        from app.features.agent.tools import SlackSendMessageTool
         
-        tool = SlackNotifyTool()
+        tool = SlackSendMessageTool()
         result = await tool.execute(channel="#geral", message="Teste")
         
         assert result["status"] == "success"

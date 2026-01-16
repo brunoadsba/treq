@@ -7,7 +7,7 @@ Invoca ferramentas como Jira, Slack baseado na decisão do Planner.
 from loguru import logger
 from langchain_core.messages import AIMessage
 from ..state import AgentState
-from ..tools import JiraCreateTicketTool, SlackNotifyTool
+from ..tools import JiraCreateTicketTool, SlackSendMessageTool
 
 
 async def executor_node(state: AgentState) -> dict:
@@ -35,7 +35,7 @@ async def executor_node(state: AgentState) -> dict:
         tool_outputs.append({"tool": tool.name, "result": result})
         
     elif "slack" in last_message or "notificar" in last_message:
-        tool = SlackNotifyTool()
+        tool = SlackSendMessageTool()
         result = await tool.execute(
             channel="#geral",
             message=state['messages'][-1].content
