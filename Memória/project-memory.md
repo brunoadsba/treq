@@ -1,13 +1,13 @@
 # Memória do Projeto: Treq Enterprise
 
-**Última Atualização:** 2026-01-16T18:02
+**Última Atualização:** 2026-01-16T18:19
 
 ---
 
 ## Status Atual
 
 ### Branch Ativa: `enterprise`
-- Último commit: `1b6a5f4` - feat: add Confluence connector
+- Último commit: `bb908eb` - feat: integrate Agent tools with Connectors
 
 ### Progresso das Sprints
 
