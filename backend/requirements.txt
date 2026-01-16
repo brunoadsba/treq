@@ -28,6 +28,7 @@ psycopg2-binary>=2.9.0,<3.0.0   # Driver PostgreSQL
 langchain>=0.3.27,<0.4.0             # Framework LLM
 langchain-community>=0.3.27,<0.4.0   # Integrações da comunidade
 langsmith>=0.1.0                 # Observabilidade e tracing
+langgraph>=0.0.15                # Orquestração de agentes (Enterprise)
 
 # -----------------------------------------------------------------------------
 # LLM & APIs

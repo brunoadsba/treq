@@ -266,6 +266,14 @@ try:
 except Exception as vision_err:
     logger.warning(f"⚠️ Router vision opcional não incluído: {vision_err}")
 
+# AGENT (Enterprise - LangGraph)
+try:
+    from app.features.agent.routes import router as agent_router
+    app.include_router(agent_router)
+    logger.info("✅ Router agent (Enterprise) incluído")
+except Exception as agent_err:
+    logger.warning(f"⚠️ Router agent opcional não incluído: {agent_err}")
+
 logger.info("🚀 Processo de registro de rotas concluído")
 
 # Startup Final
