@@ -274,6 +274,14 @@ try:
 except Exception as agent_err:
     logger.warning(f"⚠️ Router agent opcional não incluído: {agent_err}")
 
+# CONNECTORS (Enterprise - Confluence, Slack)
+try:
+    from app.features.connectors.routes import router as connectors_router
+    app.include_router(connectors_router)
+    logger.info("✅ Router connectors incluído")
+except Exception as conn_err:
+    logger.warning(f"⚠️ Router connectors opcional não incluído: {conn_err}")
+
 logger.info("🚀 Processo de registro de rotas concluído")
 
 # Startup Final
