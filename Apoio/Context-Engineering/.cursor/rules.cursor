@@ -1,0 +1,145 @@
+# Context Engineering - Cursor AI Configuration
+
+## Visão Geral
+
+Configuração do Cursor AI para otimizar o uso dos Master Harnesses do projeto **Context-Engineering** em desenvolvimento, especificamente para o projeto **Treq** (Assistente Operacional de IA Empresarial).
+
+---
+
+## Integração com Master Harnesses
+
+O Cursor AI deve sempre priorizar e referenciar os 11 Master Harnesses do Context-Engineering:
+
+| # | Master Harness | Arquivo | Comandos Principais |
+|---|--------------|--------|---------------------|
+| 1 | PRD | PRD/PRD.md | /prd-create, /prd-refine |
+| 2 | ADR | ADR/ADR.md | /adr-create, /adr-validate |
+| 3 | User Stories | UserStories/UserStories.md | /us-create, /us-refine |
+| 4 | TDD/BDD | TDD_BDD/TDD_BDD.md | /tdd-create, /test-unit, /test-integration |
+| 5 | Code Review | CodeReview/CodeReview.md | /cr-analyze |
+| 6 | API Design | APIDesign/APIDesign.md | /api-design, /api-openapi |
+| 7 | Database Design | DatabaseDesign/DatabaseDesign.md | /db-design, /db-schema |
+| 8 | CI/CD Pipeline | CICDPipeline/CICDPipeline.md | /cicd-design, /cicd-ci |
+| 9 | Domain-Driven Design | DomainDrivenDesign/DomainDrivenDesign.md | /ddd-contexts |
+| 10 | Security Review | SecurityReview/SecurityReview.md | /sec-owasp |
+| 11 | Performance Review | PerformanceReview/PerformanceReview.md | /perf-analyze |
+
+---
+
+## Guias de Desenvolvimento
+
+O Cursor AI deve referenciar e utilizar os três guias específicos do Context-Engineering:
+
+| Guia | Arquivo | Foco Principal |
+|-----|---------|--------|-------------|
+| Indexação | INDEXACAO_CURSOR.md | Sistema de indexação inteligente para otimizar token usage |
+| Desenvolvimento LLM | LLM_DESENVOLVIMENTO.md | Guia completo para desenvolvimento com LLMs |
+| Consulta Humana | CONSULTA_HUMANA.md | Protocolo para quando LLM for insuficiente |
+
+---
+
+## Sistema de Indexação Inteligente
+
+Para otimizar o uso de tokens, o Cursor AI deve seguir as diretrizes de indexação definidas em INDEXACAO_CURSOR.md:
+
+### Prioridades de Indexação
+
+- **Alta Prioridade:** Sempre carregar PRD, ADR, User Stories (ferramentas de alta prioridade)
+- **Média Prioridade:** Carregar TDD/BDD, Code Review, CI/CD, API Design, Database Design apenas quando pertinente
+- **Baixa Prioridade:** Carregar Domain-Driven Design, Security Review, Performance Review sob demanda
+
+### Chunking Semântico
+
+Arquivos muito longos devem ser carregados por blocos lógicos em vez de inteiramente, para economizar tokens.
+
+---
+
+## Contexto Específico: Projeto Treq
+
+O projeto Treq (Assistente Operacional de IA Empresarial) é o contexto principal de desenvolvimento. O Cursor AI deve ter este contexto em mente ao responder perguntas:
+
+### Stack Tecnológica Treq
+
+- Framework: Next.js 15 (App Router)
+- Linguagem: TypeScript (Strict Mode)
+- Banco de Dados: Supabase + pgvector
+- ORM: Drizzle ORM
+- Autenticação: Supabase Auth
+- Base de Conhecimento: RAG multi-nível (8B, 70B, GLM-4)
+- Desafios Técnicos: Backend instável (crashes por memory overflow), necessidade de escalabilidade empresarial
+
+### Desafios Conhecidos
+
+1. **Backend Instável:** Crashes por memory overflow quando processa LLM calls
+2. **RAG Multi-nível:** Orquestração inteligente entre 3 níveis de LLMs
+3. **Processamento de Documentos:** OCR de imagens, extração de tabelas em PDFs
+4. **Busca Semântica:** Configuração de pgvector para embeddings multilíngues (PT, EN, ES)
+
+---
+
+## Regras de Resposta
+
+### Para Perguntas Gerais
+
+- **Priorize Master Harnesses:** Sempre referenciar os Master Harnesses do Context-Engineering
+- **Use os Três Guias:** Consulte INDEXACAO_CURSOR.md, LLM_DESENVOLVIMENTO.md, CONSULTA_HUMANA.md conforme necessário
+- **Contexto Treq:** Considere sempre a stack e os desafios específicos do Treq ao responder
+
+### Para Perguntas Específicas
+
+#### Para PRD (Requisitos)
+- Se usuário perguntar sobre requisitos, priorize PRD.md
+- Use comandos `/prd-create` ou `/prd-refine`
+- Referencie stack do Treq (Next.js, Supabase)
+
+#### Para ADR (Arquitetura)
+- Se usuário perguntar sobre decisões de arquitetura, priorize ADR.md
+- Use comando `/adr-create`
+- Considere a necessidade de microserviços (problema de backend instável)
+
+#### Para Database Design
+- Se usuário perguntar sobre banco de dados, priorize DatabaseDesign.md
+- Use comando `/db-design` ou `/db-schema`
+- Considere configuração de pgvector para RAG multi-nível
+
+#### Para API Design
+- Se usuário perguntar sobre APIs, priorize APIDesign.md
+- Use comando `/api-design` ou `/api-openapi`
+- Considere endpoints para upload de documentos com OCR
+
+#### Para Security Review
+- Se usuário perguntar sobre segurança, priorize SecurityReview.md
+- Use comando `/sec-owasp` ou `/sec-threat-model`
+- Considere OWASP ASVS v4.0 compliance
+
+#### Para Performance Review
+- Se usuário perguntar sobre performance, priorize PerformanceReview.md
+- Use comando `/perf-analyze`
+- Considere Web Vitals (LCP, FID, CLS) e otimizações de bundle
+
+---
+
+## Melhores Práticas para Cursor AI
+
+### 1. Contexto Evolutivo (ACE)
+
+Sempre que o conhecimento evolua com base nas respostas e feedbacks dos usuários. Atualize o contexto evolutivo continuamente.
+
+### 2. Precisão de Resposta
+
+Forneça respostas precisas e bem fundamentadas nos Master Harnesses. Se a informação não estiver claramente documentada, recomende a criação de um novo ADR ou atualização de PRD.
+
+### 3. Referências Cruzadas
+
+Sempre referencie os Master Harnesses relacionados entre si. Exemplo: ao responder sobre database design, mencione tanto Database Design.md quanto ADR.md se houver decisões relevantes.
+
+---
+
+## Conclusão
+
+Esta configuração do Cursor AI otimiza o desenvolvimento de projetos usando os Master Harnesses do Context-Engineering, com foco específico no projeto Treq.
+
+---
+
+**Última Atualização:** 15/01/2026
+**Versão:** 1.0.0

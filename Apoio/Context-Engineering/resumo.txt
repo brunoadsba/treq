@@ -1,0 +1,24 @@
+**11 Documentos de Engenharia:**
+
+1. **PRD** - Requisitos do produto (o que criar)
+
+2. **ADR** - Decisões de arquitetura (como criar)
+
+3. **User Stories** - Histórias de usuário (funcionalidades detalhadas)
+
+4. **TDD/BDD** - Desenvolvimento por testes (qualidade do código)
+
+5. **Code Review** - Revisão de código (garantir qualidade)
+
+6. **API Design** - Design de APIs (comunicação entre sistemas)
+
+7. **Database Design** - Design de banco de dados (como organizar dados)
+
+8. **CI/CD Pipeline** - Deploy automático (como lançar o sistema)
+
+9. **Domain-Driven Design** - Modelagem de domínio (lógica de negócio)
+
+10. **Security Review** - Segurança (proteger o sistema)
+
+11. **Performance Review** - Performance (velocidade e eficiência)
+
