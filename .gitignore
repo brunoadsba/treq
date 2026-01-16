@@ -1,101 +1,88 @@
 # ============================================
-# Arquivos Essenciais - Treq Assistente
-# Apenas código fonte e configurações vão para o repositório
+# Treq Enterprise - .gitignore
+# Padrão de Indústria para Projetos Python + Next.js
 # ============================================
 
+# ============================================
 # Python
+# ============================================
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-venv/
-treq-venv/
-env/
-ENV/
-.venv
-*.egg-info/
-dist/
 build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
-# Environment Variables (sempre ignorar)
-.env
-.env.local
-.env*.local
-.env.production
+# Virtual Environments
+venv/
+.venv/
+ENV/
+env/
+treq-venv/
 
-# Next.js
+# ============================================
+# Node.js / Next.js
+# ============================================
+node_modules/
 .next/
 out/
-node_modules/
 .swc/
+.turbo/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
+# ============================================
+# Environment Variables (NUNCA versionar)
+# ============================================
+.env
+.env.*
+!.env.example
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ============================================
 # IDEs e Editores
+# ============================================
 .vscode/
 .idea/
 *.swp
 *.swo
-*.sublime-*
+*.sublime-project
+*.sublime-workspace
+.project
+.classpath
+.settings/
 
-# OS
+# ============================================
+# Sistema Operacional
+# ============================================
 .DS_Store
 Thumbs.db
 desktop.ini
+*.lnk
 
-# Logs
+# ============================================
+# Logs e Temporários
+# ============================================
 *.log
 logs/
-*.log.*
-
-# ============================================
-# Documentação e Planejamento (NÃO versionar)
-# ============================================
-
-# Documentação de execução/planejamento
-execucao/
-Docs/
-
-# Scripts auxiliares de desenvolvimento
-scripts/
-backend/scripts/
-frontend/scripts/
-*.sh
-
-# Dados de desenvolvimento e arquivos de testes
-backend/data/
-frontend/public/test-data/
-tests/
-__tests__/
-backend/tests/
-frontend/tests/
-backend/api/
-
-# Análises e documentação técnica
-*.md
-!README.md
-!backend/README.md
-!frontend/README.md
-!Docs/README.md
-
-# ============================================
-# Build e Cache
-# ============================================
-
-# Python
-*.pyc
-*.pyo
-*.pyd
-.coverage
-htmlcov/
-.pytest_cache/
-.mypy_cache/
-
-# TypeScript
-*.tsbuildinfo
-
-# ============================================
-# Arquivos Temporários
-# ============================================
 *.tmp
 *.temp
 *.bak
@@ -103,25 +90,75 @@ htmlcov/
 *~
 
 # ============================================
-# Arquivos Específicos do Projeto
+# Build e Cache
 # ============================================
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.tsbuildinfo
+coverage/
 
-# Modelos ML locais (se houver)
+# ============================================
+# Dados e Modelos (NÃO versionar)
+# ============================================
 *.bin
 *.onnx
 *.pkl
+*.h5
 models/
+data/
+*.db
+*.sqlite
+*.sqlite3
 
-# Certificados e keys (NUNCA versionar)
+# ============================================
+# Segurança (NUNCA versionar)
+# ============================================
 *.pem
 *.key
 *.crt
 *.cert
 secrets/
+credentials/
 
-# Database local (se houver)
-*.db
-*.sqlite
-*.sqlite3
+# ============================================
+# Diretórios do Projeto (específicos)
+# ============================================
 
-venv/
+# Arquivos obsoletos/históricos
+obsolete/
+
+# Documentação de execução (local)
+execucao/
+
+# Scripts de desenvolvimento (já em backend/scripts)
+scripts/
+
+# Backups locais
+backups/
+
+# ============================================
+# Arquivos a VERSIONAR (exceções explícitas)
+# ============================================
+# README principal e dos subprojetos
+!README.md
+!backend/README.md
+!frontend/README.md
+
+# Arquivos de deploy (render.yaml, etc)
+!render.yaml
+!render-blueprint.yaml
+!runtime.txt
+
+# Configuração de exemplo
+!backend/.env.example
+
+# Documentação essencial
+!DEPLOY.md
+!DEPLOY_AUTO.md
+!MONITORING.md
+
+# Planejamento estratégico
+!Planejamento-Estrategico/
