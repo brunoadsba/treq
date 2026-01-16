@@ -4,13 +4,15 @@ Agent Routes - Endpoints para o Agente Enterprise.
 Rota paralela ao /chat/ existente, usando LangGraph.
 """
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel
 from typing import Optional, List
 from loguru import logger
 from langchain_core.messages import HumanMessage
 
 from app.middleware.simple_auth import verify_api_key
+from app.middleware.rate_limiter import rate_limit
+from app.core.governance import get_trace_config
 from .state import AgentState
 from .graph import create_agent_graph, LANGGRAPH_AVAILABLE
 
@@ -31,11 +33,12 @@ class AgentChatResponse(BaseModel):
     tools_used: List[str]
     flow: List[str]
 
-
 @router.post("/chat", response_model=AgentChatResponse)
 async def agent_chat(
     request: AgentChatRequest,
-    api_key: str = Depends(verify_api_key)
+    req: Request,
+    api_key: str = Depends(verify_api_key),
+    _: None = Depends(rate_limit("10/minute"))
 ):
     """
     Endpoint de chat usando o Agente LangGraph.
@@ -59,18 +62,22 @@ async def agent_chat(
     
     try:
         # Criar estado inicial
+        user_id = request.user_id or "anonymous"
         initial_state: AgentState = {
             "messages": [HumanMessage(content=request.query)],
-            "user_id": request.user_id or "anonymous",
+            "user_id": user_id,
             "context": [],
             "next_action": "",
             "tool_outputs": [],
             "metadata": {}
         }
         
-        # Compilar e executar grafo
+        # Configuração de Tracing (LangSmith)
+        trace_config = get_trace_config(user_id=user_id)
+        
+        # Compilar e executar grafo com tracing
         graph = create_agent_graph()
-        final_state = await graph.ainvoke(initial_state)
+        final_state = await graph.ainvoke(initial_state, config=trace_config)
         
         # Extrair resposta
         response_text = final_state["messages"][-1].content

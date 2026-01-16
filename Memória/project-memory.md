@@ -19,6 +19,8 @@
 | 2.1 | Conector Confluence | ✅ Completo (mock) | 5 |
 | 2.2 | Conector Slack | ✅ Completo (mock) | 6 |
 | 2.3 | Ferramentas de Ação | ✅ Completo (integrado) | - |
+| 3.1 | LangSmith Tracing | ✅ Completo | 2 |
+| 3.2 | Rate Limiting | ✅ Completo | - |
 
 **Total de Testes:** 36 passando
 
@@ -88,12 +90,10 @@ backend/app/features/
 
 ## Próximos Passos
 
-## Próximos Passos
-
 ### Sprint 3 - Governança e Observabilidade
-- [ ] Configurar LangSmith tracing
-- [ ] Implementar contagem de tokens
-- [ ] Implementar Rate Limiting por usuário
+- [x] Configurar LangSmith tracing (Sprint 3.1)
+- [x] Implementar Rate Limiting por usuário (Sprint 3.2)
+- [ ] Implementar contagem de tokens (Next)
 
 ### Sprint 4 - Frontend Integration
 - [ ] Criar UI de chat do Agente
