@@ -11,6 +11,9 @@ from loguru import logger
 from ..state import AgentState
 
 
+from ..tools.registry import ToolRegistry
+
+
 async def planner_node(state: AgentState) -> dict:
     """
     Decide se a query precisa de RAG, Tool ou Resposta Direta.
@@ -23,19 +26,13 @@ async def planner_node(state: AgentState) -> dict:
     """
     logger.info("🧠 PLANNER: Analisando query...")
     
-    last_message = state['messages'][-1].content.lower()
+    last_message = state['messages'][-1].content
     
-    # Lógica de decisão baseada em keywords
-    # TODO: Substituir por LLM call na Sprint 1.1.3
-    tool_keywords = ["ticket", "jira", "criar ticket", "abrir chamado"]
-    slack_keywords = ["notificar", "slack", "avisar equipe", "enviar mensagem"]
+    # Detecção dinâmica de intenção via Registry
+    detected_tool = ToolRegistry.detect_tool(last_message)
     
-    if any(kw in last_message for kw in tool_keywords):
-        logger.info("🔧 PLANNER: Decisão -> call_tool (Jira)")
-        return {"next_action": "call_tool"}
-    
-    if any(kw in last_message for kw in slack_keywords):
-        logger.info("📢 PLANNER: Decisão -> call_tool (Slack)")
+    if detected_tool:
+        logger.info(f"🔧 PLANNER: Decisão -> call_tool ({detected_tool})")
         return {"next_action": "call_tool"}
     
     # Default: buscar no RAG
