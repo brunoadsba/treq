@@ -29,7 +29,10 @@ def test_rate_limiting_enforcement(client_with_limit):
     """Verifica se o rate limit bloqueia excesso de requisições."""
     # Vamos fazer 15 requisições rápidas para estourar o limite de 10/minuto
     
-    headers = {"X-API-Key": "treq-dev-key-2024", "X-User-ID": "test-user-limit"}
+    # Usar chave mockada ou ler de ENV
+    import os
+    api_key = os.getenv("API_KEY", "test-key-mock")
+    headers = {"X-API-Key": api_key, "X-User-ID": "test-user-limit"}
     payload = {"query": "teste de limite", "user_id": "test-user-limit"}
     
     success_count = 0
