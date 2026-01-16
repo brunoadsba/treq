@@ -21,8 +21,9 @@
 | 2.3 | Ferramentas de Ação | ✅ Completo (integrado) | - |
 | 3.1 | LangSmith Tracing | ✅ Completo | 2 |
 | 3.2 | Rate Limiting | ✅ Completo | - |
+| 3.3 | Refatoração SSOT | ✅ Completo | E2E |
 
-**Total de Testes:** 36 passando
+**Total de Testes:** 36 de unidade + 1 Script E2E (backend/scripts/test_e2e_enterprise.py)
 
 ---
 
