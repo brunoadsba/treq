@@ -17,10 +17,10 @@
 | 1.2 | RLS no Supabase | ✅ Completo | 6 |
 | 1.3 | Primeira Ferramenta | ✅ Completo (mock) | - |
 | 2.1 | Conector Confluence | ✅ Completo (mock) | 5 |
-| 2.2 | Conector Slack | ⏳ Pendente | - |
+| 2.2 | Conector Slack | ✅ Completo (mock) | 6 |
 | 2.3 | Ferramentas de Ação | ⏳ Pendente | - |
 
-**Total de Testes:** 30 passando
+**Total de Testes:** 36 passando
 
 ---
 
@@ -40,6 +40,11 @@
 | GET | `/connectors/confluence/spaces` | Listar espaços |
 | GET | `/connectors/confluence/pages` | Listar páginas |
 | POST | `/connectors/confluence/sync` | Sincronizar para RAG |
+| POST | `/connectors/slack/connect` | Conectar ao Slack |
+| GET | `/connectors/slack/channels` | Listar canais do Slack |
+| GET | `/connectors/slack/messages` | Listar mensagens |
+| POST | `/connectors/slack/send` | Enviar mensagem |
+| POST | `/connectors/slack/sync` | Sincronizar Slack para RAG |
 
 ---
 
