@@ -70,9 +70,16 @@ except ImportError:
 
 
 class DocumentConverterService:
-    """Serviço para converter documentos para Markdown (MVP 100% FREE)."""
+    """
+    Serviço para converter documentos para Markdown (Refatorado para usar IngestionService).
+    Agora delega o trabalho para app.services.parsers.ingestion.
+    """
     
     def __init__(self, enable_ocr: bool = False):
+        from app.services.parsers import ingest_file
+        self.ingest_file = ingest_file
+        self.enable_ocr = enable_ocr # Mantido para compatibilidade, mas o parser decide
+
         """
         Inicializa o conversor de documentos.
         
@@ -182,79 +189,39 @@ class DocumentConverterService:
     
     async def convert_bytes(self, file_content: bytes, filename: str) -> Optional[str]:
         """
-        Converte arquivo a partir de bytes (para upload) para Markdown.
-        
-        Args:
-            file_content: Conteúdo do arquivo em bytes
-            filename: Nome do arquivo (para detectar formato)
-            
-        Returns:
-            str: Conteúdo Markdown ou None se erro
+        Delega para o novo sistema de Ingestão Modular.
         """
+        try:
+            result = self.ingest_file(file_content, filename)
+            return result.get("content")
+        except ValueError:
+            # Tentar fallback para a lógica legada se o novo parser não suportar (ex: PPTX, DOCX)
+            # ou se ocorrer erro específico de formato
+            logger.warning(f"Novo parser falhou ou não suporta {filename}, tentando legado...")
+            pass
+        except Exception as e:
+            logger.error(f"Erro no IngestionService: {e}")
+            pass
+            
+        # --- Lógica Legada (Fallback) ---
+        # Mantemos o código antigo aqui como fallback para formatos ainda não migrados (DOCX, PPTX)
+        # e para garantir robustez durante a transição.
+        
         suffix = Path(filename).suffix.lower()
         
-        # Roteamento: Excel usa conversão manual
-        if suffix in ['.xlsx', '.xls']:
-            if not EXCEL_AVAILABLE:
-                logger.error("Excel não suportado - pandas/openpyxl não instalados")
+        # PPTX (Ainda não migrado para parsers novos no exemplo, mantendo legado)
+        if suffix == '.pptx':
+            if not PPTX_AVAILABLE:
+                logger.error("PPTX não suportado - python-pptx não instalado")
                 return None
-            return convert_excel_to_markdown(file_content, filename)
-        
-        # PDF
-        if suffix == '.pdf':
-            if not PYPDF2_AVAILABLE:
-                logger.error("PDF não suportado - PyPDF2 não instalado")
-                return None
+            return self.convert_pptx_to_markdown(file_content, filename)
             
-            # Tentar conversão normal primeiro
-            markdown_content = convert_pdf_to_markdown(file_content, filename)
-            
-            # Se falhou e OCR está habilitado, tentar OCR
-            if not markdown_content and self.enable_ocr and self.ocr_service:
-                logger.info(f"Conversão PDF normal falhou, tentando OCR para: {filename}")
-                markdown_content = self.ocr_service.process_scanned_pdf(file_content, filename)
-            
-            return markdown_content
-        
         # DOCX
         if suffix == '.docx':
             if not DOCX_AVAILABLE:
                 logger.error("DOCX não suportado - python-docx não instalado")
                 return None
             return self.convert_docx_to_markdown(file_content, filename)
-        
-        # PPTX
-        if suffix == '.pptx':
-            if not PPTX_AVAILABLE:
-                logger.error("PPTX não suportado - python-pptx não instalado")
-                return None
-            return self.convert_pptx_to_markdown(file_content, filename)
-        
-        # Text files (MD, TXT)
-        if suffix in ['.md', '.txt']:
-            try:
-                return file_content.decode('utf-8')
-            except UnicodeDecodeError:
-                try:
-                    return file_content.decode('latin-1')
-                except Exception as e:
-                    logger.error(f"Erro ao decodificar arquivo texto {filename}: {e}")
-                    return None
-
-        # CSV
-        if suffix == '.csv':
-            if EXCEL_AVAILABLE:
-                try:
-                    df = pd.read_csv(BytesIO(file_content))
-                    return df.to_markdown(index=False)
-                except Exception as e:
-                    logger.warning(f"Erro ao converter CSV com pandas: {e}. Tentando como texto.")
-            
-            # Fallback para texto plano se pandas falhar ou não existir
-            try:
-                return file_content.decode('utf-8')
-            except:
-                return None
 
         # Imagens (JPEG, PNG, GIF, BMP, TIFF, WEBP)
         if suffix in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.tif', '.webp']:
@@ -268,8 +235,7 @@ class DocumentConverterService:
                 return None
             return self.convert_image_to_markdown(file_content, filename)
         
-        # Formatos não suportados
-        logger.warning(f"Formato {suffix} não suportado")
+        logger.warning(f"Formato {suffix} não suportado (nem novo parser, nem legado)")
         return None
     
     def convert_docx_to_markdown(self, file_content: bytes, filename: str) -> Optional[str]:
