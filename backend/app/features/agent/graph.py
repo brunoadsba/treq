@@ -76,7 +76,25 @@ def create_agent_graph():
     graph.add_edge("responder", END)
     
     # Compilar
-    compiled = graph.compile()
+    # Compilar com Checkpointer
+    try:
+        from app.core.checkpointer import PostgresSaver
+        from app.services.vector_health import get_database_url
+        
+        db_url = get_database_url()
+        if db_url:
+            checkpointer = PostgresSaver(conn_string=db_url)
+            compiled = graph.compile(checkpointer=checkpointer)
+            logger.info("✅ Grafo compilado com Checkpointer (Postgres)")
+        else:
+            logger.warning("⚠️ DATABASE_URL não encontrada. Compilando SEM persistencia.")
+            compiled = graph.compile()
+            
+    except Exception as e:
+        logger.error(f"❌ Erro ao configurar Checkpointer: {e}. Usando MemorySaver.")
+        from langgraph.checkpoint.memory import MemorySaver
+        compiled = graph.compile(checkpointer=MemorySaver())
+    
     logger.info("✅ Grafo do agente compilado com sucesso")
     
     return compiled

@@ -21,7 +21,9 @@ def search_knowledge_base(query: str) -> str:
         results = vector_store.similarity_search_with_score(query, k=4)
         
         if not results:
-            return "Nenhuma informação relevante encontrada na base de conhecimento."
+            # Retorno padronizado para o Planner detectar falha e tentar self-correction
+            logger.info("⚠️ Busca retornou vazio.")
+            return "SEARCH_EMPTY: Nenhuma informação relevante encontrada na base de conhecimento."
             
         formatted_results = []
         for doc, score in results:

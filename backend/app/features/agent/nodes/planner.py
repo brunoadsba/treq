@@ -65,6 +65,25 @@ async def planner_node(state: AgentState) -> dict:
     # Se não é tool direta e não é greeting -> RAG
     
     logger.info("📚 PLANNER: Decisão -> retrieve_knowledge")
-    # Mapeando call_rag para o novo fluxo que usa retriever_node 
-    # (ou tool search_knowledge_base se migrarmos tudo para tools)
+    
+    # --- Self-Correction Logic ---
+    # Verifica se já buscamos e falhou (Contexto vazio ou mensagem de erro)
+    # Se steps_taken > 2, desistimos para evitar loop
+    steps = state.get("steps_taken", 0)
+    context = state.get("context", [])
+    
+    if steps > 0:
+        # Verifica se o último contexto foi vazio ou erro
+        last_context = context[-1] if context else ""
+        if "SEARCH_EMPTY" in last_context or not context:
+            if steps < 2:
+                 # TODO: Aqui poderíamos usar um LLM para reformular a query
+                 # Por enquanto, como é heurístico, se falhar 1 vez, vamos para o responder
+                 # que dirá "Não encontrei".
+                 logger.info("⚠️ PLANNER: Busca falhou anteriormente. Encaminhando para resposta final.")
+                 return {"next_action": "responder"}
+            else:
+                 logger.warning("🛑 PLANNER: Loop de busca detectado. Forçando resposta.")
+                 return {"next_action": "responder"}
+
     return {"next_action": "retriever"}

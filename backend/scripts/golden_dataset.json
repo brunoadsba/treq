@@ -1,0 +1,20 @@
+[
+    {
+        "intent": "greeting",
+        "query": "Olá, tudo bem?",
+        "expected_action": "respond",
+        "expected_contains": "Treq"
+    },
+    {
+        "intent": "rag_search",
+        "query": "Qual o procedimento para contenção de vazamento?",
+        "expected_action": "retriever",
+        "expected_contains": "SEARCH_EMPTY"
+    },
+    {
+        "intent": "tool_use",
+        "query": "Crie um ticket sobre erro na bomba hidráulica",
+        "expected_action": "call_tool",
+        "expected_contains": "jira_create_ticket"
+    }
+]
