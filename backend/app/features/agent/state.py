@@ -28,3 +28,7 @@ class AgentState(TypedDict):
     next_action: str
     tool_outputs: List[Dict[str, Any]]
     metadata: Optional[Dict[str, Any]]
+    
+    # Controle de loop e RAG
+    steps_taken: int
+    documents_retrieved: List[str]

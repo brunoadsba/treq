@@ -1,65 +1,35 @@
-"""
-Retriever Node - Busca informações na base de conhecimento.
-
-Integra com o RAGService existente, preservando o RLS via user_id.
-"""
-
 from loguru import logger
 from langchain_core.messages import AIMessage
 from ..state import AgentState
-from app.core.rag_service import RAGService
-
-
-# Instância singleton do RAGService
-_rag_service = None
-
-
-def get_rag_service() -> RAGService:
-    """Lazy initialization do RAGService."""
-    global _rag_service
-    if _rag_service is None:
-        _rag_service = RAGService()
-    return _rag_service
-
+from ..tools.knowledge import search_knowledge_base
 
 async def retriever_node(state: AgentState) -> dict:
     """
-    Executa busca RAG usando o RAGService existente.
-    
-    O user_id do state garante que o RLS seja aplicado.
-    
-    Args:
-        state: Estado atual do agente
-        
-    Returns:
-        dict com context preenchido
+    Executa busca RAG usando a tool search_knowledge_base.
     """
     logger.info("📚 RETRIEVER: Buscando documentos...")
     
     query = state['messages'][-1].content
-    user_id = state.get('user_id')
-    
-    rag_service = get_rag_service()
     
     try:
-        results = await rag_service.search_similar(
-            query=query,
-            user_id=user_id,
-            top_k=5
-        )
+        # Invoca a ferramenta diretamente
+        result = search_knowledge_base.invoke(query)
         
-        context = [doc['content'] for doc in results]
+        # A ferramenta retorna uma string formatada
+        # Podemos separar em lista se quisermos manter a estrutura de 'context' como List[str]
+        # Por enquanto, vamos colocar o resultado inteiro como um item de contexto
+        context = [result]
         
-        logger.info(f"📚 RETRIEVER: {len(context)} documentos encontrados")
+        logger.info(f"📚 RETRIEVER: Busca concluída.")
         
         return {
             "context": context,
-            "messages": [AIMessage(content=f"Encontrei {len(context)} documentos relevantes.")]
+            "documents_retrieved": [query], # Rastreia que buscamos essa query
+            "steps_taken": state.get("steps_taken", 0) + 1
         }
         
     except Exception as e:
         logger.error(f"❌ RETRIEVER: Erro na busca - {e}")
         return {
             "context": [],
-            "messages": [AIMessage(content="Não consegui buscar informações no momento.")]
         }

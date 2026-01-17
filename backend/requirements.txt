@@ -30,6 +30,7 @@ langchain-community>=0.3.27,<0.4.0   # Integrações da comunidade
 langsmith>=0.1.0                 # Observabilidade e tracing
 langgraph>=0.0.15                # Orquestração de agentes (Enterprise)
 
+
 # -----------------------------------------------------------------------------
 # LLM & APIs
 # -----------------------------------------------------------------------------
@@ -103,3 +104,4 @@ Pillow>=10.0.0
 # (requer Tesseract e Poppler instalados no sistema)
 #
 # =============================================================================
+playwright

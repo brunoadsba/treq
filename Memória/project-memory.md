@@ -1,13 +1,13 @@
 # Memória do Projeto: Treq Enterprise
 
-**Última Atualização:** 2026-01-16T18:19
+**Última Atualização:** 2026-01-17T10:48
 
 ---
 
 ## Status Atual
 
 ### Branch Ativa: `enterprise`
-- Último commit: `bb908eb` - feat: integrate Agent tools with Connectors
+- Status: 🟢 Estável / Testada (E2E Frontend + Backend Sanity)
 
 ### Progresso das Sprints
 
@@ -22,110 +22,71 @@
 | 3.1 | LangSmith Tracing | ✅ Completo | 2 |
 | 3.2 | Rate Limiting | ✅ Completo | - |
 | 3.3 | Refatoração SSOT | ✅ Completo | E2E |
+| 4.0 | Segurança & Branding | ✅ Completo | E2E UI |
 
-**Total de Testes:** 36 de unidade + 1 Script E2E (backend/scripts/test_e2e_enterprise.py)
+**Total de Testes:** 36 de unidade + Script Sanity (`backend/scripts/test_sanity.py`) + Suite Playwright (`frontend/e2e/agent.spec.ts`)
 
 ---
 
-## Endpoints Implementados
+## Endpoints Implementados (Destaques)
 
 ### Agent Enterprise (`/agent/`)
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
 | GET | `/agent/health` | Status do agente LangGraph |
-| POST | `/agent/chat` | Chat com orquestração de agentes |
+| POST | `/agent/chat` | Chat com orquestração de agentes (Suporta RAG Defensivo) |
 
 ### Connectors (`/connectors/`)
-| Método | Endpoint | Descrição |
-|--------|----------|-----------|
-| GET | `/connectors/status` | Status de todos os conectores |
-| POST | `/connectors/confluence/connect` | Conectar ao Confluence |
-| GET | `/connectors/confluence/spaces` | Listar espaços |
-| GET | `/connectors/confluence/pages` | Listar páginas |
-| POST | `/connectors/confluence/sync` | Sincronizar para RAG |
-| POST | `/connectors/slack/connect` | Conectar ao Slack |
-| GET | `/connectors/slack/channels` | Listar canais do Slack |
-| GET | `/connectors/slack/messages` | Listar mensagens |
-| POST | `/connectors/slack/send` | Enviar mensagem |
-| POST | `/connectors/slack/sync` | Sincronizar Slack para RAG |
+*Mantidos conforme histórico anterior (Confluence/Slack)*
 
 ---
 
-## Estrutura de Features
+## Estrutura de Features e Segurança
 
 ```
 backend/app/features/
-├── agent/                    # Sprint 1
-│   ├── state.py
-│   ├── graph.py
-│   ├── routes.py
+├── agent/                    # Architecture (Robust & Secure)
+│   ├── .context.md           # [DOC] Contexto da Feature
+│   ├── graph.py              # StateGraph (Planner -> [Executor|Retriever|Responder])
+│   ├── prompts.py            # [NEW] Defensive System Prompts + Date Injection
 │   ├── nodes/
-│   │   ├── planner.py
-│   │   ├── retriever.py
-│   │   ├── executor.py
-│   │   └── responder.py
-│   └── tools/
-│       ├── base.py
-│       └── mocks.py
-└── connectors/               # Sprint 2
-    ├── base.py
-    ├── routes.py
-    └── confluence/
-        ├── client.py
-        └── models.py
+│   │   ├── planner.py        # [MOD] Greeting optimized routing
+│   │   ├── responder.py      # [MOD] Post-Retrieval Filtering + Date Injection
+│   │   └── ...
 ```
 
 ---
 
-## Decisões Arquiteturais
+## Decisões Arquiteturais e de Segurança (Sprint 4)
 
-| Decisão | Escolha | Motivo |
+| Decisão | Escolha | Motivo de Segurança/Qualidade |
 |---------|---------|--------|
-| Rota paralela | `/agent/` separado de `/chat/` | Não quebra MVP |
-| Providers LLM | Groq + Zhipu AI | Sem dependência OpenAI |
-| Ferramentas | Mock primeiro | Independência de APIs externas |
-| RLS | Aplicação + Supabase | Camada dupla de segurança |
-| Conectores | Mock mode | Desenvolvimento sem credenciais |
+| **Defensive RAG** | Regex Pós-LLM | O LLM pode falhar em instruções negativas no prompt. Regex garante que nomes de arquivos internos ('.xlsx') nunca vazem. |
+| **Greeting Optimization** | Planner Intercept | Inputs como "oi" não devem acionar embeddings/LLM caro. Roteamento direto melhora latência e UX. |
+| **Contexto Temporal** | Injeção no Prompt (`prompts.py`) | O LLM não sabe "que dia é hoje". Data/Hora injetada on-the-fly resolve alucinações. |
+| **Testes E2E UI** | Playwright | Garantir que o branding "Treq" e a sanitização funcionem visualmente para o usuário final. |
 
 ---
 
-## Próximos Passos
+## Próximos Passos (Roadmap Atualizado)
 
-### Sprint 3 - Governança e Observabilidade
-- [x] Configurar LangSmith tracing (Sprint 3.1)
-- [x] Implementar Rate Limiting por usuário (Sprint 3.2)
-- [ ] Implementar contagem de tokens (Next)
+### Sprint 5 - Consolidação e UX
+- [ ] Refinar UI do Chat (Scroll, Loading States visuais)
+- [ ] Integrar página `/agent` ao menu principal (Sidebar/Header)
+- [ ] Melhorar feedback visual de ferramentas (Cards interativos)
 
-### Sprint 4 - Frontend Integration
-- [ ] Criar UI de chat do Agente
-- [ ] Renderizar tool outputs (cards para Jira/Slack)
-- [ ] Sincronização de estado via streaming
-
-### Pendências (Backlog)
-- [ ] ConfluenceSearchTool (Sprint 2.3 remanescente)
-- [ ] Webhook real do Slack (Sprint 2.2 remanescente)
+### Pendências Técnicas (Backlog)
+- [ ] Migrar testes unitários antigos para arquitetura nova
+- [ ] Implementar Docker para testes E2E em CI/CD
 
 ---
 
-## Configuração Necessária (Produção)
+## Notas Críticas (Atualizadas)
 
-```bash
-# Confluence (quando tiver credenciais)
-CONFLUENCE_CLIENT_ID=xxx
-CONFLUENCE_CLIENT_SECRET=xxx
-CONFLUENCE_BASE_URL=https://seu-site.atlassian.net
-
-# Slack (quando tiver credenciais)
-SLACK_BOT_TOKEN=xoxb-xxx
-SLACK_SIGNING_SECRET=xxx
-```
-
----
-
-## Notas Importantes
-
-1. **Não fazer deploy sem autorização**
-2. **Arquivos < 200 linhas**
-3. **Padrão de features**: `backend/app/features/[nome]/`
-4. **RLS obrigatório**: user_id propagado em todos os nodes
-5. **Mock first**: Desenvolver com mocks, integrar APIs depois
+1. **Segurança de Marca:** O regex de sanitização (`sanitize_response` em `responder.py`) é a última linha de defesa. Nunca o remova.
+2. **Contexto Temporal:** O agente agora "sabe" que dia é hoje. Injetado dinamicamente no `responder_node`.
+3. **Padrão de Qualidade:** Qualquer nova feature DEVE ter teste E2E correspondente no Playwright.
+4. **Limitações de Ambiente (WSL2):** O projeto roda em WSL2 (Ubuntu), que possui limitações conhecidas com bindings C++ complexos (como `pydantic-core`, `psycopg3`, `numpy` + `opencv`).
+   - **Sintoma:** `Segmentation fault (core dumped)` aleatório em testes ou imports.
+   - **Solução:** Reverter para versões "binary" ou pure-python quando possível (ex: `psycopg2-binary` em vez de `psycopg[binary]`). Evitar `langchain-postgres` por enquanto, pois exige `psycopg` v3 que conflita com libs C no WSL em alguns cenários.
+   - **Referência:** Problema comum com bibliotecas compiladas no WSL2. Se falhar, use mocks de infraestrutura ou rode testes em Docker/Linux nativo.

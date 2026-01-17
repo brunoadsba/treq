@@ -18,10 +18,12 @@ from .state import AgentState
 from .nodes import planner_node, retriever_node, executor_node, responder_node
 
 
-def route_after_planner(state: AgentState) -> Literal["retriever", "executor"]:
+def route_after_planner(state: AgentState) -> Literal["retriever", "executor", "responder"]:
     """Edge condicional após o planner."""
     if state.get("next_action") == "call_tool":
         return "executor"
+    if state.get("next_action") == "respond":
+        return "responder"
     return "retriever"
 
 
@@ -64,7 +66,8 @@ def create_agent_graph():
         route_after_planner,
         {
             "retriever": "retriever",
-            "executor": "executor"
+            "executor": "executor",
+            "responder": "responder"
         }
     )
     

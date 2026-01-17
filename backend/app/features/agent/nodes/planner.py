@@ -35,6 +35,36 @@ async def planner_node(state: AgentState) -> dict:
         logger.info(f"🔧 PLANNER: Decisão -> call_tool ({detected_tool})")
         return {"next_action": "call_tool"}
     
+    # Detecção de Greeting (Saudação)
+    # Detecção de Greeting (Saudação) e Inputs Curtos
+    GREETINGS = [
+        "oi", "ola", "olá", "bom dia", "boa tarde", "boa noite", 
+        "e ai", "e aí", "eae", "opa", "hello", "hi", "test", "teste",
+        "quem é você", "quem e voce", "quem é voce", "quem e você"
+    ]
+    
+    last_msg_clean = last_message.strip().lower()
+    # Remove pontuação básica para comparação
+    last_msg_clean = "".join(c for c in last_msg_clean if c.isalnum() or c.isspace())
+    
+    should_respond_directly = (
+        last_msg_clean in GREETINGS or 
+        (len(last_msg_clean) < 5 and "ajud" not in last_msg_clean and "erro" not in last_msg_clean)
+    )
+    
+    if should_respond_directly:
+        logger.info("👋 PLANNER: Decisão -> respond (Greeting/Short)")
+        return {"next_action": "respond"}
+
     # Default: buscar no RAG
-    logger.info("📚 PLANNER: Decisão -> call_rag")
-    return {"next_action": "call_rag"}
+    # --- Novo Fluxo RAG ---
+    # Se o modelo decidir buscar conhecimento (passo de pensamento), 
+    # ou se for o padrão para perguntas complexas
+    
+    # Simple Heuristic Fallback (Pode ser substituido por LLM call aqui)
+    # Se não é tool direta e não é greeting -> RAG
+    
+    logger.info("📚 PLANNER: Decisão -> retrieve_knowledge")
+    # Mapeando call_rag para o novo fluxo que usa retriever_node 
+    # (ou tool search_knowledge_base se migrarmos tudo para tools)
+    return {"next_action": "retriever"}
