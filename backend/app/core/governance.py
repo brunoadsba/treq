@@ -49,8 +49,13 @@ def get_trace_config(user_id: str, thread_id: str = None) -> Dict[str, Any]:
     if thread_id:
         metadata["thread_id"] = thread_id
         
-    return {
+    config = {
         "metadata": metadata,
         "tags": ["agent", "enterprise", f"user:{user_id}"],
         "project_name": project_name
     }
+    
+    if thread_id:
+        config["configurable"] = {"thread_id": thread_id}
+        
+    return config

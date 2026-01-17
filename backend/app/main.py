@@ -20,51 +20,15 @@ settings = get_settings()
 # Configurar logging
 logger.remove()  # Remover handler padrão
 
-# Adicionar handler para stdout (Console) - ESSENCIAL PARA RENDER/VERCEL
+# Adicionar handler para stderr (Console) - Resolvendo Segfault no WSL2
 import sys
 logger.add(
-    sys.stdout,
+    sys.stderr,
     level=settings.log_level,
     format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <level>{message}</level>",
-    enqueue=True
+    enqueue=False
 )
 
-# Sink customizado para logging em arquivo com rotation
-from pathlib import Path
-import os
-
-# Criar diretório de logs se não existir
-log_dir = Path("logs")
-log_dir.mkdir(exist_ok=True)
-log_file = log_dir / "app.log"
-
-def log_sink(message):
-    """Sink customizado que processa logs diretamente para arquivo."""
-    record = message.record
-    request_id = get_request_id()
-    request_id_str = f"[{request_id}]" if request_id else "[--------]"
-    time_str = record["time"].strftime("%Y-%m-%d %H:%M:%S")
-    level_str = record["level"].name.ljust(8)
-    log_message = str(message)
-    
-    exception_str = ""
-    if record["exception"]:
-        exception_str = f"\n{record['exception']}"
-    
-    formatted = f"{time_str} | {level_str} | {request_id_str: <10} | {log_message}{exception_str}\n"
-    
-    try:
-        with open(log_file, "a", encoding="utf-8") as f:
-            f.write(formatted)
-    except Exception:
-        pass
-
-# Adicionar sink de arquivo
-logger.add(
-    log_sink,
-    level=settings.log_level,
-    format="{message}",
-)
 
 app = FastAPI(
     title=settings.app_name,
@@ -289,3 +253,5 @@ logger.info("🚀 Processo de registro de rotas concluído")
 async def startup_event():
     logger.info("🚀 Servidor Pronto! (Modo Cloud)")
     logger.info("✨ TREQ BACKEND VIVO E OPERACIONAL")
+
+# 279 lines originally

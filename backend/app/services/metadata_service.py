@@ -1,6 +1,6 @@
 """
 Serviço de Enriquecimento de Metadados para Sistema RAG
-Projeto: Treq - Assistente Operacional Sotreq
+Projeto: Treq - Assistente Operacional Treq
 
 Adiciona campos de metadados para suportar:
 - RLS (Row Level Security)

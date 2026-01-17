@@ -1,7 +1,7 @@
 -- ============================================
 -- Script: Habilitar Row Level Security (RLS)
 -- Tabela: knowledge_base
--- Projeto: Treq - Assistente Operacional Sotreq
+-- Projeto: Treq - Assistente Operacional Treq
 -- ============================================
 
 -- 1. Habilitar RLS na tabela knowledge_base

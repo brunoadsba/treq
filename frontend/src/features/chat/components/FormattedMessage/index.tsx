@@ -124,7 +124,7 @@ export function FormattedMessage({ content }: FormattedMessageProps) {
                             </div>
                         </div>
                         <div className="italic font-medium opacity-60 dark:text-blue-300">
-                            Fonte: Manual Sotreq
+                            Fonte: Manual Treq
                         </div>
                     </div>
                 </div>

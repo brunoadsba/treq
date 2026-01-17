@@ -23,7 +23,7 @@ export function AgentChat({ messages, isLoading, error, onSend }: AgentChatProps
             )}
 
             {/* Input Area */}
-            <div className="flex-shrink-0 w-full backdrop-blur-sm bg-treq-gray-50/90 dark:bg-treq-gray-900/90 border-t border-treq-gray-200 dark:border-gray-800">
+            <div className="flex-shrink-0 w-full backdrop-blur-sm bg-treq-gray-50/90 dark:bg-treq-gray-900/90">
                 <ChatInput
                     onSend={onSend}
                     isLoading={isLoading}

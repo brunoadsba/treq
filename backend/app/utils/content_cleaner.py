@@ -1,6 +1,6 @@
 """
 Módulo de Limpeza de Conteúdo para Sistema RAG
-Projeto: Treq - Assistente Operacional Sotreq
+Projeto: Treq - Assistente Operacional Treq
 
 Remove ruído de formatação Markdown que polui embeddings vetoriais:
 - Checkboxes (- [ ], - [x])

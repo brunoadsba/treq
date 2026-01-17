@@ -4,7 +4,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Treq Assistente Operacional",
-  description: "Assistente operacional inteligente para Sotreq",
+  description: "Assistente operacional inteligente para Treq",
 };
 
 export default function RootLayout({

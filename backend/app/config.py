@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     supabase_key: str = Field("", validation_alias=AliasChoices("SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_KEY"))
     supabase_anon_key: str = Field("", validation_alias=AliasChoices("SUPABASE_ANON_KEY", "NEXT_PUBLIC_SUPABASE_ANON_KEY"))
     database_password: str = ""  # Database password (backup local, não usada no código inicialmente)
+    database_url: str = ""  # Full database connection string
+
     
     # APIs
     groq_api_key: str = ""

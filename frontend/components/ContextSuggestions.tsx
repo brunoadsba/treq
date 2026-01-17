@@ -9,23 +9,23 @@ interface ContextSuggestionsProps {
 
 /**
  * Componente de sugestões contextuais para gestores operacionais
- * Baseado no histórico e contexto operacional da Sotreq
+ * Baseado no histórico e contexto operacional da Treq
  */
 export function ContextSuggestions({ onSelectSuggestion, userId = "default-user" }: ContextSuggestionsProps) {
   const isHighContrast = useHighContrast();
 
-  // Sugestões baseadas no contexto operacional da Sotreq
+  // Sugestões baseadas no contexto operacional da Treq
   const contextSuggestions = [
-    { 
-      text: "Status de todas as unidades", 
+    {
+      text: "Status de todas as unidades",
       context: { type: "status", scope: "all_units" }
     },
-    { 
-      text: "Salvador vs Recife", 
+    {
+      text: "Salvador vs Recife",
       context: { type: "comparison", units: ["Salvador", "Recife"] }
     },
-    { 
-      text: "Alertas críticos", 
+    {
+      text: "Alertas críticos",
       context: { type: "alerts", priority: "critical" }
     },
     {
@@ -55,12 +55,11 @@ export function ContextSuggestions({ onSelectSuggestion, userId = "default-user"
   };
 
   return (
-    <div 
-      className={`hidden md:block border-b p-2 sm:p-3 ${
-        isHighContrast 
-          ? 'bg-black border-treq-yellow' 
+    <div
+      className={`hidden md:block border-b p-2 sm:p-3 ${isHighContrast
+          ? 'bg-black border-treq-yellow'
           : 'bg-treq-gray-50 border-treq-gray-200'
-      }`}
+        }`}
       role="region"
       aria-label="Sugestões contextuais"
     >
@@ -70,11 +69,10 @@ export function ContextSuggestions({ onSelectSuggestion, userId = "default-user"
             key={index}
             onClick={() => handleSuggestionClick(suggestion)}
             onKeyDown={(e) => handleKeyDown(e, suggestion)}
-            className={`text-xs sm:text-sm px-2 sm:px-2.5 py-1 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-treq-yellow focus:ring-offset-2 whitespace-nowrap flex-shrink-0 min-h-[28px] sm:min-h-[32px] ${
-              isHighContrast
+            className={`text-xs sm:text-sm px-2 sm:px-2.5 py-1 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-treq-yellow focus:ring-offset-2 whitespace-nowrap flex-shrink-0 min-h-[28px] sm:min-h-[32px] ${isHighContrast
                 ? 'bg-treq-yellow-dark border border-treq-yellow text-black hover:bg-treq-yellow'
                 : 'bg-white border border-treq-gray-300 hover:bg-treq-gray-100 text-treq-gray-700'
-            }`}
+              }`}
             aria-label={`Sugestão: ${suggestion.text}`}
           >
             {suggestion.text}

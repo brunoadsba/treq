@@ -1,6 +1,6 @@
 # Treq Enterprise - Assistente Operacional Inteligente
 
-Plataforma de inteligência artificial para operações Sotreq, evoluída para uma arquitetura agêntica baseada em grafos.
+Plataforma de inteligência artificial para operações Treq, evoluída para uma arquitetura agêntica baseada em grafos.
 
 ## 🚀 Novidades na Versão 2.0 (Enterprise)
 

@@ -160,7 +160,7 @@ export default function ChatPage() {
         />
       </div>
 
-      <div className="sticky bottom-0 z-10 flex-shrink-0 w-full bg-treq-gray-50 border-t border-treq-gray-200">
+      <div className="sticky bottom-0 z-10 flex-shrink-0 w-full bg-treq-gray-50">
         <InputArea
           onSend={handleSendMessage}
           isLoading={isLoading}

@@ -1,6 +1,7 @@
 "use client";
 
 import { Logo } from "./Logo";
+import { NavigationTabs } from "./NavigationTabs";
 import { useHighContrast, toggleHighContrast } from "@/hooks/useHighContrast";
 import { useTheme } from "@/hooks/useTheme";
 import { Contrast, Sun, Moon } from "lucide-react";
@@ -25,16 +26,16 @@ export function Header({
   const [theme, setTheme] = useTheme();
 
   return (
-    <header className="bg-treq-black text-white p-2 sm:p-2.5 md:p-3 lg:p-3.5 shadow-md">
+    <header className="bg-treq-black text-white p-2 sm:p-2.5 md:p-3 lg:p-3.5 shadow-md z-50 relative">
       <div className="flex items-center justify-between gap-2 sm:gap-3">
         {/* Lado Esquerdo: Marca (Responsiva) */}
-        <div className="flex items-center min-w-0 md:flex-1">
+        <div className="flex items-center min-w-0">
           <Logo variant="horizontal" size="md" className="text-white" />
+        </div>
 
-          {/* Título Desktop: Centralizado e original (Escondido no Mobile) */}
-          <h1 className="hidden md:block flex-1 text-center text-base md:text-lg lg:text-xl font-semibold truncate ml-6">
-            {title}
-          </h1>
+        {/* Centro: Navegação (Chat vs Agente) */}
+        <div className="flex-1 flex justify-center">
+          <NavigationTabs />
         </div>
 
         {/* Lado Direito: Controles Funcionais */}

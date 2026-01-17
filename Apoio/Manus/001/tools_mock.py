@@ -28,7 +28,7 @@ class JiraCreateTicketTool(BaseTool):
         return {
             "status": "success",
             "ticket_id": "TREQ-123",
-            "url": "https://sotreq.atlassian.net/browse/TREQ-123",
+            "url": "https://treq.atlassian.net/browse/TREQ-123",
             "message": "Ticket criado com sucesso (MOCK)"
         }
 

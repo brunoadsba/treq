@@ -8,11 +8,11 @@ import re
 
 # Pré-compilar padrões regex para otimização (executado uma vez no import)
 _HEAVY_PATTERNS_COMPILED: List[re.Pattern] = []
-_SOTREQ_PATTERNS_COMPILED: List[re.Pattern] = []
+_TREQ_PATTERNS_COMPILED: List[re.Pattern] = []
 
 def _compile_patterns():
     """Pré-compila todos os padrões regex uma vez no startup."""
-    global _HEAVY_PATTERNS_COMPILED, _SOTREQ_PATTERNS_COMPILED
+    global _HEAVY_PATTERNS_COMPILED, _TREQ_PATTERNS_COMPILED
     
     if _HEAVY_PATTERNS_COMPILED:  # Já compilado
         return
@@ -49,8 +49,8 @@ def _compile_patterns():
             escaped_pattern = re.escape(pattern)
             _HEAVY_PATTERNS_COMPILED.append(re.compile(escaped_pattern, re.IGNORECASE))
     
-    # Padrões específicos Sotreq (já são regex)
-    sotreq_specific_patterns = [
+    # Padrões específicos Treq (já são regex)
+    treq_specific_patterns = [
         r"compare.*unidades", r"comparar.*unidades", r"todas as unidades",
         r"todas unidades", r"múltiplas unidades", r"várias unidades",
         r"análise.*múltiplas", r"síntese.*operacional", r"visão geral.*operações",
@@ -60,10 +60,10 @@ def _compile_patterns():
         r"problemas.*múltiplas", r"alertas.*todas", r"status.*todas.*unidades"
     ]
     
-    for pattern in sotreq_specific_patterns:
-        _SOTREQ_PATTERNS_COMPILED.append(re.compile(pattern, re.IGNORECASE))
+    for pattern in treq_specific_patterns:
+        _TREQ_PATTERNS_COMPILED.append(re.compile(pattern, re.IGNORECASE))
     
-    logger.debug(f"✅ Padrões regex pré-compilados: {len(_HEAVY_PATTERNS_COMPILED)} padrões simples + {len(_SOTREQ_PATTERNS_COMPILED)} padrões Sotreq")
+    logger.debug(f"✅ Padrões regex pré-compilados: {len(_HEAVY_PATTERNS_COMPILED)} padrões simples + {len(_TREQ_PATTERNS_COMPILED)} padrões Treq")
 
 # Compilar padrões no import
 _compile_patterns()
@@ -119,10 +119,10 @@ def is_heavy_task(
             logger.info(f"🔷 Tarefa pesada detectada (padrão simples: {pattern.pattern}) para query: '{query_text[:50]}...'")
             return True
     
-    # Padrões específicos Sotreq (regex)
-    for pattern in _SOTREQ_PATTERNS_COMPILED:
+    # Padrões específicos Treq (regex)
+    for pattern in _TREQ_PATTERNS_COMPILED:
         if pattern.search(query_lower):
-            logger.info(f"🔷 Tarefa pesada detectada (padrão Sotreq: {pattern.pattern}) para query: '{query_text[:50]}...'")
+            logger.info(f"🔷 Tarefa pesada detectada (padrão Treq: {pattern.pattern}) para query: '{query_text[:50]}...'")
             return True
     
     logger.debug(f"Query '{query_text[:50]}...' não detectada como tarefa pesada")

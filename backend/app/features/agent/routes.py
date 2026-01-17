@@ -24,6 +24,7 @@ class AgentChatRequest(BaseModel):
     """Request para o endpoint de chat do agente."""
     query: str
     user_id: Optional[str] = None
+    thread_id: Optional[str] = None
     
 
 class AgentChatResponse(BaseModel):
@@ -69,11 +70,14 @@ async def agent_chat(
             "context": [],
             "next_action": "",
             "tool_outputs": [],
-            "metadata": {}
+            "metadata": {},
+            "steps_taken": 0,
+            "documents_retrieved": []
         }
         
-        # Configuração de Tracing (LangSmith)
-        trace_config = get_trace_config(user_id=user_id)
+        # Configuração de Tracing (LangSmith) e Checkpointing (LangGraph)
+        thread_id = request.thread_id or f"th_{user_id}"
+        trace_config = get_trace_config(user_id=user_id, thread_id=thread_id)
         
         # Compilar e executar grafo com tracing
         graph = create_agent_graph()
@@ -88,6 +92,8 @@ async def agent_chat(
         flow = ["planner"]
         if final_state.get("next_action") == "call_tool":
             flow.append("executor")
+        elif final_state.get("next_action") == "respond":
+            pass # Pula retriever
         else:
             flow.append("retriever")
         flow.append("responder")

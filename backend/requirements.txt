@@ -9,8 +9,8 @@
 # Core Framework
 # -----------------------------------------------------------------------------
 fastapi>=0.109.0,<1.0.0        # Web framework assíncrono
-uvicorn[standard]>=0.27.0       # ASGI server
-pydantic>=2.7.0,<3.0.0          # Validação de dados (breaking changes em v3)
+uvicorn>=0.27.0                  # ASGI server (sem [standard] para evitar uvloop)
+pydantic==2.9.2                  # Versão estável com Pydantic Settings no WSL2
 pydantic-settings>=2.1.0,<3.0.0 # Configurações via ambiente
 
 # -----------------------------------------------------------------------------
@@ -75,6 +75,7 @@ PyPDF2>=3.0.0                    # Extração de texto de PDFs
 pdfplumber>=0.11.0               # PDFs com suporte a tabelas
 openpyxl>=3.1.0                  # Leitura/escrita de Excel
 pandas>=2.0.0                    # Processamento de dados
+numpy==1.26.4                   # Versão fixa para evitar conflitos com LangChain no WSL2
 python-docx>=1.1.0               # Leitura de DOCX
 python-pptx>=0.6.23              # Leitura de PPTX
 
