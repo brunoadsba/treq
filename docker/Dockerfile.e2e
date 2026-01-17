@@ -1,0 +1,22 @@
+FROM mcr.microsoft.com/playwright:v1.40.0-jammy
+
+WORKDIR /app
+
+# Instalar dependências de sistema
+RUN apt-get update && apt-get install -y \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copiar frontend
+COPY frontend/package*.json ./frontend/
+RUN cd frontend && npm install
+
+# Copiar backend para contexto de integração (se necessário)
+COPY backend/requirements.txt ./backend/
+RUN pip3 install -r backend/requirements.txt
+
+# Copiar código fonte
+COPY . .
+
+# Comando para rodar testes com relatório de cobertura
+CMD ["/bin/bash", "-c", "cd frontend && npx playwright test --reporter=html,list && cd ../backend && pytest --cov=app --cov-report=html"]

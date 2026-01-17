@@ -17,6 +17,7 @@ export default function AgentPage() {
         isLoading,
         error,
         sendMessage,
+        retryLastMessage,
         conversationId,
         savedConversations,
         startNewConversation,
@@ -60,6 +61,7 @@ export default function AgentPage() {
                     isLoading={isLoading}
                     error={error}
                     onSend={sendMessage}
+                    onRetry={retryLastMessage}
                 />
             </div>
 

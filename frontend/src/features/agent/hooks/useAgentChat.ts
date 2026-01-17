@@ -9,6 +9,7 @@ interface UseAgentChatReturn {
     isLoading: boolean;
     error: string | null;
     sendMessage: (query: string) => Promise<void>;
+    retryLastMessage: () => Promise<void>;
     clearMessages: () => void;
 
     // History specific
@@ -159,11 +160,21 @@ export function useAgentChat(userId: string = "default-user"): UseAgentChatRetur
         }
     }, [userId, conversationId]);
 
+    const retryLastMessage = useCallback(async () => {
+        const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
+        if (lastUserMsg) {
+            // Remove the error and try again
+            setError(null);
+            await sendMessage(lastUserMsg.content);
+        }
+    }, [messages, sendMessage]);
+
     return {
         messages,
         isLoading,
         error,
         sendMessage,
+        retryLastMessage,
         clearMessages,
 
         conversationId,

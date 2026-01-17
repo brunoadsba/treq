@@ -1,25 +1,38 @@
 import { AgentMessage } from '../types';
 import { MessageList } from './MessageList';
 import { ChatInput } from './ChatInput';
+import { MessageSkeleton } from './bubbles/MessageSkeleton';
+import { StreamingError } from './bubbles/StreamingError';
 
 interface AgentChatProps {
     messages: AgentMessage[];
     isLoading: boolean;
     error: string | null;
     onSend: (message: string) => void;
+    onRetry?: () => void;
 }
 
-export function AgentChat({ messages, isLoading, error, onSend }: AgentChatProps) {
+export function AgentChat({ messages, isLoading, error, onSend, onRetry }: AgentChatProps) {
     return (
         <div className="flex flex-col h-full bg-treq-gray-50 dark:bg-treq-gray-900">
             {/* Messages Area */}
-            <MessageList messages={messages} isLoading={isLoading} />
+            <div className="flex-1 overflow-hidden relative">
+                <MessageList messages={messages} isLoading={isLoading} />
 
-            {/* Error Toast/Banner */}
+                {/* Floating Skeleton during initial load if no messages */}
+                {isLoading && messages.length === 0 && (
+                    <div className="absolute inset-0 p-4">
+                        <MessageSkeleton variant="text" />
+                    </div>
+                )}
+            </div>
+
+            {/* Error Message in Timeline */}
             {error && (
-                <div className="px-4 py-2 bg-red-50 text-red-600 text-sm border-t border-red-100 text-center animate-in slide-in-from-bottom">
-                    ⚠️ {error}
-                </div>
+                <StreamingError
+                    message={error}
+                    onRetry={onRetry}
+                />
             )}
 
             {/* Input Area */}

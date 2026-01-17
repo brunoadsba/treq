@@ -30,8 +30,8 @@
 | 3.2 | Rate Limiting | ✅ Completo | - |
 | 3.3 | Refatoração SSOT | ✅ Completo | E2E |
 | 4.0 | Segurança & Branding | ✅ Completo | E2E UI |
-| 7.0 | Agentic RAG Base | ✅ Completo | E2E Frontend |
-| 7.1 | RAG Refinement | ✅ Completo | E2E + Manual |
+| 5.0 | Consolidação de UX | ✅ Completo | Walkthrough S5 |
+| 7.1 | RAG Refinement | ✅ Completo | E2E + Self-Correction |
 
 **Total de Testes:** 36 de unidade + Script Sanity (`backend/scripts/test_sanity.py`) + Suite Playwright (`frontend/e2e/agent.spec.ts`)
 

@@ -37,7 +37,7 @@ export function NavigationTabs() {
             <Link
                 href="/agent"
                 className={cn(
-                    "px-4 py-1.5 rounded-md text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-treq-yellow flex items-center h-full",
+                    "px-4 py-1.5 rounded-md text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-treq-yellow flex items-center h-full relative",
                     isActive("/agent")
                         ? "bg-white dark:bg-black text-treq-black dark:text-white shadow-sm"
                         : "text-treq-gray-600 dark:text-treq-gray-400 hover:text-treq-black dark:hover:text-white"
@@ -45,6 +45,11 @@ export function NavigationTabs() {
                 aria-current={isActive("/agent") ? "page" : undefined}
             >
                 Agente
+                {/* Badge de Estado do Agente (Simulação de Atividade) */}
+                <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-treq-yellow opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-treq-yellow"></span>
+                </span>
             </Link>
         </nav>
     );

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AgentMessage } from '../types';
 import { UserBubble } from './bubbles/UserBubble';
 import { AgentBubble } from './bubbles/AgentBubble';
-import { TypingIndicator } from './bubbles/TypingIndicator';
+import { MessageSkeleton } from './bubbles/MessageSkeleton';
 
 interface MessageListProps {
     messages: AgentMessage[];
@@ -24,10 +24,13 @@ export function MessageList({ messages, isLoading }: MessageListProps) {
         setShouldAutoScroll(isCloseToBottom);
     };
 
-    // Auto-scroll to bottom only if allowed
+    // Auto-scroll to bottom only if allowed (Scroll Lock Awareness)
     useEffect(() => {
-        if (shouldAutoScroll) {
-            bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+        if (shouldAutoScroll && containerRef.current) {
+            containerRef.current.scrollTo({
+                top: containerRef.current.scrollHeight,
+                behavior: messages.length > 0 && messages[messages.length - 1].role === 'user' ? 'smooth' : 'auto'
+            });
         }
     }, [messages, isLoading, shouldAutoScroll]);
 
@@ -59,9 +62,9 @@ export function MessageList({ messages, isLoading }: MessageListProps) {
                     )
                 ))}
 
-                {/* Loading Indicator (Agent "Thinking" bubble) */}
+                {/* Loading Indicator (Agent "Thinking" skeleton) */}
                 {isLoading && (
-                    <TypingIndicator />
+                    <MessageSkeleton variant="text" />
                 )}
 
                 <div ref={bottomRef} className="h-1" />
