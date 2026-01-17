@@ -15,6 +15,10 @@ O Treq Enterprise opera em uma stack moderna focada em performance e auto-gerenc
 ### 1.2. Frontend (Next.js + Tailwind)
 - **Arquitetura de Features:** Organizado por domínios em `src/features/`.
 - **UI/UX 2026:** Design minimalista, bordas arredondadas e ausência de linhas divisórias rígidas para uma experiência fluida.
+- **Micro-interações:**
+    - **Badge de Estado:** Indicador visual de processamento na navegação principal.
+    - **Skeleton Adaptativo:** Carregamento contextual (texto, cards, listas).
+    - **Scroll Lock Inteligente:** Pausa o auto-scroll durante a leitura ativa do histórico.
 - **Multimodalidade:** Suporte nativo para Voz (STT/TTS), Imagens (Vision) e Documentos.
 
 ---

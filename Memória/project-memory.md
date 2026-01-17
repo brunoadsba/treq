@@ -79,14 +79,17 @@ backend/app/features/
 
 ## Próximos Passos (Roadmap Atualizado)
 
-### Sprint 5 - Consolidação e UX
-- [ ] Refinar UI do Chat (Scroll, Loading States visuais)
-- [ ] Integrar página `/agent` ao menu principal (Sidebar/Header)
-- [ ] Melhorar feedback visual de ferramentas (Cards interativos)
+### Sprint 5 - Consolidação e UX (Concluída)
+- [x] Refinar UI do Chat (Scroll Lock, Skeletons Adaptativos)
+- [x] Integrar Página `/agent` ao Header (Badge de Estado)
+- [x] Melhorar Feedback Visual de Ferramentas (Cards Interativos/Transacionais)
+- [x] Implementar Resiliência Visual (Streaming Error/Retry)
 
 ### Pendências Técnicas (Backlog)
-- [ ] Migrar testes unitários antigos para arquitetura nova
-- [ ] Implementar Docker para testes E2E em CI/CD
+- [x] Criar Suíte de Testes de Fluxo (LangGraph Integration Tests)
+- [x] Dockerização de CI/CD para E2E (Dockerfile.e2e)
+- [ ] Implementar Docker Compose completo para ambiente de produção local
+- [ ] Refinar formulários de ação nos cards do Jira/Slack (Modais reais)
 
 ---
 
