@@ -249,13 +249,22 @@ export function InputArea({
         </div>
       </form>
 
+      {/* Disclaimer */}
+      <div className="text-center mt-2 pb-2">
+        <p className="text-[10px] sm:text-xs text-gray-400 dark:text-gray-500">
+          Treq pode cometer erros. Verifique informações críticas.
+        </p>
+      </div>
+
       {/* Modal de Câmera */}
-      {isCameraOpen && (
-        <CameraCapture
-          onCapture={handleCapturePhoto}
-          onClose={() => setIsCameraOpen(false)}
-        />
-      )}
+      {
+        isCameraOpen && (
+          <CameraCapture
+            onCapture={handleCapturePhoto}
+            onClose={() => setIsCameraOpen(false)}
+          />
+        )
+      }
     </div>
   );
 }

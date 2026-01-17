@@ -135,7 +135,7 @@ export default function ChatPage() {
 
   return (
     <div
-      className="fixed inset-0 flex flex-col overflow-hidden bg-treq-gray-50"
+      className="fixed inset-0 flex flex-col overflow-hidden bg-treq-gray-50 animate-in fade-in duration-500"
       role="main"
       aria-label="Chat do Assistente Operacional Treq"
     >
