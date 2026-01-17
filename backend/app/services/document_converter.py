@@ -155,6 +155,26 @@ class DocumentConverterService:
                 logger.error("PDF não suportado - PyPDF2 não instalado")
                 return None
             return convert_pdf_to_markdown(path.read_bytes(), path.name)
+            
+        # Text files (MD, TXT)
+        if suffix in ['.md', '.txt']:
+            try:
+                return path.read_text(encoding='utf-8')
+            except UnicodeDecodeError:
+                return path.read_text(encoding='latin-1')
+
+        # CSV
+        if suffix == '.csv':
+            if EXCEL_AVAILABLE:
+                try:
+                    df = pd.read_csv(path)
+                    return df.to_markdown(index=False)
+                except Exception as e:
+                    logger.warning(f"Erro ao converter CSV com pandas: {e}. Tentando como texto.")
+            try:
+                return path.read_text(encoding='utf-8')
+            except:
+                return None
         
         # Formatos não suportados
         logger.warning(f"Formato {suffix} não suportado no MVP (apenas PDF texto nativo e Excel)")
@@ -210,6 +230,32 @@ class DocumentConverterService:
                 return None
             return self.convert_pptx_to_markdown(file_content, filename)
         
+        # Text files (MD, TXT)
+        if suffix in ['.md', '.txt']:
+            try:
+                return file_content.decode('utf-8')
+            except UnicodeDecodeError:
+                try:
+                    return file_content.decode('latin-1')
+                except Exception as e:
+                    logger.error(f"Erro ao decodificar arquivo texto {filename}: {e}")
+                    return None
+
+        # CSV
+        if suffix == '.csv':
+            if EXCEL_AVAILABLE:
+                try:
+                    df = pd.read_csv(BytesIO(file_content))
+                    return df.to_markdown(index=False)
+                except Exception as e:
+                    logger.warning(f"Erro ao converter CSV com pandas: {e}. Tentando como texto.")
+            
+            # Fallback para texto plano se pandas falhar ou não existir
+            try:
+                return file_content.decode('utf-8')
+            except:
+                return None
+
         # Imagens (JPEG, PNG, GIF, BMP, TIFF, WEBP)
         if suffix in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.tif', '.webp']:
             # Prioridade 1: Visão Multimodal (Gemini)

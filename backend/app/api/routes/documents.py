@@ -63,7 +63,7 @@ class DocumentUploadResponse(BaseModel):
 
 
 # Formatos suportados
-SUPPORTED_EXTENSIONS = {'.pdf', '.docx', '.pptx', '.xlsx', '.xls', '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.webp'}
+SUPPORTED_EXTENSIONS = {'.pdf', '.docx', '.pptx', '.xlsx', '.xls', '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.webp', '.md', '.txt', '.csv'}
 MAX_FILE_SIZE = 25 * 1024 * 1024  # 25MB (aumentado de 10MB para permitir documentos maiores)
 
 

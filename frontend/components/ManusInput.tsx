@@ -164,6 +164,7 @@ export function ManusInput({
                         ref={fileInputRef}
                         className="hidden"
                         onChange={handleFileSelect}
+                        accept=".pdf,.txt,.md,.markdown,.doc,.docx,.csv,image/*"
                     />
                 </div>
 
