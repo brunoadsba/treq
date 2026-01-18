@@ -27,40 +27,26 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 
-## Estrutura
+## Estrutura (Padrão 5S)
 
-```
+``` text
 backend/
 ├── app/                        # Código da aplicação
 │   ├── main.py                 # FastAPI app principal
 │   ├── config.py               # Configurações (Pydantic Settings)
-│   ├── api/routes/             # Endpoints HTTP
-│   │   ├── chat.py             # Chat e streaming de respostas
-│   │   ├── audio.py            # STT e TTS
-│   │   └── documents.py        # Upload e processamento de documentos
-│   ├── core/                   # Lógica de negócio
-│   │   ├── rag_service.py      # Serviço RAG (vector search)
-│   │   ├── query_classifier.py # Classificação de queries
-│   │   ├── context_manager.py  # Gerenciamento de contexto
-│   │   └── tools/              # Tools (Metrics, Procedures, Status)
-│   ├── services/               # Serviços externos
-│   │   ├── llm_service.py      # Serviço LLM (roteamento 3 níveis)
-│   │   ├── document_converter.py # Conversão de documentos
-│   │   ├── embedding_service.py  # Geração de embeddings
-│   │   └── supabase_service.py   # Cliente Supabase
-│   ├── middleware/             # Middlewares (rate limiting, request ID)
-│   └── utils/                  # Utilitários (sanitização, PII, debug)
-├── tests/                      # Testes automatizados
-│   ├── conftest.py             # Configuração e fixtures do pytest
-│   ├── test_document_converter.py
-│   ├── test_query_classifier_status.py
-│   ├── test_technical_terms_filter.py
-│   └── test_visualization.py
-├── scripts/                    # Scripts utilitários
-│   ├── check_schema.py         # Verificação de schema Supabase
-│   └── check_schema_direct.py  # Schema via SQL direto
-├── requirements.txt            # Dependências Python
-└── pytest.ini                  # Configuração do pytest
+│   ├── api/                    # Integradores de rotas
+│   ├── core/                   # Lógica base (Governança, Cache)
+│   ├── features/               # Lógica de negócio por domínio
+│   │   ├── agent/              # LangGraph (Planner, Nodes, State)
+│   │   ├── connectors/         # Slack, Confluence, Jira
+│   │   ├── security/           # Rate Limiting, PII, Audit
+│   │   └── vision/             # Análise Multimodal
+│   ├── services/               # Serviços externos (LLM, Audio, Supabase)
+│   ├── middleware/             # Rate Limiting, Request ID
+│   └── utils/                  # Sanitizadores e Utilitários
+├── tests/                      # Testes (Pytest)
+├── scripts/                    # Automações e E2E
+└── requirements.txt            # Dependências
 ```
 
 

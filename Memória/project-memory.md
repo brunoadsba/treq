@@ -1,21 +1,22 @@
 # Memória do Projeto: Treq Enterprise
 
-**Última Atualização:** 2026-01-18T11:15
+**Última Atualização:** 2026-01-18T19:15
 
 ---
 
 ## Documentação de Referência
+- **Plano 5S (Executado):** `docs/plano-5s.md`
+- **Guia de Contribuição:** `CONTRIBUTING.md`
 - **Master Technical Overview:** `Apoio/Manus/treq_enterprise_documentation/technical_overview_2026.md`
-- **Guia de Estabilidade (WSL2):** `Apoio/Manus/solucao-definitiva-segmentation-fault.md`
-- **Arquitetura Visual:** `Apoio/Manus/treq_enterprise_documentation/treq_visual_recommendations_2026.md`
 
 ---
 
 ## Status Atual
 
-### Branch Ativa: `infra/docker-setup`
-- Status: ✅ Estável & Auditado (Finalização Sprint 8)
-- Saúde: 🟢 Saudável (Containers Backend, Frontend, Redis e Nginx operacionais)
+### Branch Ativa: `5S` (Senso de Organização e Limpeza)
+- Status: ✅ Estabilizado & Reorganizado (Metodologia 5S)
+- Saúde: 🟢 Saudável (Estrutura consolidada em `src/features`)
+
 
 ### Progresso das Sprints
 
@@ -30,6 +31,7 @@
 | 8.5 | Branding & UX (Login) | ✅ Completo | Login UI |
 | 8.6 | Dynamic Greeting | ✅ Completo | UI/UX Refined |
 | 8.7 | Global Chat Persistence | ✅ Completo | context-isolation |
+| 9.0 | Metodologia 5S | ✅ Completo | Lint/E2E |
 
 **Total de Testes:** 46 (Unidade + Integração) + Deep Healthcheck (Redis/Supabase)
 
@@ -52,19 +54,19 @@
 
 ---
 
-## Estrutura de Features e Segurança
+## Estrutura de Features e Segurança (Padrão 5S)
 
-```
+```text
 backend/app/features/
-66: backend/app/features/
-56: ├── agent/                    # Architecture (Robust & Secure)
-57: │   ├── .context.md           # [DOC] Contexto da Feature
-58: │   ├── graph.py              # StateGraph (Planner -> [Executor|Retriever|Responder])
-59: │   ├── prompts.py            # [NEW] Defensive System Prompts + Date Injection
-60: │   ├── nodes/
-61: │   │   ├── planner.py        # [MOD] Greeting optimized routing
-62: │   │   ├── responder.py      # [MOD] Post-Retrieval Filtering + Date Injection
-63: │   │   └── ...
+├── agent/             # Orquestração robusta (LangGraph)
+├── connectors/        # Slack, Confluence, Jira
+├── vision/            # Multimodal Advanced
+└── security/          # Rate Limiting & RLS
+
+frontend/src/features/
+├── chat/              # Hooks (useSSE, useChat) + UI
+├── auth/              # Proteção de Rotas + JWT
+└── vision/            # Câmera e OCR
 ```
 
 ---
@@ -109,8 +111,9 @@ backend/app/features/
 | Erro | Causa | Solução Definitiva |
 | :--- | :--- | :--- |
 | `Segmentation fault` | Conflito de `uvloop` ou `loguru(enqueue=True)` no WSL2. | Usar Python 3.11 do `/venv`, desativar `uvloop` e usar `enqueue=False`. |
-| `thread_id` missing | Checkpointer do LangGraph sem identificador de sessão. | Garantir que le o `trace_config` inclua `configurable: {"thread_id": "uuid"}`. |
+| `thread_id` missing | Checkpointer do LangGraph sem identificador de sessão. | Garantir que o `trace_config` inclua `configurable: {"thread_id": "uuid"}`. |
 | `Network unreachable` | Problemas de DNS/IPv6 no WSL2 ao conectar ao Supabase. | Verificar se o host do DB está correto e usar conexões via IP se persistir. |
+| `Playwright Timeout` | Conflito de porta 3000 com container Docker. | Usar `SKIP_WEBSERVER=true` ou configurar `reuseExistingServer: true` no config. |
 
 ---
 

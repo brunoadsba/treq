@@ -73,6 +73,11 @@ class Settings(BaseSettings):
     embedding_model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     embedding_dimension: int = 768 # Gemini default to avoid mismatch
     
+    # Timeouts & Retries
+    default_timeout: float = 30.0
+    long_timeout: float = 60.0
+    max_retries: int = 3
+
     # LLM & RAG
     llm_model: str = "llama-3.1-8b-instant"
     llm_model_complex: str = "llama-3.3-70b-versatile"

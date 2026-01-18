@@ -22,11 +22,12 @@ export OPENAI_API_KEY=sua_chave_aqui
 
 ## 🏗️ Passo 2: Estrutura de Arquivos
 
-Organize os novos arquivos no seu diretório `src/`:
+Organize os novos arquivos seguindo o padrão `/backend/app/features/agent/`:
 
-- `src/agent_state.py`: Define o que o agente "lembra".
-- `src/agent_graph.py`: Define o fluxo de raciocínio (nodes e edges).
-- `src/tools_mock.py`: Ferramentas simuladas para teste imediato.
+- `.context.md`: Contexto da funcionalidade.
+- `state.py`: Define o que o agente "lembra".
+- `graph.py`: Define o fluxo de raciocínio (nodes e edges).
+- `nodes/`: Implementação isolada de cada etapa (planner, responder).
 
 ---
 
@@ -35,8 +36,8 @@ Organize os novos arquivos no seu diretório `src/`:
 Aproveite o `RAGService` que já criamos. No seu arquivo `src/agent_graph.py`, adicione o node de recuperação:
 
 ```python
-from src.rag_service import RAGService
-from src.agent_state import AgentState
+from app.services.rag_service import RAGService
+from app.features.agent.state import AgentState
 
 rag_service = RAGService()
 

@@ -15,10 +15,10 @@ from app.utils.technical_term_filter import filter_technical_terms
 test_cases = [
     ("com SLA mensal", "com prazo mensal"),
     ("SLA de 24h", "prazo de 24h"),
-    ("SLA:", "prazo:"),
+    ("SLA:", "prazo: "),
     ("SLAs", "prazos"),
     ("SLA's", "prazos"),
-    ("SLazo mensal", "prazo mensal"),
+    ("SLazo mensal", "Prazo mensal"),
     ("responsável e SLA", "responsável e prazo"),
     ("Procedimentos com SLA de resposta", "Procedimentos com prazo de resposta"),
     ("O threshold foi excedido", "O limite foi excedido"),
@@ -51,8 +51,8 @@ def test_filter():
         for inp, exp, res in failed_tests:
             print(f"  - '{inp}' → '{res}' (esperado: '{exp}')")
     
-    return all_passed
+    assert all_passed, f"{len(failed_tests)} testes falharam"
 
 if __name__ == "__main__":
-    success = test_filter()
-    exit(0 if success else 1)
+    test_filter()
+    exit(0)

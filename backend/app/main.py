@@ -270,7 +270,7 @@ except Exception as e:
 
 # VISION (Feature Modular)
 try:
-    from src.features.vision.routes import router as vision_router
+    from app.features.vision.routes import router as vision_router
     app.include_router(vision_router)
     logger.info("✅ Router vision incluído")
 except Exception as vision_err:

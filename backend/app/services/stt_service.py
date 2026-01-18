@@ -42,7 +42,7 @@ class STTService:
             audio_file.name = "audio.webm"  # Nome do arquivo para API
             
             # Preparar requisição para Groq Whisper API
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=settings.default_timeout) as client:
                 files = {
                     "file": ("audio.webm", audio_file, "audio/webm")
                 }

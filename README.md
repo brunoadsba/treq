@@ -22,20 +22,22 @@ Plataforma de inteligência artificial para operações Treq, evoluída para uma
 | **Audio** | ✅ Completo | STT (Whisper) e TTS (Gemini) |
 | **Vision** | ✅ Completo | Análise de imagens operacionais |
 
-## 🏗️ Nova Arquitetura de Backend
+## 🏗️ Arquitetura Consolidada (Padrão 5S)
 
-A versão Enterprise adota uma estrutura baseada em `features` verticais para melhor escalabilidade:
+O projeto segue a metodologia **5S (Sort, Set in Order, Shine, Standardize, Sustain)**, organizando o código em features verticais:
 
-```
-backend/app/
-├── core/               # Governança, Config, Security
-├── features/
-│   ├── agent/          # Lógica do Agente (LangGraph)
-│   ├── connectors/     # Integrações (Slack, Confluence)
-│   └── chat/           # (Futuro) Chat v2
-├── services/           # Serviços compartilhados (LLM, RAG)
-└── api/                # Rotas legado (v1)
-```
+### Backend (`/backend/app/`)
+- `core/`: Governança, Configurações (`config.py`), Segurança.
+- `features/`: Lógica de negócio isolada (Agent, Connectors, Vision, Security).
+- `services/`: Motores compartilhados (LLM, RAG, Audio).
+- `utils/`: Utilitários globais e sanitizadores.
+
+### Frontend (`/frontend/src/`)
+- `app/`: Roteamento Next.js (minimalista).
+- `features/`: Componentes, hooks e tipos específicos por domínio (Chat, Auth, Vision).
+- `components/ui/`: Primitivos de UI reutilizáveis.
+- `hooks/`: Hooks globais utilitários.
+- `context/`: Estados globais compartilhados.
 
 ## 📡 Novos Endpoints (v2)
 

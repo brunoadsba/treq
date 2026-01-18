@@ -22,43 +22,23 @@ npm run dev
 
 A aplicação estará disponível em: http://localhost:3000 (Certifique-se que o backend está na 8002)
 
-## Estrutura
+## Estrutura (Padrão 5S)
 
-```
+``` text
 frontend/
-├── app/                        # App Router do Next.js 15
-│   ├── chat/                   # Rotas do chat
-│   │   └── page.tsx            # Página principal do chat
-│   ├── layout.tsx              # Layout raiz
-│   ├── page.tsx                # Redireciona para /chat
-│   └── globals.css             # Estilos globais
-├── src/features/               # Funcionalidades modulares
-│   └── vision/                 # Feature Vision (Câmera, OCR, Imagens)
-├── components/                 # Componentes React
-│   ├── Header.tsx              # Cabeçalho da aplicação
-│   ├── MessageList.tsx         # Lista de mensagens
-│   ├── MessageBubble.tsx       # Bolha de mensagem individual
-│   ├── FormattedMessage.tsx    # Renderização de markdown com CoT
-│   ├── InputArea.tsx           # Área de input com upload e áudio
-│   ├── QuickActions.tsx        # Ações rápidas (botões de ação)
-│   ├── ChartMessage.tsx        # Visualização de gráficos
-│   └── Toast.tsx               # Sistema de notificações
-├── hooks/                      # Custom hooks
-│   ├── useChat.ts              # Hook principal do chat (streaming)
-│   ├── useTTS.ts               # Text-to-Speech
-│   ├── useAudioRecorder.ts     # Gravação de áudio
-│   ├── useAudioTranscription.ts # Transcrição de áudio
-│   ├── useDocumentUpload.ts    # Upload de documentos
-│   ├── useTheme.ts             # Gerenciamento de tema
-│   ├── useHighContrast.ts      # Modo alto contraste
-│   └── useToast.ts             # Gerenciamento de toasts
-├── lib/                        # Utilitários
-│   ├── api.ts                  # Cliente de API
-│   └── supabase.ts             # Cliente Supabase
-├── design-system/              # Sistema de design
-│   ├── components/             # Componentes base
-│   └── tokens/                 # Design tokens
-└── package.json                # Dependências npm
+├── src/
+│   ├── app/                    # App Router (minimalista)
+│   ├── features/               # Lógica de negócio por domínio
+│   │   ├── chat/               # Componentes, Hooks e Tipos do Chat
+│   │   ├── auth/               # Login, Proteção de Rotas
+│   │   └── vision/             # Câmera, OCR, Imagens
+│   ├── components/
+│   │   └── ui/                 # Componentes Shadcn/UI (Primitivos)
+│   ├── context/                # ChatContext, ThemeContext
+│   ├── hooks/                  # Hooks globais (useToast, etc)
+│   ├── lib/                    # api.ts, supabase.ts
+│   └── design-system/          # Tokens e Estilos base
+└── package.json
 ```
 
 

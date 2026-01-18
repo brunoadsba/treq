@@ -24,7 +24,7 @@ from app.api.routes.chat_helpers import (
 from .models import ChatRequest
 from .dependencies import get_context_cache, get_llm_service
 from app.core.cot_planner import generate_cot_plan
-from src.features.vision.multimodal_service import multimodal_service
+from app.features.vision.multimodal_service import multimodal_service
 import base64
 
 async def prepare_chat_context(
@@ -138,7 +138,7 @@ async def prepare_chat_context(
     
     # 9.1. Processar Imagem (Multimodal) se presente
     if chat_request.image_url and "base64," in chat_request.image_url:
-        from src.features.vision.multimodal_service import MultimodalError, MultimodalQuotaError
+        from app.features.vision.multimodal_service import MultimodalError, MultimodalQuotaError
         try:
             logger.info("📸 Processando imagem multimodal no chat...")
             # Extrair bytes do base64

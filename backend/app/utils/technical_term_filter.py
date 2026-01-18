@@ -45,7 +45,8 @@ def replace_sla(text: str) -> str:
         # SLA com adjetivo: "SLA mensal"
         (r'\bSLA\b\s+([a-záàâãéêíóôõúç]+(?:\s+[a-záàâãéêíóôõúç]+)?)', r'prazo \1'),
         # SLA (singular/plural)
-        (r"\bSLA'?s?\b", 'prazo'),
+        (r"\bSLA'?s\b", 'prazos'),
+        (r"\bSLA\b", 'prazo'),
     ]
     
     for pattern, replacement in patterns:

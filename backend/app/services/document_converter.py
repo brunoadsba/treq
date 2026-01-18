@@ -33,7 +33,7 @@ except ImportError:
 
 # Importar Multimodal Service (Vision Advanced)
 try:
-    from src.features.vision.multimodal_service import multimodal_service
+    from app.features.vision.multimodal_service import multimodal_service
     VISION_AVAILABLE = True
 except ImportError:
     VISION_AVAILABLE = False
@@ -397,7 +397,7 @@ class DocumentConverterService:
             return None
 
         try:
-            from src.features.vision.multimodal_service import MultimodalQuotaError
+            from app.features.vision.multimodal_service import MultimodalQuotaError
             logger.info(f"Usando Gemini Vision (Comprehensive) para processar: {filename}")
             
             # Uma única chamada para economizar cota (1 request em vez de 2)
