@@ -64,11 +64,6 @@ export function MessageList({ messages, isLoading }: MessageListProps) {
                                     month: 'long',
                                     year: 'numeric'
                                 }).format(currentTime).replace(/^\w/, (c) => c.toUpperCase())}
-                                <span className="w-1 h-1 rounded-full bg-treq-gray-300 dark:bg-treq-gray-600" />
-                                {new Intl.DateTimeFormat('pt-BR', {
-                                    hour: '2-digit',
-                                    minute: '2-digit'
-                                }).format(currentTime)}
                             </span>
                         </div>
                     </div>
