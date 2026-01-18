@@ -129,7 +129,7 @@ export function ManusInput({
             <div
                 className={cn(
                     "relative flex items-end gap-2 p-2 transition-all duration-300 ease-out",
-                    "bg-white dark:bg-treq-gray-900/50",
+                    "bg-white dark:bg-treq-gray-900",
                     "border border-gray-200 dark:border-gray-800",
                     "shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)]",
                     "rounded-[32px]",
