@@ -43,10 +43,10 @@ export function MessageList({ messages, isLoading }: MessageListProps) {
             <div className="max-w-5xl mx-auto space-y-6 w-full">
                 {/* Welcome Message if empty */}
                 {messages.length === 0 && !isLoading && (
-                    <div className="flex flex-col items-center justify-center py-24 animate-in fade-in zoom-in duration-1000">
-                        <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 bg-treq-yellow rounded-xl flex items-center justify-center shadow-lg shadow-treq-yellow/10 animate-subtle-sway">
-                                <span className="text-treq-black text-xl font-black">T</span>
+                    <div className="flex flex-col items-center justify-center h-[60vh] animate-in fade-in zoom-in duration-1000">
+                        <div className="flex items-center gap-3">
+                            <div className="w-5 h-5 bg-treq-yellow rounded-md flex items-center justify-center shadow-md shadow-treq-yellow/10 animate-subtle-sway">
+                                <span className="text-treq-black text-[10px] font-black">T</span>
                             </div>
                             <span className="text-treq-gray-900 dark:text-white text-2xl font-serif italic tracking-tight">
                                 {new Intl.DateTimeFormat('pt-BR', {
