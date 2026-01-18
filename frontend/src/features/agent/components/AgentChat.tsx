@@ -35,16 +35,14 @@ export function AgentChat({ messages, isLoading, error, onSend, onRetry }: Agent
                 />
             )}
 
-            {/* Input Area - Floating & Transparent */}
-            <div className="absolute bottom-0 left-0 right-0 z-20 pointer-events-none">
-                <div className="pointer-events-auto">
-                    <ChatInput
-                        onSend={onSend}
-                        isLoading={isLoading}
-                        disabled={isLoading}
-                        placeholder="Pergunte ao Agente Operacional..."
-                    />
-                </div>
+            {/* Input Area - Clean & Non-overlapping */}
+            <div className="flex-shrink-0 w-full bg-transparent">
+                <ChatInput
+                    onSend={onSend}
+                    isLoading={isLoading}
+                    disabled={isLoading}
+                    placeholder="Pergunte ao Agente Operacional..."
+                />
             </div>
         </div>
     );

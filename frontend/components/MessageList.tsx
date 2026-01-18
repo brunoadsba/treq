@@ -56,7 +56,7 @@ export function MessageList({ messages, isLoading = false }: MessageListProps) {
   return (
     <div
       ref={scrollRef}
-      className="h-full w-full overflow-y-auto overflow-x-hidden p-2 sm:p-3 md:p-3 lg:p-4 space-y-2 sm:space-y-3 md:space-y-4 bg-treq-gray-50 pb-32"
+      className="h-full w-full overflow-y-auto overflow-x-hidden p-2 sm:p-3 md:p-3 lg:p-4 space-y-2 sm:space-y-3 md:space-y-4 bg-treq-gray-50"
       style={{
         maxHeight: '100%',
         overscrollBehavior: 'contain'

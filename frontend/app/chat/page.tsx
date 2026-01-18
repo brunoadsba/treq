@@ -164,30 +164,27 @@ export default function ChatPage() {
         />
       </div>
 
-      <div className="flex-1 min-h-0 overflow-hidden relative flex flex-col">
+      <div className="flex-1 min-h-0 overflow-hidden">
         <MessageList
           messages={messages}
           isLoading={isLoading}
         />
+      </div>
 
-        {/* Floating Input Area */}
-        <div className="absolute bottom-0 left-0 right-0 z-10 pointer-events-none">
-          <div className="pointer-events-auto">
-            <InputArea
-              onSend={handleSendMessage}
-              isLoading={isLoading}
-              onDocumentUploaded={(fileName, chunksIndexed) => {
-                showToast(
-                  `Documento "${fileName}" enviado com sucesso! ${chunksIndexed} chunks indexados.`,
-                  "success"
-                );
-              }}
-              onDocumentUploadError={(error) => {
-                showToast(`Erro ao enviar documento: ${error}`, "error");
-              }}
-            />
-          </div>
-        </div>
+      <div className="flex-shrink-0 w-full bg-transparent">
+        <InputArea
+          onSend={handleSendMessage}
+          isLoading={isLoading}
+          onDocumentUploaded={(fileName, chunksIndexed) => {
+            showToast(
+              `Documento "${fileName}" enviado com sucesso! ${chunksIndexed} chunks indexados.`,
+              "success"
+            );
+          }}
+          onDocumentUploadError={(error) => {
+            showToast(`Erro ao enviar documento: ${error}`, "error");
+          }}
+        />
       </div>
 
       {/* Histórico de Conversas */}
