@@ -1,6 +1,5 @@
-"use client";
-
 import { useState, useCallback, useRef, useEffect } from "react";
+import { useChatContext } from "@/context/ChatContext";
 
 export interface ChartData {
   type: "bar_chart" | "pie_chart" | "line_chart";
@@ -85,10 +84,18 @@ export interface SavedConversation {
 }
 
 export function useChat(userId: string = "default-user") {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [conversationId, setConversationId] = useState<string | null>(null);
+  const {
+    messages,
+    setMessages,
+    conversationId,
+    setConversationId,
+    isLoading,
+    setIsLoading,
+    error,
+    setError,
+    clearSession
+  } = useChatContext();
+
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
 
   // Ref para rastrear requisição em andamento (previne race conditions)
@@ -113,56 +120,6 @@ export function useChat(userId: string = "default-user") {
     }
   }, [userId]);
 
-  // Salvar conversa atual antes de fechar/recarregar a página
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const handleBeforeUnload = () => {
-      // Salvar conversa atual no histórico antes de fechar
-      if (messages.length > 0) {
-        const conversations = getSavedConversations();
-        const firstUserMessage = messages.find(m => m.role === "user");
-        const title = firstUserMessage?.content.substring(0, 50) || "Nova conversa";
-
-        const conversationIdToUse = currentConversationId || `conv_${Date.now()}`;
-        const existingIndex = conversations.findIndex(c => c.id === conversationIdToUse);
-
-        const conversation: SavedConversation = {
-          id: conversationIdToUse,
-          title,
-          messages: [...messages],
-          conversationId,
-          createdAt: messages[0]?.timestamp || new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-
-        if (existingIndex >= 0) {
-          conversations[existingIndex] = conversation;
-        } else {
-          conversations.unshift(conversation);
-        }
-
-        // Limitar a 50 conversas mais recentes
-        const limitedConversations = conversations.slice(0, 50);
-        localStorage.setItem(`chat_conversations_${userId}`, JSON.stringify(limitedConversations));
-      }
-
-      // Limpar dados da conversa atual para que na próxima abertura comece do zero
-      localStorage.removeItem(`chat_messages_${userId}`);
-      localStorage.removeItem(`chat_conversation_${userId}`);
-      localStorage.removeItem(`chat_current_frontend_conversation_id_${userId}`);
-    };
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-      // Também salvar ao desmontar o componente (navegação SPA)
-      handleBeforeUnload();
-    };
-  }, [messages, conversationId, userId, currentConversationId, getSavedConversations]);
-
-  // NÃO carregar conversa automaticamente ao montar - sempre iniciar com tela de boas-vindas
   // As conversas anteriores estão disponíveis no histórico via getSavedConversations()
 
   // Persistir mensagens em tempo real (debounce para evitar salvamentos excessivos)
@@ -172,12 +129,12 @@ export function useChat(userId: string = "default-user") {
     // Debounce: salvar após 2 segundos sem mudanças
     const timeoutId = setTimeout(() => {
       const conversations = getSavedConversations();
-      const firstUserMessage = messages.find(m => m.role === "user");
+      const firstUserMessage = messages.find((m: ChatMessage) => m.role === "user");
       const title = firstUserMessage?.content.substring(0, 50) || "Nova conversa";
 
       // Usar currentConversationId se existir, senão criar novo
       const conversationIdToUse = currentConversationId || `conv_${Date.now()}`;
-      const existingIndex = conversations.findIndex(c => c.id === conversationIdToUse);
+      const existingIndex = conversations.findIndex((c: SavedConversation) => c.id === conversationIdToUse);
 
       const conversation: SavedConversation = {
         id: conversationIdToUse,
@@ -445,7 +402,7 @@ export function useChat(userId: string = "default-user") {
                       };
 
                       // Remover mensagem vazia do assistente se existir
-                      setMessages((prev) => {
+                      setMessages((prev: any[]) => {
                         const filtered = prev.filter((msg) => msg.content !== "" || msg.role !== "assistant");
                         return [...filtered, chartMessage];
                       });

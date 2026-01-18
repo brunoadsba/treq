@@ -3,6 +3,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { AgentMessage, ToolOutput } from '../types';
 import { agentService } from '../api/agentService';
 import { SavedConversation } from '@/hooks/useChat';
+import { useChatContext } from '@/context/ChatContext';
 
 interface UseAgentChatReturn {
     messages: AgentMessage[];
@@ -23,10 +24,18 @@ interface UseAgentChatReturn {
 const STORAGE_KEY = 'treq-agent-history';
 
 export function useAgentChat(userId: string = "default-user"): UseAgentChatReturn {
-    const [messages, setMessages] = useState<AgentMessage[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [conversationId, setConversationId] = useState<string>("");
+    const {
+        messages,
+        setMessages,
+        isLoading,
+        setIsLoading,
+        error,
+        setError,
+        conversationId,
+        setConversationId,
+        clearSession
+    } = useChatContext();
+
     const [savedConversations, setSavedConversations] = useState<SavedConversation[]>([]);
 
     // Load saved conversations on mount
@@ -44,11 +53,11 @@ export function useAgentChat(userId: string = "default-user"): UseAgentChatRetur
         if (!conversationId) {
             setConversationId(crypto.randomUUID());
         }
-    }, []);
+    }, [conversationId, setConversationId]);
 
     // Save current conversation to history whenever messages change
     useEffect(() => {
-        if (messages.length === 0) return;
+        if (messages.length === 0 || !conversationId) return;
 
         setSavedConversations(prev => {
             const now = new Date().toISOString();
@@ -89,15 +98,13 @@ export function useAgentChat(userId: string = "default-user"): UseAgentChatRetur
     }, [messages, conversationId]);
 
     const clearMessages = useCallback(() => {
-        setMessages([]);
-        setError(null);
-    }, []);
+        clearSession();
+    }, [clearSession]);
 
     const startNewConversation = useCallback(() => {
-        setMessages([]);
-        setError(null);
+        clearSession();
         setConversationId(crypto.randomUUID());
-    }, []);
+    }, [clearSession, setConversationId]);
 
     const loadConversation = useCallback((id: string) => {
         const conv = savedConversations.find(c => c.id === id);
@@ -106,7 +113,7 @@ export function useAgentChat(userId: string = "default-user"): UseAgentChatRetur
             setConversationId(id);
             setError(null);
         }
-    }, [savedConversations]);
+    }, [savedConversations, setMessages, setConversationId, setError]);
 
     const deleteConversation = useCallback((id: string) => {
         setSavedConversations(prev => {
@@ -135,11 +142,10 @@ export function useAgentChat(userId: string = "default-user"): UseAgentChatRetur
             timestamp: new Date(),
         };
 
-        setMessages((prev) => [...prev, newUserMsg]);
+        setMessages((prev) => [...prev, newUserMsg as any]);
 
         try {
             // 2. Call API
-            // Pass conversationId as thread_id if supported by backend, otherwise consistent user context
             const response = await agentService.sendMessage(query, conversationId || userId);
 
             // 3. Add Agent Response
@@ -151,14 +157,14 @@ export function useAgentChat(userId: string = "default-user"): UseAgentChatRetur
                 toolsUsed: response.tool_outputs,
             };
 
-            setMessages((prev) => [...prev, agentMsg]);
+            setMessages((prev) => [...prev, agentMsg as any]);
         } catch (err: any) {
             console.error("Agent interaction failed:", err);
             setError(err.message || "Erro desconhecido ao comunicar com o agente.");
         } finally {
             setIsLoading(false);
         }
-    }, [userId, conversationId]);
+    }, [userId, conversationId, setMessages, setIsLoading, setError]);
 
     const retryLastMessage = useCallback(async () => {
         const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
@@ -167,17 +173,17 @@ export function useAgentChat(userId: string = "default-user"): UseAgentChatRetur
             setError(null);
             await sendMessage(lastUserMsg.content);
         }
-    }, [messages, sendMessage]);
+    }, [messages, sendMessage, setError]);
 
     return {
-        messages,
+        messages: messages as any[],
         isLoading,
         error,
         sendMessage,
         retryLastMessage,
         clearMessages,
 
-        conversationId,
+        conversationId: conversationId || "",
         savedConversations,
         startNewConversation,
         loadConversation,
