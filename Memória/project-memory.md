@@ -1,6 +1,6 @@
 # Memória do Projeto: Treq Enterprise
 
-**Última Atualização:** 2026-01-18T10:38
+**Última Atualização:** 2026-01-18T11:15
 
 ---
 
@@ -29,6 +29,7 @@
 | 8.4 | LGPD & Audit | ✅ Completo | Log Audit |
 | 8.5 | Branding & UX (Login) | ✅ Completo | Login UI |
 | 8.6 | Dynamic Greeting | ✅ Completo | UI/UX Refined |
+| 8.7 | Global Chat Persistence | ✅ Completo | context-isolation |
 
 **Total de Testes:** 46 (Unidade + Integração) + Deep Healthcheck (Redis/Supabase)
 
@@ -80,6 +81,8 @@ backend/app/features/
 | **LGPD Audit Trail** | log_audit (loguru) | Garante rastreabilidade de mutações (upload/ferramentas) vinculadas ao `user_id`, conforme conformidade jurídica. |
 | **Nginx Hardening** | Specialized Zones | Protege contra brute-force no login (1r/s) e sobrecarga em rotas de IA (2r/s). |
 | **Deep Healthchecks** | Redis/DB Ping | Permite que o orquestrador Docker identifique falhas de infraestrutura antes de servir tráfego. |
+| **Chat Persistence** | Isolated ChatContext | Implementação de estado global persistente via `ChatContext`, garantindo que as sessões de Chat e Agente sejam mantidas em navegação/refresh, mas permaneçam isoladas ("cada um no seu cada qual"). |
+| **Doc Security** | Local Guides Sync | Remoção de credenciais de desenvolvimento do `README.md` (público) para o `DOCKER_GUIDE.md` (instruções locais). |
 
 ---
 
@@ -93,6 +96,7 @@ backend/app/features/
 - [x] Configurar Rate Limiting Estratégico no Nginx (Fase 4)
 - [x] Implementar Healthchecks de Dependência (Redis/Supabase)
 - [x] Implementar Saudação Dinâmica e Localizada (Chat UX)
+- [x] Implementar Persistência de Conversa (Global Context + State Isolation)
 
 ### Pendências Técnicas (Backlog)
 - [ ] Configurar CI no GitHub Actions com Docker imagens
