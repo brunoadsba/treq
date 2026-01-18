@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from app.services.stt_service import STTService
     from app.services.tts_service import TTSService
 
-from app.middleware.simple_auth import verify_api_key
+from app.core.dependencies import get_current_user
 
 # Imports pesados movidos para dentro dos getters (Lazy Loading)
 
@@ -66,10 +66,10 @@ class AudioSynthesizeResponse(BaseModel):
     text: str = Field(..., description="Texto para síntese")
 
 
-@router.post("/transcribe", response_model=AudioTranscribeResponse, dependencies=[Depends(verify_api_key)])
+@router.post("/transcribe", response_model=AudioTranscribeResponse)
 async def transcribe_audio(
     audio_file: UploadFile = File(...),
-    user_id: Optional[str] = Query(None),
+    current_user_id: str = Depends(get_current_user),
     conversation_id: Optional[str] = Query(None),
     language: Optional[str] = Query("pt"),
     stt_service: 'STTService' = Depends(get_stt_service)
@@ -124,9 +124,10 @@ async def transcribe_audio(
         raise HTTPException(status_code=500, detail=f"Erro ao transcrever áudio: {str(e)}")
 
 
-@router.post("/synthesize", response_model=AudioSynthesizeResponse, dependencies=[Depends(verify_api_key)])
+@router.post("/synthesize", response_model=AudioSynthesizeResponse)
 async def synthesize_audio(
     request: AudioSynthesizeRequest,
+    current_user_id: str = Depends(get_current_user),
     tts_service: 'TTSService' = Depends(get_tts_service)
 ):
     """

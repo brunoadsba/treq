@@ -16,7 +16,7 @@ from app.api.routes.documents_helpers import (
     prepare_document_metadata,
     index_document_chunks
 )
-from app.middleware.simple_auth import verify_api_key
+from app.core.dependencies import get_current_user
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -94,11 +94,12 @@ def validate_file(file: UploadFile) -> None:
         )
 
 
-@router.post("/upload", response_model=DocumentUploadResponse, dependencies=[Depends(verify_api_key)])
+@router.post("/upload", response_model=DocumentUploadResponse)
 async def upload_document(
     file: UploadFile = File(...),
     document_type: Optional[str] = Form(None),
     user_message: Optional[str] = Form(None),
+    current_user_id: str = Depends(get_current_user),
     converter: 'DocumentConverterService' = Depends(get_converter_service),
     chunking: 'ChunkingService' = Depends(get_chunking_service),
     rag: 'RAGService' = Depends(get_rag_service)
@@ -212,7 +213,8 @@ async def upload_document(
         base_metadata = prepare_document_metadata(
             file.filename,
             document_type,
-            file_size
+            file_size,
+            user_id=current_user_id
         )
         
         # Fazer chunking semântico
@@ -286,6 +288,7 @@ async def health_check():
 
 @router.get("/stats")
 async def get_documents_stats(
+    current_user_id: str = Depends(get_current_user),
     rag: 'RAGService' = Depends(get_rag_service)
 ):
     """
@@ -300,8 +303,9 @@ async def get_documents_stats(
         
         supabase = get_supabase_client()
         
-        # Buscar todos documentos
-        result = supabase.table('knowledge_base').select('*').execute()
+        # Buscar apenas documentos do usuário (RLS enforced if using authenticated client)
+        # Por enquanto, filtro explícito para garantir isolation
+        result = supabase.table('knowledge_base').select('*').eq('metadata->>user_id', current_user_id).execute()
         all_documents = result.data
         
         if not all_documents:

@@ -12,8 +12,11 @@ async def retriever_node(state: AgentState) -> dict:
     query = state['messages'][-1].content
     
     try:
-        # Invoca a ferramenta diretamente
-        result = search_knowledge_base.invoke(query)
+        # Invoca a ferramenta passando o user_id do estado
+        result = search_knowledge_base.invoke({
+            "query": query,
+            "user_id": state.get("user_id", "anonymous")
+        })
         
         # A ferramenta retorna uma string formatada
         # Podemos separar em lista se quisermos manter a estrutura de 'context' como List[str]

@@ -9,8 +9,19 @@ import { Toast } from "@/components/Toast";
 import { ConversationHistory } from "@/components/ConversationHistory";
 import { useToast } from "@/hooks/useToast";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function ChatPage() {
+  const router = useRouter();
+
+  // Guard de Autenticação
+  useEffect(() => {
+    const token = localStorage.getItem("treq_token");
+    if (!token) {
+      router.push("/login");
+    }
+  }, [router]);
+
   const {
     messages,
     isLoading,

@@ -1,14 +1,25 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AgentChat } from '../../src/features/agent/components/AgentChat';
 import { Header } from '../../components/Header';
 import { ConversationHistory } from '../../components/ConversationHistory';
 import { useAgentChat } from '../../src/features/agent/hooks/useAgentChat';
 import { useToast } from '@/hooks/useToast';
+import { useRouter } from 'next/navigation';
 import { Toast } from '@/components/Toast';
 
 export default function AgentPage() {
+    const router = useRouter();
+
+    // Guard de Autenticação
+    useEffect(() => {
+        const token = localStorage.getItem("treq_token");
+        if (!token) {
+            router.push("/login");
+        }
+    }, [router]);
+
     const [showHistory, setShowHistory] = useState(false);
     const { toasts, showToast, removeToast } = useToast();
 

@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  backend:
+    volumes:
+      - ./backend:/app
+    environment:
+      - ENVIRONMENT=development
+      - LOG_LEVEL=DEBUG
+      - DATABASE_URL=${DATABASE_URL}
+      - SECRET_KEY=${SECRET_KEY}
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8002 --reload
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: development
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8002
+      - NODE_ENV=development
+    command: npm run dev

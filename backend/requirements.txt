@@ -12,6 +12,8 @@ fastapi>=0.109.0,<1.0.0        # Web framework assíncrono
 uvicorn>=0.27.0                  # ASGI server (sem [standard] para evitar uvloop)
 pydantic==2.9.2                  # Versão estável com Pydantic Settings no WSL2
 pydantic-settings>=2.1.0,<3.0.0 # Configurações via ambiente
+python-jose[cryptography]>=3.3.0  # JWT processing
+passlib[bcrypt]>=1.7.4           # Password hashing
 
 # -----------------------------------------------------------------------------
 # Database & Vector Store

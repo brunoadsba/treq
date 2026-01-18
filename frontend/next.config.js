@@ -47,6 +47,9 @@ const nextConfig = {
     ];
   },
 
+  // Otimização de standalone para Docker
+  output: 'standalone',
+
   // Otimização de bundle
   experimental: {
     // optimizeCss: true, // Requer pacote 'critters' extra

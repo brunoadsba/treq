@@ -17,13 +17,17 @@ export const agentService = {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    // TODO: Adicionar Auth Token real quando integrado com NextAuth/Clerk
-                    'X-User-ID': userId,
+                    'Authorization': `Bearer ${typeof window !== 'undefined' ? localStorage.getItem('treq_token') || '' : ''}`,
                 },
                 body: JSON.stringify(payload),
             });
 
             if (!response.ok) {
+                if (response.status === 401) {
+                    localStorage.removeItem("treq_token");
+                    window.location.href = "/login";
+                    throw new Error("Sessão expirada. Redirecionando...");
+                }
                 if (response.status === 429) {
                     throw new Error('Muitas requisições. Aguarde um momento antes de tentar novamente.');
                 }

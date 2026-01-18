@@ -4,21 +4,28 @@ from loguru import logger
 from app.core.vector_store import get_vector_store
 
 @tool
-def search_knowledge_base(query: str) -> str:
+def search_knowledge_base(query: str, user_id: str = "anonymous") -> str:
     """
     Busca informações relevantes na base de conhecimento do TREQ sobre documentos, processos ou dados da empresa.
-    Use esta ferramenta quando precisar de informações factuais ou contexto que não está no histórico da conversa.
     
     Args:
         query: A pergunta ou termo de busca para encontrar informações.
+        user_id: ID do usuário para filtragem de dados (fornecido pelo Agente).
     """
-    logger.info(f"🔎 Buscando na knowledge base: '{query}'")
+    logger.info(f"🔎 Buscando na knowledge base para user '{user_id}': '{query}'")
     
     try:
         vector_store = get_vector_store()
         
-        # Busca por similaridade com score
-        results = vector_store.similarity_search_with_score(query, k=4)
+        # Filtro de metadados para garantir RLS no nível de aplicação (além do banco)
+        search_filter = {"user_id": user_id} if user_id != "anonymous" else {}
+        
+        # Busca por similaridade com score e filtro
+        results = vector_store.similarity_search_with_score(
+            query, 
+            k=4,
+            filter=search_filter
+        )
         
         if not results:
             # Retorno padronizado para o Planner detectar falha e tentar self-correction

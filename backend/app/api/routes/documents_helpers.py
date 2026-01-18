@@ -14,7 +14,8 @@ if TYPE_CHECKING:
 def prepare_document_metadata(
     filename: str,
     document_type: str,
-    file_size: int
+    file_size: int,
+    user_id: str = "anonymous"
 ) -> Dict[str, Any]:
     """
     Prepara metadata base para documento.
@@ -23,6 +24,7 @@ def prepare_document_metadata(
         filename: Nome do arquivo
         document_type: Tipo do documento
         file_size: Tamanho do arquivo em bytes
+        user_id: ID do usuário proprietário
         
     Returns:
         Dict com metadata do documento
@@ -34,6 +36,7 @@ def prepare_document_metadata(
         'original_filename': filename,
         'file_format': Path(filename).suffix.lower(),
         'uploaded_at': datetime.now().isoformat(),
+        'user_id': user_id
     }
 
 

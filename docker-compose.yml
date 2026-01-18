@@ -1,0 +1,143 @@
+version: '3.8'
+
+services:
+  # Backend API (FastAPI)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: treq-backend
+    ports:
+      - "8002:8002"
+    environment:
+      # Database
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY}
+      
+      # Redis
+      REDIS_URL: redis://redis:6379/0
+      
+      # Database Direct
+      DATABASE_URL: ${DATABASE_URL}
+      
+      # LLM APIs
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      ZHIPU_API_KEY: ${ZHIPU_API_KEY}
+      
+      # Auth
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      JWT_ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+      SECRET_KEY: ${SECRET_KEY}
+      
+      # Observability
+      LANGSMITH_API_KEY: ${LANGSMITH_API_KEY}
+      LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-treq-enterprise}
+      
+      # Environment
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      USE_DYNAMIC_MODEL: ${USE_DYNAMIC_MODEL:-true}
+      USE_3_LEVEL_ROUTING: ${USE_3_LEVEL_ROUTING:-true}
+    volumes:
+      - ./backend:/app
+      - backend-cache:/root/.cache
+    depends_on:
+      - redis
+    networks:
+      - treq-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend (Next.js)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: runner
+    container_name: treq-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://backend:8002
+      NEXT_PUBLIC_ENVIRONMENT: ${ENVIRONMENT:-development}
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - treq-network
+    restart: unless-stopped
+
+  # Redis (Cache + Session Storage)
+  redis:
+    image: redis:7-alpine
+    container_name: treq-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - treq-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+
+  # PostgreSQL Local (para testes, opcional)
+  postgres:
+    image: postgres:15-alpine
+    container_name: treq-postgres
+    environment:
+      POSTGRES_USER: treq
+      POSTGRES_PASSWORD: treq_dev_password
+      POSTGRES_DB: treq_test
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - treq-network
+    restart: unless-stopped
+    profiles:
+      - testing
+
+  # Nginx (Reverse Proxy + Rate Limiting)
+  nginx:
+    image: nginx:alpine
+    container_name: treq-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/rate-limit.conf:/etc/nginx/conf.d/rate-limit.conf:ro
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - treq-network
+    restart: unless-stopped
+    profiles:
+      - production
+
+networks:
+  treq-network:
+    driver: bridge
+
+volumes:
+  backend-cache:
+  redis-data:
+  postgres-data:
+  nextjs_cache:

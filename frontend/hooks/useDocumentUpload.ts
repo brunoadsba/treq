@@ -31,6 +31,9 @@ export function useDocumentUpload(): UseDocumentUploadReturn {
 
         const response = await fetch(`${apiUrl}/documents/upload`, {
           method: "POST",
+          headers: {
+            "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem("treq_token") || "" : ""}`,
+          },
           body: formData,
         });
 
@@ -40,7 +43,7 @@ export function useDocumentUpload(): UseDocumentUploadReturn {
         }
 
         const data = await response.json();
-        
+
         if (!data.success) {
           throw new Error(data.message || "Upload falhou");
         }

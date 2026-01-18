@@ -25,7 +25,7 @@ def is_langsmith_enabled() -> bool:
     from app.config import get_settings
     settings = get_settings()
     
-    tracing_enabled = settings.langchain_tracing_v2.lower() == "true"
+    tracing_enabled = bool(settings.langchain_tracing_v2)
     api_key = settings.langsmith_api_key
     
     enabled = tracing_enabled and bool(api_key)
@@ -70,7 +70,7 @@ def setup_langsmith():
         return False
     
     # Configurar projeto e variáveis necessárias para o tracer da langsmith
-    os.environ["LANGCHAIN_TRACING_V2"] = settings.langchain_tracing_v2
+    os.environ["LANGCHAIN_TRACING_V2"] = str(settings.langchain_tracing_v2).lower()
     os.environ["LANGSMITH_API_KEY"] = settings.langsmith_api_key
     os.environ["LANGCHAIN_PROJECT"] = settings.langchain_project
     

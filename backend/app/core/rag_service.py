@@ -4,7 +4,7 @@ Busca semântica de documentos indexados no Supabase.
 """
 from typing import List, Dict, Optional, Any
 from loguru import logger
-from app.services.supabase_service import get_supabase_client
+from app.services.supabase_service import get_supabase_client, get_user_supabase_client
 from app.services.embedding_service import generate_embedding
 from app.config import get_settings
 from app.core.tracing import trace_rag_pipeline, tracing_metrics
@@ -22,8 +22,8 @@ rag_search_cache = TTLCache(maxsize=200, ttl=60)
 class RAGService:
     """Serviço RAG para busca semântica de documentos."""
     
-    def __init__(self):
-        self.supabase = get_supabase_client()
+    def __init__(self, supabase_client=None):
+        self.supabase = supabase_client or get_supabase_client()
         self.embedding_dimension = settings.embedding_dimension
     
     @trace_rag_pipeline(name="vector_search")
@@ -65,9 +65,12 @@ class RAGService:
             # Função SQL espera '{}' quando não há filtros, não None
             filter_metadata = filters if filters else {}
             
+            # Usar cliente específico do usuário se user_id fornecido (Native RLS)
+            client = get_user_supabase_client(user_id) if user_id else self.supabase
+            
             # Chamar função RPC do Supabase para busca vetorial nativa
             try:
-                result = self.supabase.rpc(
+                result = client.rpc(
                     'match_documents',
                     {
                         'query_embedding': query_embedding,

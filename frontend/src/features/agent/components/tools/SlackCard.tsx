@@ -19,7 +19,7 @@ export function SlackCard({ output }: SlackCardProps) {
                 {message && (
                     <div className="flex flex-col gap-2">
                         <div className="bg-gray-50 dark:bg-gray-800 p-2 rounded border-l-2 border-gray-300 dark:border-gray-600 text-xs italic text-gray-600 dark:text-gray-400">
-                            "{message}"
+                            &quot;{message}&quot;
                         </div>
                         <div className="flex justify-between items-center mt-1">
                             <span className="text-[10px] text-green-600 dark:text-green-400 font-medium flex items-center gap-1">

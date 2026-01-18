@@ -19,48 +19,30 @@ if os.getenv("LANGCHAIN_TRACING_V2", "").lower() == "true":
     os.environ["LANGCHAIN_PROJECT"] = os.getenv("LANGCHAIN_PROJECT", "treq-assistente")
 
 class Settings(BaseSettings):
-    """Configurações da aplicação."""
+    """Configurações centralizadas (SSOT) para Treq Enterprise."""
     
     # Aplicação
-    app_name: str = "Treq Assistente Operacional"
+    app_name: str = "Treq Enterprise"
+    version: str = "2026.1.0"
     environment: str = "production"
     debug: bool = False
-    secret_key: str = Field("placeholder-do-not-use-in-prod", env="SECRET_KEY", description="Secret key obrigatória para segurança")
-    cors_origins: str = "*" # Origens permitidas separadas por vírgula
+    secret_key: str = Field(..., env="SECRET_KEY")
+    cors_origins: str = "*"
+    
+    # Segurança & Auth (Enterprise Hardening)
+    jwt_secret_key: str = Field(..., env="JWT_SECRET_KEY")
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 60 * 24  # 24 horas
     
     # Backend
     host: str = "0.0.0.0"
-    port: int = 8000
+    port: int = 8002
     
-    # Supabase
-    supabase_url: HttpUrl = Field(..., description="URL do Supabase (deve ser HTTPS)")
-    supabase_key: str = Field("", validation_alias=AliasChoices("SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_KEY"))
-    supabase_anon_key: str = Field("", validation_alias=AliasChoices("SUPABASE_ANON_KEY", "NEXT_PUBLIC_SUPABASE_ANON_KEY"))
-    database_password: str = ""  # Database password (backup local, não usada no código inicialmente)
-    database_url: str = ""  # Full database connection string
-
-    
-    # APIs
-    groq_api_key: str = ""
-    gemini_api_key: str = Field("", validation_alias=AliasChoices("GEMINI_API_KEY", "GOOGLE_API_KEY"))
-    zhipu_api_key: str = ""  # API Key para Zhipu AI (GLM 4)
-    
-    # Audio
-    audio_max_duration_seconds: int = 60  # Máximo 60 segundos de áudio
-    audio_supported_formats: list = ["webm", "wav", "mp3", "ogg"]
-    
-    # Embeddings
-    embedding_model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-    embedding_dimension: int = 384
-    
-    # LLM
-    llm_model: str = "llama-3.1-8b-instant"  # Nível 1: Modelo padrão (rápido)
-    llm_model_complex: str = "llama-3.3-70b-versatile"  # Nível 2: Modelo para queries complexas
-    glm_model: str = "glm-4.7"  # Nível 3: Modelo GLM 4 para tarefas pesadas
-    use_dynamic_model: bool = True  # Ativar seleção dinâmica
-    use_3_level_routing: bool = True  # Ativar roteamento em 3 níveis (8B → 70B → GLM 4)
-    llm_temperature: float = 0.4  # Aumentado de 0.3 para menos conservador (análise consolidada)
-    llm_max_tokens: int = 1200  # Aumentado de 800 para 1200 para garantir respostas completas (pode ser sobrescrito por .env)
+    # Supabase (RLS Mandatory)
+    supabase_url: HttpUrl = Field(..., env="SUPABASE_URL")
+    supabase_service_role_key: str = Field("", env="SUPABASE_SERVICE_KEY")
+    supabase_anon_key: str = Field("", env="SUPABASE_ANON_KEY")
+    database_url: str = Field("", env="DATABASE_URL")
     
     # Rate Limiting
     rate_limit_per_minute: int = 60
@@ -68,18 +50,52 @@ class Settings(BaseSettings):
     # Logging
     log_level: str = "INFO"
     
-    # LangSmith Observability (opcional)
-    langsmith_api_key: str = Field("", validation_alias=AliasChoices("LANGSMITH_API_KEY", "LANGCHAIN_API_KEY"))
-    langchain_tracing_v2: str = "false"
-    langchain_project: str = "treq-assistente"
+    # LLM Routing
+    use_dynamic_model: bool = True
+    use_3_level_routing: bool = True
     
+    # Alias para compatibilidade legada
+    @property
+    def supabase_key(self) -> str:
+        return self.supabase_service_role_key
+
+    # APIs
+    groq_api_key: str = Field("", env="GROQ_API_KEY")
+    gemini_api_key: str = Field("", env="GEMINI_API_KEY")
+    zhipu_api_key: str = Field("", env="ZHIPU_API_KEY")
+    
+    # Audio & TTS
+    audio_max_duration_seconds: int = 60
+    audio_supported_formats: list = ["webm", "wav", "mp3", "ogg"]
+    
+    # Embeddings
+    embedding_model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    embedding_dimension: int = 768 # Gemini default to avoid mismatch
+    
+    # LLM & RAG
+    llm_model: str = "llama-3.1-8b-instant"
+    llm_model_complex: str = "llama-3.3-70b-versatile"
+    glm_model: str = "glm-4.7"
+    llm_temperature: float = 0.4
+    llm_max_tokens: int = 1200
+    
+    # Observabilidade
+    langsmith_api_key: str = Field("", env="LANGSMITH_API_KEY")
+    langchain_tracing_v2: bool = False
+    langchain_project: str = "treq-enterprise"
+    
+    # Billing (Placeholder for Stage 5)
+    stripe_api_key: str = ""
+    stripe_webhook_secret: str = ""
+
     class Config:
         env_file = ".env"
         case_sensitive = False
+        extra = "ignore"  # Ignorar variáveis extras no .env
 
 
 @lru_cache()
 def get_settings() -> Settings:
-    """Retorna instância singleton das configurações."""
+    """Singleton pattern para configurações."""
     return Settings()
 

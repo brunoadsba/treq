@@ -4,7 +4,8 @@ import { Logo } from "./Logo";
 import { NavigationTabs } from "./NavigationTabs";
 import { useHighContrast, toggleHighContrast } from "@/hooks/useHighContrast";
 import { useTheme } from "@/hooks/useTheme";
-import { Contrast, Sun, Moon } from "lucide-react";
+import { Contrast, Sun, Moon, LogOut } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { ConversationMenu } from "./ConversationMenu";
 
 interface HeaderProps {
@@ -24,6 +25,13 @@ export function Header({
 }: HeaderProps) {
   const isHighContrast = useHighContrast();
   const [theme, setTheme] = useTheme();
+  const router = useRouter();
+
+  const handleLogout = () => {
+    localStorage.removeItem("treq_token");
+    localStorage.removeItem("treq_user_id");
+    router.push("/login");
+  };
 
   return (
     <header className="bg-treq-black text-white p-2 sm:p-2.5 md:p-3 lg:p-3.5 shadow-md z-50 relative">
@@ -66,6 +74,16 @@ export function Header({
             aria-label="Alto Contraste"
           >
             <Contrast size={20} />
+          </button>
+
+          {/* Botão de Logout */}
+          <button
+            onClick={handleLogout}
+            className="p-1.5 sm:p-2 rounded-lg hover:bg-red-500/20 text-red-400 transition-colors flex items-center justify-center min-w-[36px] min-h-[36px]"
+            aria-label="Sair"
+            title="Sair"
+          >
+            <LogOut size={20} />
           </button>
         </div>
       </div>

@@ -174,6 +174,14 @@ async def list_routes():
 # INCLUIR ROTAS (Agora são leves devido ao lazy loading nos routes)
 logger.info("📦 Iniciando registro individual de rotas...")
 
+# AUTHENTICATION
+try:
+    from app.api.routes import auth
+    app.include_router(auth.router)
+    logger.info("✅ Router auth incluído")
+except Exception as e:
+    logger.error(f"❌ Falha ao incluir router AUTH: {e}")
+
 # CHAT
 try:
     from app.api.routes import chat

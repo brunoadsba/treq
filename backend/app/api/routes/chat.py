@@ -7,7 +7,7 @@ from loguru import logger
 import json
 
 from app.middleware.rate_limiter import get_rate_limit, rate_limit
-from app.middleware.simple_auth import verify_api_key
+from app.core.dependencies import get_current_user
 from slowapi.errors import RateLimitExceeded
 from app.api.routes.chat_helpers import build_llm_messages
 from app.core.tracing import trace_llm_call
@@ -28,11 +28,12 @@ from .chat_modules.visualization_handler import handle_visualization
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
-@router.post("/", dependencies=[Depends(verify_api_key)])
+@router.post("/")
 @trace_llm_call(name="chat_endpoint", run_type="chain")
 async def chat(
     request: Request,
     chat_request: ChatRequest,
+    current_user_id: str = Depends(get_current_user),
     _: None = Depends(rate_limit(get_rate_limit("chat"))),  # Rate limiting via dependency injection
     llm_service: 'LLMService' = Depends(get_llm_service),
     rag_service: 'RAGService' = Depends(get_rag_service),

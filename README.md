@@ -47,24 +47,34 @@ backend/app/
 - `POST /connectors/slack/send`: Envio de mensagens (via Agente).
 - `POST /connectors/confluence/sync`: Sincronização de conhecimento.
 
-## 🛠️ Setup Atualizado
+## 🛠️ Setup Local (Docker)
 
-1. **Instalar Dependências:**
-```bash
-pip install -r backend/requirements.txt
-```
-*Nota: Requer `langgraph`, `langchain-groq`, `langsmith`.*
+A versão Enterprise é Docker-first. Certifique-se de configurar o arquivo `.env` na raiz do projeto com as credenciais do Supabase e APIs LLM.
 
-2. **Configurar Governança (.env):**
+1. **Subir Infraestrutura:**
 ```bash
-LANGCHAIN_TRACING_V2=true
-LANGCHAIN_PROJECT=treq-enterprise
+docker compose up -d
+```
+*Isso iniciará o Backend (8002), Frontend (3000), Redis e Nginx (80).*
+
+2. **Testes E2E (Opcional):**
+```bash
+cd frontend
+npx playwright test
 ```
 
-3. **Executar Backend:**
+3. **Logs em Tempo Real:**
 ```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8002 --reload
+docker compose logs -f backend
 ```
+
+---
+
+## 🔒 Segurança & Hardening
+- **Auth:** OAuth2 + JWT (Gerido em `backend/app/core/security.py`).
+- **SSOT:** Configurações centralizadas em `backend/app/config.py`.
+- **Isolamento:** Native RLS aplicado em todas as camadas (DB + Agente).
+- **Audit:** Tracing automático via LangSmith.
 
 ---
 

@@ -283,6 +283,7 @@ export function useChat(userId: string = "default-user") {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
+              "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem("treq_token") || "" : ""}`,
             },
             body: JSON.stringify({
               message,
@@ -298,6 +299,11 @@ export function useChat(userId: string = "default-user") {
           });
 
           if (!response.ok) {
+            if (response.status === 401) {
+              localStorage.removeItem("treq_token");
+              window.location.href = "/login";
+              throw new Error("Sessão expirada. Redirecionando...");
+            }
             throw new Error(`Erro na API: ${response.statusText}`);
           }
 
@@ -553,6 +559,7 @@ export function useChat(userId: string = "default-user") {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
+              "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem("treq_token") || "" : ""}`,
             },
             body: JSON.stringify({
               message,
@@ -566,6 +573,11 @@ export function useChat(userId: string = "default-user") {
           });
 
           if (!response.ok) {
+            if (response.status === 401) {
+              localStorage.removeItem("treq_token");
+              window.location.href = "/login";
+              throw new Error("Sessão expirada. Redirecionando...");
+            }
             throw new Error(`Erro na API: ${response.statusText}`);
           }
 

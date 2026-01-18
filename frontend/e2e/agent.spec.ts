@@ -4,6 +4,20 @@ test.describe('Treq Agent - E2E Tests', () => {
     // Configuração prévia: assumindo que o backend e frontend estão rodando
 
     test.beforeEach(async ({ page }) => {
+        // 0. Autenticar para obter token JWT (Usando mock admin no backend)
+        const loginResponse = await page.request.post('http://localhost:8002/auth/login', {
+            form: {
+                username: 'admin',
+                password: 'admin123',
+            }
+        });
+        const loginData = await loginResponse.json();
+        const token = loginData.access_token;
+
+        // Navegar para a página inicial para poder setar localStorage
+        await page.goto('/');
+        await page.evaluate((t) => localStorage.setItem('treq_token', t), token);
+
         // Navegar para a página do agente
         await page.goto('/agent');
     });

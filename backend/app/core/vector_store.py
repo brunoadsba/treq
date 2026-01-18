@@ -46,13 +46,14 @@ class CustomGeminiEmbeddings(Embeddings):
             logger.error(f"Erro no embedding Gemini: {e}")
             return [0.0] * self.dimensions
 
-# Configuração da Connection String
-# Usando psycopg2 (já suportado pelo ambiente atual)
-DB_CONNECTION = os.getenv("DATABASE_URL")
+# Configuração da Connection String (Enterprise SSOT)
+DB_CONNECTION = settings.database_url
 if not DB_CONNECTION:
+    # Fallback derivado das configurações de ambiente se URL direta não existir
+    logger.warning("DATABASE_URL não configurada explicitamente. Usando fallback.")
     DB_CONNECTION = "postgresql+psycopg2://postgres:postgres@localhost:5432/postgres"
 
-# Nome da coleção padrão
+# Nome da coleção (Enterprise Namespace)
 COLLECTION_NAME = "treq_knowledge_base"
 
 def get_embeddings() -> Embeddings:

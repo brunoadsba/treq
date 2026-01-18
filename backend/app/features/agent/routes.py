@@ -10,7 +10,7 @@ from typing import Optional, List
 from loguru import logger
 from langchain_core.messages import HumanMessage
 
-from app.middleware.simple_auth import verify_api_key
+from app.core.dependencies import get_current_user
 from app.middleware.rate_limiter import rate_limit
 from app.core.governance import get_trace_config
 from .state import AgentState
@@ -37,8 +37,7 @@ class AgentChatResponse(BaseModel):
 @router.post("/chat", response_model=AgentChatResponse)
 async def agent_chat(
     request: AgentChatRequest,
-    req: Request,
-    api_key: str = Depends(verify_api_key),
+    current_user_id: str = Depends(get_current_user),
     _: None = Depends(rate_limit("10/minute"))
 ):
     """
@@ -62,8 +61,8 @@ async def agent_chat(
     logger.info(f"🤖 Agent Chat: {request.query[:50]}...")
     
     try:
-        # Criar estado inicial
-        user_id = request.user_id or "anonymous"
+        # Criar estado inicial injetando usuário autenticado
+        user_id = current_user_id
         initial_state: AgentState = {
             "messages": [HumanMessage(content=request.query)],
             "user_id": user_id,

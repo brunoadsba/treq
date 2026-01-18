@@ -35,6 +35,9 @@ export function useAudioTranscription(): UseAudioTranscriptionReturn {
 
         const response = await fetch(`${apiUrl}/audio/transcribe?${params.toString()}`, {
           method: "POST",
+          headers: {
+            "Authorization": `Bearer ${typeof window !== "undefined" ? localStorage.getItem("treq_token") || "" : ""}`,
+          },
           body: formData,
         });
 
