@@ -53,7 +53,7 @@ export function LoginForm() {
     return (
         <div className="w-full max-w-md p-8 bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-treq-gray-100 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div className="flex flex-col items-center mb-10">
-                <div className="w-20 h-20 bg-treq-yellow rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-treq-yellow/20 rotate-3 hover:rotate-0 transition-transform duration-300">
+                <div className="w-20 h-20 bg-treq-yellow rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-treq-yellow/20 animate-subtle-sway transition-transform duration-300">
                     <span className="text-treq-black text-4xl font-black">T</span>
                 </div>
                 <h1 className="text-3xl font-black text-treq-black tracking-tighter">Treq</h1>

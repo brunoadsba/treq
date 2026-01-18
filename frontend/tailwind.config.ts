@@ -55,6 +55,15 @@ const config: Config = {
         sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
         mono: ['"Courier New"', 'Courier', 'monospace'],
       },
+      keyframes: {
+        "subtle-sway": {
+          "0%, 100%": { transform: "rotate(4deg)" },
+          "50%": { transform: "rotate(-4deg)" },
+        },
+      },
+      animation: {
+        "subtle-sway": "subtle-sway 4s ease-in-out infinite",
+      },
     },
   },
   plugins: [],
