@@ -13,7 +13,7 @@ export default function LoginPage() {
 
       {/* Footer info */}
       <div className="absolute bottom-8 text-treq-gray-400 text-xs font-medium tracking-widest uppercase">
-        &copy; {new Date().getFullYear()} Treq Operations
+        &copy; {new Date().getFullYear()} Treq
       </div>
     </div>
   );
