@@ -62,7 +62,7 @@ const config: Config = {
         },
       },
       animation: {
-        "subtle-sway": "subtle-sway 4s ease-in-out infinite",
+        "subtle-sway": "subtle-sway 6s linear infinite",
       },
     },
   },
