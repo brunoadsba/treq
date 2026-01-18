@@ -47,28 +47,43 @@ backend/app/
 - `POST /connectors/slack/send`: Envio de mensagens (via Agente).
 - `POST /connectors/confluence/sync`: Sincronização de conhecimento.
 
-## 🛠️ Setup Local (Docker)
+## Quick Start (Docker)
 
-A versão Enterprise é Docker-first. Certifique-se de configurar o arquivo `.env` na raiz do projeto com as credenciais do Supabase e APIs LLM.
+O Treq Enterprise opera 100% conteinerizado para garantir paridade entre desenvolvimento e produção.
 
-1. **Subir Infraestrutura:**
-```bash
-docker compose up -d
-```
-*Isso iniciará o Backend (8002), Frontend (3000), Redis e Nginx (80).*
+1. **Clone e configure as envs**:
+   ```bash
+   git clone [url]
+   cp .env.example .env # E preencha as chaves
+   ```
 
-2. **Testes E2E (Opcional):**
-```bash
-cd frontend
-npx playwright test
-```
+2. **Suba o ambiente**:
+   ```bash
+   docker compose up -d --build
+   ```
 
-3. **Logs em Tempo Real:**
-```bash
-docker compose logs -f backend
-```
+3. **Acesso**:
+   - **Interface**: http://localhost:3000
+   - **Documentação API**: http://localhost:8002/docs
+
+4. **Autenticação (Desenvolvimento)**:
+   - O sistema iniciará na tela de Login.
+   - **Usuário**: `admin`
+   - **Senha**: `admin123`
 
 ---
+
+## Desenvolvimento Frontend (Hot-reload)
+
+Para trabalhar na interface com recarregamento instantâneo:
+
+```bash
+docker compose up -d frontend
+```
+*O container usará o target `development` do Dockerfile, mapeando os volumes do host.*
+
+## Segurança & Compliance
+O sistema utiliza **JWT + RLS (Row Level Security)** nativo. Todas as requisições ao backend são filtradas pelo `user_id` extraído do token, garantindo isolamento total de dados entre diferentes usuários.
 
 ## 🔒 Segurança & Hardening
 - **Auth:** OAuth2 + JWT (Gerido em `backend/app/core/security.py`).
