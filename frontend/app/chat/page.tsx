@@ -171,7 +171,7 @@ export default function ChatPage() {
         />
       </div>
 
-      <div className="flex-shrink-0 w-full bg-transparent">
+      <div className="flex-shrink-0 w-full bg-white dark:bg-black border-t border-treq-gray-100 dark:border-white/5">
         <InputArea
           onSend={handleSendMessage}
           isLoading={isLoading}

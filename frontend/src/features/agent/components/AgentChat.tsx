@@ -35,8 +35,8 @@ export function AgentChat({ messages, isLoading, error, onSend, onRetry }: Agent
                 />
             )}
 
-            {/* Input Area - Clean & Non-overlapping */}
-            <div className="flex-shrink-0 w-full bg-transparent">
+            {/* Input Area - High Contrast Foundation */}
+            <div className="flex-shrink-0 w-full bg-white dark:bg-black border-t border-treq-gray-100 dark:border-white/5">
                 <ChatInput
                     onSend={onSend}
                     isLoading={isLoading}

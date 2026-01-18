@@ -224,7 +224,7 @@ export function ManusInput({
 
             {/* Disclaimer */}
             <div className="text-center mt-3 animate-in fade-in duration-700 delay-150">
-                <p className="text-[10px] sm:text-xs text-gray-400 dark:text-gray-600 font-medium tracking-wide opacity-80">
+                <p className="text-[10px] sm:text-xs text-gray-400 dark:text-treq-gray-400 font-medium tracking-wide opacity-80 italic">
                     Treq pode cometer erros. Verifique informações críticas.
                 </p>
             </div>
