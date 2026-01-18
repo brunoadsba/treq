@@ -2,29 +2,52 @@
 
 FastAPI backend para o Assistente Operacional Treq.
 
-## Setup
+## 🐳 Setup via Docker (Recomendado)
+
+O backend do Treq deve ser executado via Docker para garantir que todas as dependências nativas (como `psycopg2` e extensões vetoriais) funcionem sem conflitos com o WSL2.
+
+1. **Subir o serviço**:
+   ```bash
+   docker compose up -d backend
+   ```
+
+2. **Verificar Logs**:
+   ```bash
+   docker logs -f treq-backend
+   ```
+
+3. **Executar Scripts de Teste**:
+   Sempre execute scripts *dentro* do container:
+   ```bash
+   docker exec -it treq-backend python scripts/test_streaming.py
+   ```
+
+## ⚠️ Setup Manual (Não Recomendado)
+
+> [!CAUTION]
+> A execução direta no host (WSL2/Windows) pode causar `Segmentation Faults` devido a incompatibilidades de bibliotecas binárias. Use apenas se souber o que está fazendo.
 
 1. Criar ambiente virtual:
-```bash
-python3 -m venv treq-venv
-source treq-venv/bin/activate
-```
+   ```bash
+   python3 -m venv treq-venv
+   source treq-venv/bin/activate
+   ```
 
 2. Instalar dependências:
-```bash
-pip install -r requirements.txt
-```
+   ```bash
+   pip install -r requirements.txt
+   ```
 
 3. Configurar variáveis de ambiente:
-```bash
-cp .env.example .env
-# Editar .env com suas credenciais
-```
+   ```bash
+   cp .env.example .env
+   # Editar .env com suas credenciais
+   ```
 
 4. Rodar servidor:
-```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
+   ```bash
+   uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+   ```
 
 
 ## Estrutura

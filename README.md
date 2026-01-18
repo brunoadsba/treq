@@ -5,9 +5,10 @@ Plataforma de inteligência artificial para operações Treq, evoluída para uma
 ## 🚀 Novidades na Versão 2.0 (Enterprise)
 
 - **Agentes Autônomos (LangGraph):** Arquitetura baseada em grafos para raciocínio complexo (Planning -> Retrieval -> Execution).
-- **Conectores de Dados:** Integração nativa com Confluence, Slack e Jira (em breve).
+- **Rastro Cognitivo (Modo Debug):** Visualização em tempo real do pensamento (`thought`) e timeline de execução (`trace`) do agente. Use `Ctrl+Shift+D`.
+- **Ações Interativas (Human-in-the-Loop):** Revisão e edição de parâmetros de ferramentas (Jira/Slack) via modais antes da execução final.
+- **Conectores de Dados:** Integração nativa com Confluence, Slack e Jira.
 - **Governança:** Tracing completo via LangSmith, Rate Limiting por usuário e RLS (Row Level Security).
-- **Segurança:** Filtragem de conteúdo sensível no nível do banco de dados (Supabase RLS).
 
 ---
 
@@ -47,24 +48,30 @@ backend/app/
 - `POST /connectors/slack/send`: Envio de mensagens (via Agente).
 - `POST /connectors/confluence/sync`: Sincronização de conhecimento.
 
-## Quick Start (Docker)
+## 🐳 Doutrina Docker-Centric (Regra de Ouro)
 
-O Treq Enterprise opera 100% conteinerizado para garantir paridade entre desenvolvimento e produção.
+Este projeto foi desenhado sob a premissa **Docker-First**. Para garantir a estabilidade (especialmente no ambiente WSL2) e evitar erros clássicos de rede ou bibliotecas nativas, o Docker é o único ambiente de execução e desenvolvimento suportado.
+
+> [!IMPORTANT]
+> **WSL2 é o motor, Docker é o host.** Nunca execute `npm install` ou `pip install` diretamente no shell do WSL2 para rodar o projeto. Use sempre os containers.
+
+### Quick Start
 
 1. **Clone e configure as envs**:
    ```bash
    git clone [url]
-   cp .env.example .env # E preencha as chaves
+   cp .env.example .env # Preencha as chaves conforme necessário
    ```
 
-2. **Suba o ambiente**:
+2. **Suba o ambiente completo**:
    ```bash
    docker compose up -d --build
    ```
 
 3. **Acesso**:
-   - **Interface**: http://localhost:3000
-   - **Documentação API**: http://localhost:8002/docs
+   - **Interface**: [http://localhost:3000](http://localhost:3000)
+   - **Documentação API**: [http://localhost:8002/docs](http://localhost:8002/docs)
+   - **Painel de Controle**: [http://localhost:8002/agent/health](http://localhost:8002/agent/health)
 
 ---
 

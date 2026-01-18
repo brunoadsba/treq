@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/useToast";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { DebugToggle } from "@/components/debug/DebugToggle";
 
 export default function ChatPage() {
   const router = useRouter();
@@ -218,6 +219,9 @@ export default function ChatPage() {
           />
         ))}
       </div>
+
+      {/* Debug Mode Interface */}
+      <DebugToggle />
     </div>
   );
 }

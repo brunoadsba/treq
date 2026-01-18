@@ -46,6 +46,11 @@ services:
       - backend-cache:/root/.cache
     depends_on:
       - redis
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=1
     networks:
       - treq-network
     restart: unless-stopped

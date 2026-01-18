@@ -34,22 +34,22 @@ export function useAgentChat(userId: string = "default-user"): UseAgentChatRetur
 
     // Helper setters for compatibility
     const setMessages = useCallback((updater: any) => {
-        setAgentState(prev => ({
+        setAgentState((prev: any) => ({
             ...prev,
             messages: typeof updater === 'function' ? updater(prev.messages) : updater
         }));
     }, [setAgentState]);
 
     const setConversationId = useCallback((id: string | null) => {
-        setAgentState(prev => ({ ...prev, conversationId: id }));
+        setAgentState((prev: any) => ({ ...prev, conversationId: id }));
     }, [setAgentState]);
 
     const setIsLoading = useCallback((loading: boolean) => {
-        setAgentState(prev => ({ ...prev, isLoading: loading }));
+        setAgentState((prev: any) => ({ ...prev, isLoading: loading }));
     }, [setAgentState]);
 
     const setError = useCallback((err: string | null) => {
-        setAgentState(prev => ({ ...prev, error: err }));
+        setAgentState((prev: any) => ({ ...prev, error: err }));
     }, [setAgentState]);
 
     const [savedConversations, setSavedConversations] = useState<SavedConversation[]>([]);
@@ -132,8 +132,8 @@ export function useAgentChat(userId: string = "default-user"): UseAgentChatRetur
     }, [savedConversations, setMessages, setConversationId, setError]);
 
     const deleteConversation = useCallback((id: string) => {
-        setSavedConversations(prev => {
-            const newHistory = prev.filter(c => c.id !== id);
+        setSavedConversations((prev: SavedConversation[]) => {
+            const newHistory = prev.filter((c: SavedConversation) => c.id !== id);
             localStorage.setItem(STORAGE_KEY, JSON.stringify(newHistory));
             return newHistory;
         });
@@ -158,7 +158,7 @@ export function useAgentChat(userId: string = "default-user"): UseAgentChatRetur
             timestamp: new Date(),
         };
 
-        setMessages((prev) => [...prev, newUserMsg as any]);
+        setMessages((prev: AgentMessage[]) => [...prev, newUserMsg as any]);
 
         try {
             // 2. Call API
@@ -173,7 +173,7 @@ export function useAgentChat(userId: string = "default-user"): UseAgentChatRetur
                 toolsUsed: response.tool_outputs,
             };
 
-            setMessages((prev) => [...prev, agentMsg as any]);
+            setMessages((prev: AgentMessage[]) => [...prev, agentMsg as any]);
         } catch (err: any) {
             console.error("Agent interaction failed:", err);
             setError(err.message || "Erro desconhecido ao comunicar com o agente.");

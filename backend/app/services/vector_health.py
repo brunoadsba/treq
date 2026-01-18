@@ -10,28 +10,7 @@ from app.config import get_settings
 
 settings = get_settings()
 
-def get_database_url():
-    """Constrói DATABASE_URL a partir das settings se não existir no env."""
-    db_url = os.getenv("DATABASE_URL")
-    if db_url:
-        return db_url
-        
-    # Tenta construir usando padrão Supabase
-    if settings.supabase_url and settings.database_password:
-        # Extrai ID do projeto: https://[project-id].supabase.co
-        try:
-            # Remove protocol and split by dot
-            clean_url = settings.supabase_url.replace("https://", "").replace("http://", "")
-            project_id = clean_url.split(".")[0]
-            
-            if not project_id:
-                return None
-                
-            return f"postgresql://postgres:{settings.database_password}@db.{project_id}.supabase.co:5432/postgres"
-        except Exception:
-            return None
-    
-    return None
+from app.core.database import get_database_url
 
 def verify_vector_store_health():
     """Verifica se as tabelas de vetores existem e estão acessíveis."""

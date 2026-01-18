@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { ChatProvider } from "@/context/ChatContext";
+import { DebugProvider } from "@/contexts/DebugContext";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -19,7 +20,9 @@ export default function RootLayout({
         <div className="h-full overflow-hidden">
           <NuqsAdapter>
             <ChatProvider>
-              {children}
+              <DebugProvider>
+                {children}
+              </DebugProvider>
             </ChatProvider>
           </NuqsAdapter>
         </div>

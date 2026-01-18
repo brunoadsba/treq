@@ -31,7 +31,22 @@ wsl --set-default-version 2
 ### 1.3 Software Necessário
 - **Cursor** (editor baseado em VS Code)
 - **Git** instalado no WSL
-- **Node.js** (se aplicável ao projeto)
+- **Docker Desktop** (com integração WSL2 habilitada)
+- **Node.js & Python** (Opcional no host, recomendado APENAS via Docker)
+
+---
+
+## 2. Doutrina Docker-Centric (Estabilidade WSL2)
+
+O uso de Docker no WSL2 não é apenas uma conveniência, mas uma necessidade estratégica para o projeto Treq.
+
+### Por que Dockerizar? (WSL vs Docker)
+1. **Conflitos de Binários:** Bibliotecas como `psycopg2` e `numpy` compilam de forma diferente em cada distro. O Docker garante que o Agente Treq rode sempre em Debian/Alpine estável.
+2. **Rede (IPv6/IPv4):** O WSL2 tem comportamentos imprevisíveis de DNS. O Docker permite isolar a rede e forçar fallbacks (como o da porta 6543) de forma determinística.
+3. **Segmentation Faults:** Executar o Agente diretamente no WSL2 muitas vezes causa erros de memória que desaparecem no container.
+
+> [!IMPORTANT]
+> **A Regra de Ouro:** WSL2 é o motor de execução, Docker é o ambiente de trabalho. Use o shell do WSL2 apenas para gerenciar os containers.
 
 ---
 

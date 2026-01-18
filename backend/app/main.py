@@ -98,16 +98,6 @@ app.add_middleware(
 )
 
 
-# Startup Event - Pré-carregar modelo de embedding
-@app.on_event("startup")
-async def startup_event():
-    """
-    Startup event simplificado para deploy rápido.
-    Os modelos serão carregados sob demanda (lazy loading).
-    """
-    logger.info("🚀 Servidor pronto para receber requisições (Modo Cloud)")
-
-
 # Exception Handlers Globais (DEVE SER ANTES DOS ROUTERS)
 @app.exception_handler(RateLimitExceeded)
 async def rate_limit_exceeded_handler(request, exc: RateLimitExceeded):

@@ -2,23 +2,42 @@
 
 Next.js 15 frontend para o Assistente Operacional Treq.
 
-## Setup
+## 🐳 Setup via Docker (Recomendado)
+
+O desenvolvimento do frontend deve ser feito via Docker para garantir que a versão do Node.js e as dependências nativas sejam idênticas em todos os ambientes.
+
+1. **Subir o serviço com Hot-Reload**:
+   ```bash
+   docker compose up -d frontend
+   ```
+
+2. **Verificar Logs**:
+   ```bash
+   docker logs -f treq-frontend
+   ```
+
+A aplicação estará disponível em: [http://localhost:3000](http://localhost:3000)
+
+## ⚠️ Setup Manual (Alternativo)
+
+> [!NOTE]
+> Use este método apenas se tiver o Node.js 20+ instalado localmente no WSL2 e desejar evitar a sobrecarga do Docker.
 
 1. Instalar dependências:
-```bash
-npm install
-```
+   ```bash
+   npm install
+   ```
 
 2. Configurar variáveis de ambiente:
-```bash
-cp .env.example .env.local
-# Editar .env.local com suas credenciais
-```
+   ```bash
+   cp .env.example .env.local
+   # Editar .env.local com suas credenciais
+   ```
 
 3. Rodar servidor de desenvolvimento:
-```bash
-npm run dev
-```
+   ```bash
+   npm run dev
+   ```
 
 A aplicação estará disponível em: http://localhost:3000 (Certifique-se que o backend está na 8002)
 

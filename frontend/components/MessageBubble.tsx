@@ -14,6 +14,11 @@ const ChartMessage = lazy(() => import("./ChartMessage").then(m => ({ default: m
 import { ChartLoadingSkeleton } from "./ChartLoadingSkeleton";
 import { ReasoningDisplay } from "./ReasoningDisplay";
 import { FeedbackButtons } from "./FeedbackButtons";
+import { useDebugMode } from "@/contexts/DebugContext";
+import { ThoughtTimeline } from "./thinking/ThoughtTimeline";
+import { JiraTaskModal } from "./modals/JiraTaskModal";
+import { SlackMessageModal } from "./modals/SlackMessageModal";
+import { Settings2, Eye } from "lucide-react";
 
 // Função para processar conteúdo removendo tags <pensamento> e <resposta>
 // DEVE ser idêntica à função parseChainOfThought do FormattedMessage
@@ -45,6 +50,33 @@ export function MessageBubble({ message, isLoading: isGlobalLoading }: MessageBu
   } = useTTS();
 
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
+  const { isDebugMode } = useDebugMode();
+
+  // Estados para Modais
+  const [isJiraOpen, setIsJiraOpen] = useState(false);
+  const [isSlackOpen, setIsSlackOpen] = useState(false);
+  const [activePrefill, setActivePrefill] = useState<any>(null);
+
+  // Detectar se há ferramenta para editar
+  const jiraOutput = useMemo(() =>
+    message.tool_outputs?.find(t => t.tool === 'jira_create_ticket'),
+    [message.tool_outputs]
+  );
+
+  const slackOutput = useMemo(() =>
+    message.tool_outputs?.find(t => t.tool === 'slack_notify'),
+    [message.tool_outputs]
+  );
+
+  const handleEditTask = () => {
+    if (jiraOutput) {
+      setActivePrefill(jiraOutput.prefill);
+      setIsJiraOpen(true);
+    } else if (slackOutput) {
+      setActivePrefill(slackOutput.prefill);
+      setIsSlackOpen(true);
+    }
+  };
 
   // Processar conteúdo para áudio (remover tags <pensamento> e <resposta>)
   // CRÍTICO: Usar exatamente o mesmo conteúdo processado que é exibido visualmente
@@ -151,13 +183,18 @@ export function MessageBubble({ message, isLoading: isGlobalLoading }: MessageBu
         ) : (
           <>
             {/* Renderizar Reasoning (CoT) se disponível */}
-            {(message.reasoning || message.isThinking) && (
+            {(message.reasoning || message.isThinking) && !isDebugMode && (
               <ReasoningDisplay
                 plan={message.reasoning!}
                 isThinking={message.isThinking}
                 thinkingDuration={message.thinkingDuration}
                 className={message.chartData ? "mb-4" : ""}
               />
+            )}
+
+            {/* Renderizar ThoughtTimeline em modo Debug */}
+            {isDebugMode && message.execution_trace && (
+              <ThoughtTimeline executionTrace={message.execution_trace} />
             )}
 
             {/* Renderizar texto da mensagem (FormattedMessage) */}
@@ -179,6 +216,44 @@ export function MessageBubble({ message, isLoading: isGlobalLoading }: MessageBu
                 </Suspense>
               </div>
             )}
+
+            {/* Ações de Ferramentas (Botoes de Edição) */}
+            {(jiraOutput || slackOutput) && (
+              <div className="mt-4 p-3 rounded-xl bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-100 dark:border-yellow-900/50 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  <Settings2 className="w-4 h-4 text-yellow-600" />
+                  <span className="text-xs font-semibold text-yellow-800 dark:text-yellow-200">
+                    Ação automatizada disponível. Deseja revisar?
+                  </span>
+                </div>
+                <button
+                  onClick={handleEditTask}
+                  className="
+                    px-4 py-1.5 rounded-lg
+                    bg-yellow-500 text-black text-xs font-bold
+                    hover:bg-yellow-600 transition-all
+                    flex items-center gap-2 shadow-sm
+                  "
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  REVISAR E EXECUTAR
+                </button>
+              </div>
+            )}
+
+            {/* Modais */}
+            <JiraTaskModal
+              isOpen={isJiraOpen}
+              onClose={() => setIsJiraOpen(false)}
+              prefill={activePrefill}
+              threadId={message.id}
+            />
+            <SlackMessageModal
+              isOpen={isSlackOpen}
+              onClose={() => setIsSlackOpen(false)}
+              prefill={activePrefill}
+              threadId={message.id}
+            />
           </>
         )}
 
@@ -255,7 +330,7 @@ export function MessageBubble({ message, isLoading: isGlobalLoading }: MessageBu
 
             {/* Botões de Feedback */}
             <FeedbackButtons
-              messageId={message.runId || message.timestamp}
+              messageId={String(message.runId || message.timestamp || '')}
               className="ml-auto sm:ml-0"
             />
           </div>

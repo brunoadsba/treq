@@ -56,6 +56,11 @@ export interface ChatMessage {
   isThinking?: boolean;
   thinkingDuration?: number;
   imageUrl?: string;
+  thought?: string;
+  execution_trace?: any[];
+  tool_outputs?: any[];
+  thread_id?: string;
+  response_mode?: "text" | "tool" | "hybrid";
 }
 
 export interface ChatResponse {
@@ -160,7 +165,7 @@ export function useChat(userId: string = "default-user") {
         title,
         messages: [...messages],
         conversationId,
-        createdAt: messages[0]?.timestamp || new Date().toISOString(),
+        createdAt: typeof messages[0]?.timestamp === 'object' ? messages[0].timestamp.toISOString() : (messages[0]?.timestamp || new Date().toISOString()),
         updatedAt: new Date().toISOString(),
       };
 
@@ -236,7 +241,7 @@ export function useChat(userId: string = "default-user") {
         imageUrl: imageUrl
       };
 
-      setMessages((prev) => [...prev, userMessage]);
+      setMessages((prev: ChatMessage[]) => [...prev, userMessage]);
 
       try {
         // Criar mensagem do assistente vazia para streaming
@@ -284,7 +289,7 @@ export function useChat(userId: string = "default-user") {
           }
 
           // Adicionar mensagem vazia para começar a stream
-          setMessages((prev) => [...prev, assistantMessage]);
+          setMessages((prev: ChatMessage[]) => [...prev, assistantMessage]);
 
           // Ler stream SSE
           const reader = response.body?.getReader();
@@ -318,8 +323,8 @@ export function useChat(userId: string = "default-user") {
                           }
                           // Atualizar runId se fornecido no evento final
                           if (data.run_id) {
-                            setMessages((prev) =>
-                              prev.map((msg, idx) =>
+                            setMessages((prev: ChatMessage[]) =>
+                              prev.map((msg: ChatMessage, idx: number) =>
                                 idx === prev.length - 1 && msg.role === "assistant"
                                   ? { ...msg, runId: data.run_id }
                                   : msg
@@ -328,8 +333,8 @@ export function useChat(userId: string = "default-user") {
                           }
                           // Atualizar mensagem final se houver conteúdo
                           if (fullResponse) {
-                            setMessages((prev) =>
-                              prev.map((msg, idx) =>
+                            setMessages((prev: ChatMessage[]) =>
+                              prev.map((msg: ChatMessage, idx: number) =>
                                 idx === prev.length - 1 && msg.role === "assistant"
                                   ? { ...msg, content: fullResponse }
                                   : msg
@@ -375,8 +380,8 @@ export function useChat(userId: string = "default-user") {
                     if (data.chunk) {
                       fullResponse += data.chunk;
                       // Atualizar mensagem do assistente incrementalmente
-                      setMessages((prev) =>
-                        prev.map((msg, idx) =>
+                      setMessages((prev: ChatMessage[]) =>
+                        prev.map((msg: ChatMessage, idx: number) =>
                           idx === prev.length - 1 && msg.role === "assistant"
                             ? {
                               ...msg,
@@ -391,14 +396,47 @@ export function useChat(userId: string = "default-user") {
 
                     // NOVO: Detectar reasoning (CoT) no stream
                     if (data.type === 'reasoning' && data.plan) {
-                      setMessages((prev) =>
-                        prev.map((msg, idx) =>
+                      setMessages((prev: ChatMessage[]) =>
+                        prev.map((msg: ChatMessage, idx: number) =>
                           idx === prev.length - 1 && msg.role === "assistant"
                             ? { ...msg, reasoning: data.plan, runId: data.run_id }
                             : msg
                         )
                       );
                       continue;
+                    }
+
+                    // NOVO: Detectar pensamento (thought) direto
+                    if (data.thought) {
+                      setMessages((prev: ChatMessage[]) =>
+                        prev.map((msg: ChatMessage, idx: number) =>
+                          idx === prev.length - 1 && msg.role === "assistant"
+                            ? { ...msg, thought: data.thought }
+                            : msg
+                        )
+                      );
+                    }
+
+                    // NOVO: Detectar trace de execução
+                    if (data.execution_trace) {
+                      setMessages((prev: ChatMessage[]) =>
+                        prev.map((msg: ChatMessage, idx: number) =>
+                          idx === prev.length - 1 && msg.role === "assistant"
+                            ? { ...msg, execution_trace: data.execution_trace }
+                            : msg
+                        )
+                      );
+                    }
+
+                    // NOVO: Detectar outputs de ferramentas
+                    if (data.tool_outputs) {
+                      setMessages((prev: ChatMessage[]) =>
+                        prev.map((msg: ChatMessage, idx: number) =>
+                          idx === prev.length - 1 && msg.role === "assistant"
+                            ? { ...msg, tool_outputs: data.tool_outputs }
+                            : msg
+                        )
+                      );
                     }
 
                     // NOVO: Detectar chart_data no stream
@@ -421,7 +459,7 @@ export function useChat(userId: string = "default-user") {
                       };
 
                       // Remover mensagem vazia do assistente se existir
-                      setMessages((prev: any[]) => {
+                      setMessages((prev: ChatMessage[]) => {
                         const filtered = prev.filter((msg) => msg.content !== "" || msg.role !== "assistant");
                         return [...filtered, chartMessage];
                       });
@@ -472,8 +510,8 @@ export function useChat(userId: string = "default-user") {
 
                       // Atualizar mensagem final com conteúdo completo
                       if (fullResponse) {
-                        setMessages((prev) =>
-                          prev.map((msg, idx) =>
+                        setMessages((prev: ChatMessage[]) =>
+                          prev.map((msg: ChatMessage, idx: number) =>
                             idx === prev.length - 1 && msg.role === "assistant"
                               ? { ...msg, content: fullResponse, runId: data.run_id }
                               : msg
@@ -566,7 +604,7 @@ export function useChat(userId: string = "default-user") {
           // Adicionar resposta do assistente com runId
           assistantMessage.content = data.response;
           assistantMessage.runId = data.run_id;
-          setMessages((prev) => [...prev, assistantMessage]);
+          setMessages((prev: ChatMessage[]) => [...prev, assistantMessage]);
 
           return data;
         }
@@ -576,7 +614,7 @@ export function useChat(userId: string = "default-user") {
         setError(errorMessage);
 
         // Remover mensagem vazia do assistente se existir
-        setMessages((prev) => prev.filter((msg) => msg.content !== "" || msg.role !== "assistant"));
+        setMessages((prev: ChatMessage[]) => prev.filter((msg) => msg.content !== "" || msg.role !== "assistant"));
 
         // Adicionar mensagem de erro apenas se não for aborto intencional
         if (!(err instanceof Error && err.name === "AbortError")) {
@@ -586,7 +624,7 @@ export function useChat(userId: string = "default-user") {
             timestamp: new Date().toISOString(),
           };
 
-          setMessages((prev) => [...prev, errorMessageObj]);
+          setMessages((prev: ChatMessage[]) => [...prev, errorMessageObj]);
         }
 
         throw err; // Re-throw para permitir tratamento externo
@@ -595,7 +633,7 @@ export function useChat(userId: string = "default-user") {
         setIsLoading(false);
       }
     },
-    [apiUrl, userId, conversationId, currentConversationId]
+    [apiUrl, userId, conversationId, currentConversationId, setMessages, setIsLoading, setError, setConversationId]
   );
 
   // Cleanup: cancelar stream ao desmontar componente
@@ -633,7 +671,7 @@ export function useChat(userId: string = "default-user") {
       title,
       messages: [...messages],
       conversationId,
-      createdAt: messages[0]?.timestamp || new Date().toISOString(),
+      createdAt: typeof messages[0]?.timestamp === 'object' ? messages[0].timestamp.toISOString() : (messages[0]?.timestamp || new Date().toISOString()),
       updatedAt: new Date().toISOString(),
     };
 

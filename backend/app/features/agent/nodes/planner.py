@@ -1,89 +1,98 @@
-"""
-Planner Node - Decide a próxima ação do agente.
-
-Analisa a query do usuário e decide:
-- call_rag: Buscar informações na base de conhecimento
-- call_tool: Executar uma ferramenta externa (Jira, Slack)
-- respond: Responder diretamente (perguntas simples)
-"""
-
+import re
 from loguru import logger
+from langchain_core.output_parsers import PydanticOutputParser
 from ..state import AgentState
+from ..schemas import PlannerDecision
+from ..prompts import get_planner_system_prompt
+from app.services.llm_service import LLMService
 
+# Instâncias globais
+llm_service = LLMService()
+parser = PydanticOutputParser(pydantic_object=PlannerDecision)
 
-from ..tools.registry import ToolRegistry
-
+def clean_json_response(text: str) -> str:
+    """Extrai o bloco JSON de uma resposta que pode conter markdown ou explicações."""
+    # Procura pelo maior bloco que começa com '{' e termina com '}'
+    # Isso captura o objeto JSON ignorando qualquer texto antes ou depois, incluindo tags de markdown
+    match = re.search(r'(\{.*\})', text, re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    return text.strip()
 
 async def planner_node(state: AgentState) -> dict:
     """
-    Decide se a query precisa de RAG, Tool ou Resposta Direta.
-    
-    Args:
-        state: Estado atual do agente
-        
-    Returns:
-        dict com next_action definido
+    Gera plano de execução usando raciocínio ReAct via LLM.
     """
-    logger.info("🧠 PLANNER: Analisando query...")
+    logger.info("🧠 PLANNER: Iniciando raciocínio cognitivo...")
     
     last_message = state['messages'][-1].content
+    user_id = state.get('user_id', 'Anônimo')
     
-    # Detecção dinâmica de intenção via Registry
-    detected_tool = ToolRegistry.detect_tool(last_message)
+    # 1. Preparar Contexto e Prompt
+    system_prompt = get_planner_system_prompt({"user_id": user_id})
+    format_instructions = parser.get_format_instructions()
     
-    if detected_tool:
-        logger.info(f"🔧 PLANNER: Decisão -> call_tool ({detected_tool})")
-        return {"next_action": "call_tool"}
-    
-    # Detecção de Greeting (Saudação)
-    # Detecção de Greeting (Saudação) e Inputs Curtos
-    GREETINGS = [
-        "oi", "ola", "olá", "bom dia", "boa tarde", "boa noite", 
-        "e ai", "e aí", "eae", "opa", "hello", "hi", "test", "teste",
-        "quem é você", "quem e voce", "quem é voce", "quem e você"
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": f"Mensagem do usuário: {last_message}\n\n{format_instructions}"}
     ]
     
-    last_msg_clean = last_message.strip().lower()
-    # Remove pontuação básica para comparação
-    last_msg_clean = "".join(c for c in last_msg_clean if c.isalnum() or c.isspace())
-    
-    should_respond_directly = (
-        last_msg_clean in GREETINGS or 
-        (len(last_msg_clean) < 5 and "ajud" not in last_msg_clean and "erro" not in last_msg_clean)
-    )
-    
-    if should_respond_directly:
-        logger.info("👋 PLANNER: Decisão -> respond (Greeting/Short)")
-        return {"next_action": "respond"}
+    try:
+        # 2. Chamada ao LLM
+        raw_response = llm_service.generate_response(
+            messages,
+            query_type="agent_planner",
+            temperature=0.1 
+        )
+        
+        # Limpeza agressiva do JSON para evitar falhas de modelos "falantes"
+        cleaned_response = clean_json_response(raw_response)
+        
+        # 3. Parsing da Decisão
+        decision = parser.parse(cleaned_response)
+        logger.info(f"🧠 PLANNER: Intenção detectada -> {decision.intent} (Confiança: {decision.confidence_score})")
+        
+        # Registrar rastro de pensamento
+        execution_trace = state.get('execution_trace', [])
+        execution_trace.append({
+            "step": "planner",
+            "thought": decision.thought,
+            "intent": decision.intent,
+            "confidence": decision.confidence_score
+        })
 
-    # Default: buscar no RAG
-    # --- Novo Fluxo RAG ---
-    # Se o modelo decidir buscar conhecimento (passo de pensamento), 
-    # ou se for o padrão para perguntas complexas
-    
-    # Simple Heuristic Fallback (Pode ser substituido por LLM call aqui)
-    # Se não é tool direta e não é greeting -> RAG
-    
-    logger.info("📚 PLANNER: Decisão -> retrieve_knowledge")
-    
-    # --- Self-Correction Logic ---
-    # Verifica se já buscamos e falhou (Contexto vazio ou mensagem de erro)
-    # Se steps_taken > 2, desistimos para evitar loop
-    steps = state.get("steps_taken", 0)
-    context = state.get("context", [])
-    
-    if steps > 0:
-        # Verifica se o último contexto foi vazio ou erro
-        last_context = context[-1] if context else ""
-        if "SEARCH_EMPTY" in last_context or not context:
-            if steps < 2:
-                 # TODO: Aqui poderíamos usar um LLM para reformular a query
-                 # Por enquanto, como é heurístico, se falhar 1 vez, vamos para o responder
-                 # que dirá "Não encontrei".
-                 logger.info("⚠️ PLANNER: Busca falhou anteriormente. Encaminhando para resposta final.")
-                 return {"next_action": "responder"}
-            else:
-                 logger.warning("🛑 PLANNER: Loop de busca detectado. Forçando resposta.")
-                 return {"next_action": "responder"}
+        # Mapeamento de intenção para next_action do grafo
+        intent_mapping = {
+            "create_task": "executor",
+            "search_knowledge": "retriever",
+            "answer_directly": "responder",
+            "clarify": "responder" 
+        }
+        
+        next_action = intent_mapping.get(decision.intent, "retriever")
 
-    return {"next_action": "retriever"}
+        # 4. Controle de Loop (Auto-correção)
+        steps = state.get("steps_taken", 0)
+        if next_action == "retriever" and steps >= 2:
+            logger.warning("🛑 PLANNER: Limite de buscas atingido. Forçando encerramento.")
+            next_action = "responder"
+
+        return {
+            "next_action": next_action,
+            "current_decision": decision,
+            "execution_trace": execution_trace,
+            "steps_taken": steps + 1
+        }
+
+    except Exception as e:
+        logger.error(f"❌ PLANNER: Falha no planejamento - {e}")
+        if 'raw_response' in locals():
+            logger.debug(f"📄 Raw Response que falhou: {raw_response[:500]}...")
+            
+        # Fallback seguro
+        return {
+            "next_action": "retriever",
+            "execution_trace": state.get('execution_trace', []) + [{"error": str(e)}],
+            "steps_taken": state.get("steps_taken", 0) + 1,
+            "current_decision": None
+        }

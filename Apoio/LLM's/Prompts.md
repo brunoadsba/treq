@@ -383,15 +383,7 @@ Formato de Saída Obrigatório
 4. Riscos e Considerações de Longo Prazo
 5. Grau de Confiança da Decisão
 
-Entrada
-[ver documento solucao-erros-criticos.md]
-```
-
-
-
-
-```text
-Papel: Criador de Plano de Implementação
+----------
 
 
 
@@ -442,8 +434,17 @@ Formato de Saída Obrigatório
 6. Riscos e Estratégias de Mitigação
 7. Plano de Validação e Testes
 8. Considerações de Manutenção e Evolução
-9. Grau de Confiança do Plano
+### Padrão Docker de Execução (WSL2 Policy)
 
+Sempre que gerar planos de ação ou comandos de terminal:
+
+1. **Prioridade Máxima:** O Docker é o único ambiente de execução.
+2. **Comandos:** Use sempre `docker compose exec [serviço] [comando]` ou `docker exec -it [container] [comando]`.
+3. **Escopo:** Nunca sugira `pip install` ou `npm install` no shell do host (WSL2), a menos que seja para ferramentas globais (ex: `docker-compose`).
+4. **Isolamento:** Bibliotecas binárias (psycopg2, numpy) devem ser instaladas APENAS via Dockerfile.
+
+> [!CAUTION]
+> A execução nativa no WSL2 é considerada instável para este projeto (risco de Segmentation Fault). O Docker garante a sanidade binária.
 
 ------------
 

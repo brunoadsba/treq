@@ -20,10 +20,9 @@ from .nodes import planner_node, retriever_node, executor_node, responder_node
 
 def route_after_planner(state: AgentState) -> Literal["retriever", "executor", "responder"]:
     """Edge condicional após o planner."""
-    if state.get("next_action") == "call_tool":
-        return "executor"
-    if state.get("next_action") == "respond":
-        return "responder"
+    next_action = state.get("next_action")
+    if next_action in ["retriever", "executor", "responder"]:
+        return next_action
     return "retriever"
 
 
@@ -77,23 +76,11 @@ def create_agent_graph():
     
     # Compilar
     # Compilar com Checkpointer
-    try:
-        from app.core.checkpointer import PostgresSaver
-        from app.services.vector_health import get_database_url
-        
-        db_url = get_database_url()
-        if db_url:
-            checkpointer = PostgresSaver(conn_string=db_url)
-            compiled = graph.compile(checkpointer=checkpointer)
-            logger.info("✅ Grafo compilado com Checkpointer (Postgres)")
-        else:
-            logger.warning("⚠️ DATABASE_URL não encontrada. Compilando SEM persistencia.")
-            compiled = graph.compile()
-            
-    except Exception as e:
-        logger.error(f"❌ Erro ao configurar Checkpointer: {e}. Usando MemorySaver.")
-        from langgraph.checkpoint.memory import MemorySaver
-        compiled = graph.compile(checkpointer=MemorySaver())
+    # Compilar com Checkpointer Enterprise
+    from app.core.checkpointer import get_checkpointer
+    
+    checkpointer = get_checkpointer()
+    compiled = graph.compile(checkpointer=checkpointer)
     
     logger.info("✅ Grafo do agente compilado com sucesso")
     

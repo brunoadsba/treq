@@ -4,6 +4,7 @@ from loguru import logger
 from langchain_community.vectorstores import PGVector
 from langchain_core.embeddings import Embeddings
 from app.config import get_settings
+from app.core.database import get_database_url
 from google import genai
 from google.genai import types
 
@@ -47,11 +48,9 @@ class CustomGeminiEmbeddings(Embeddings):
             return [0.0] * self.dimensions
 
 # Configuração da Connection String (Enterprise SSOT)
-DB_CONNECTION = settings.database_url
+DB_CONNECTION = get_database_url()
 if not DB_CONNECTION:
-    # Fallback derivado das configurações de ambiente se URL direta não existir
-    logger.warning("DATABASE_URL não configurada explicitamente. Usando fallback.")
-    DB_CONNECTION = "postgresql+psycopg2://postgres:postgres@localhost:5432/postgres"
+    logger.warning("DATABASE_URL não resolvida. RAG operará em modo degradado.")
 
 # Nome da coleção (Enterprise Namespace)
 COLLECTION_NAME = "treq_knowledge_base"

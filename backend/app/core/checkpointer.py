@@ -19,6 +19,9 @@ from langgraph.checkpoint.base import (
     SerializerProtocol,
 )
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
+from langgraph.checkpoint.memory import MemorySaver
+from app.core.database import get_database_url
+from loguru import logger
 
 class PostgresSaver(BaseCheckpointSaver):
     def __init__(
@@ -136,3 +139,24 @@ class PostgresSaver(BaseCheckpointSaver):
                 "checkpoint_id": checkpoint_id,
             }
         }
+
+def get_checkpointer() -> BaseCheckpointSaver:
+    """
+    Factory function que retorna um checkpointer persistente (Postgres)
+    ou fallback para memória se o DB falhar.
+    """
+    db_url = get_database_url()
+    
+    if not db_url:
+        logger.warning("⚠️ Checkpointer: DATABASE_URL não encontrada. Usando MemorySaver.")
+        return MemorySaver()
+        
+    try:
+        # Tenta inicializar PostgresSaver (Sync)
+        # O construtor do PostgresSaver já chama _ensure_table() que testa a conexão
+        saver = PostgresSaver(conn_string=db_url)
+        logger.info("✅ Checkpointer: PostgresSaver (Sync) ativado com sucesso.")
+        return saver
+    except Exception as e:
+        logger.warning(f"⚠️ Checkpointer: Falha ao conectar no Postgres ({e}). Usando MemorySaver como fallback.")
+        return MemorySaver()
