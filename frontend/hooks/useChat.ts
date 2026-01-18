@@ -85,16 +85,36 @@ export interface SavedConversation {
 
 export function useChat(userId: string = "default-user") {
   const {
-    messages,
-    setMessages,
-    conversationId,
-    setConversationId,
-    isLoading,
-    setIsLoading,
-    error,
-    setError,
-    clearSession
+    chatState,
+    setChatState,
+    clearChatSession
   } = useChatContext();
+
+  const { messages, conversationId, isLoading, error } = chatState;
+
+  // Helper setters for compatibility
+  const setMessages = useCallback((updater: any) => {
+    setChatState(prev => ({
+      ...prev,
+      messages: typeof updater === 'function' ? updater(prev.messages) : updater
+    }));
+  }, [setChatState]);
+
+  const setConversationId = useCallback((id: string | null) => {
+    setChatState(prev => ({ ...prev, conversationId: id }));
+  }, [setChatState]);
+
+  const setIsLoading = useCallback((loading: boolean) => {
+    setChatState(prev => ({ ...prev, isLoading: loading }));
+  }, [setChatState]);
+
+  const setError = useCallback((err: string | null) => {
+    setChatState(prev => ({ ...prev, error: err }));
+  }, [setChatState]);
+
+  const clearMessages = useCallback(() => {
+    clearChatSession();
+  }, [clearChatSession]);
 
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
 

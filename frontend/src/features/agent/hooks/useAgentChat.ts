@@ -25,16 +25,32 @@ const STORAGE_KEY = 'treq-agent-history';
 
 export function useAgentChat(userId: string = "default-user"): UseAgentChatReturn {
     const {
-        messages,
-        setMessages,
-        isLoading,
-        setIsLoading,
-        error,
-        setError,
-        conversationId,
-        setConversationId,
-        clearSession
+        agentState,
+        setAgentState,
+        clearAgentSession
     } = useChatContext();
+
+    const { messages, conversationId, isLoading, error } = agentState;
+
+    // Helper setters for compatibility
+    const setMessages = useCallback((updater: any) => {
+        setAgentState(prev => ({
+            ...prev,
+            messages: typeof updater === 'function' ? updater(prev.messages) : updater
+        }));
+    }, [setAgentState]);
+
+    const setConversationId = useCallback((id: string | null) => {
+        setAgentState(prev => ({ ...prev, conversationId: id }));
+    }, [setAgentState]);
+
+    const setIsLoading = useCallback((loading: boolean) => {
+        setAgentState(prev => ({ ...prev, isLoading: loading }));
+    }, [setAgentState]);
+
+    const setError = useCallback((err: string | null) => {
+        setAgentState(prev => ({ ...prev, error: err }));
+    }, [setAgentState]);
 
     const [savedConversations, setSavedConversations] = useState<SavedConversation[]>([]);
 
@@ -98,13 +114,13 @@ export function useAgentChat(userId: string = "default-user"): UseAgentChatRetur
     }, [messages, conversationId]);
 
     const clearMessages = useCallback(() => {
-        clearSession();
-    }, [clearSession]);
+        clearAgentSession();
+    }, [clearAgentSession]);
 
     const startNewConversation = useCallback(() => {
-        clearSession();
+        clearAgentSession();
         setConversationId(crypto.randomUUID());
-    }, [clearSession, setConversationId]);
+    }, [clearAgentSession, setConversationId]);
 
     const loadConversation = useCallback((id: string) => {
         const conv = savedConversations.find(c => c.id === id);

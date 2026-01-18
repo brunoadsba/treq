@@ -16,84 +16,122 @@ export interface ChatMessage {
     isThinking?: boolean;
 }
 
-interface ChatContextType {
+interface FeatureState {
     messages: ChatMessage[];
-    setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
     conversationId: string | null;
-    setConversationId: (id: string | null) => void;
     isLoading: boolean;
-    setIsLoading: (loading: boolean) => void;
     error: string | null;
-    setError: (error: string | null) => void;
-    clearSession: () => void;
+}
+
+interface ChatContextType {
+    chatState: FeatureState;
+    setChatState: React.Dispatch<React.SetStateAction<FeatureState>>;
+    agentState: FeatureState;
+    setAgentState: React.Dispatch<React.SetStateAction<FeatureState>>;
+    clearChatSession: () => void;
+    clearAgentSession: () => void;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
 const STORAGE_KEYS = {
-    MESSAGES: 'treq_active_messages',
-    CONVERSATION_ID: 'treq_active_conversation_id',
+    CHAT_MESSAGES: 'treq_chat_active_messages',
+    CHAT_CONV_ID: 'treq_chat_active_conversation_id',
+    AGENT_MESSAGES: 'treq_agent_active_messages',
+    AGENT_CONV_ID: 'treq_agent_active_conversation_id',
+};
+
+const DEFAULT_STATE: FeatureState = {
+    messages: [],
+    conversationId: null,
+    isLoading: false,
+    error: null,
 };
 
 export function ChatProvider({ children }: { children: ReactNode }) {
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
-    const [conversationId, setConversationId] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [chatState, setChatState] = useState<FeatureState>(DEFAULT_STATE);
+    const [agentState, setAgentState] = useState<FeatureState>(DEFAULT_STATE);
 
     // Initial restore from localStorage
     useEffect(() => {
-        const savedMessages = localStorage.getItem(STORAGE_KEYS.MESSAGES);
-        const savedId = localStorage.getItem(STORAGE_KEYS.CONVERSATION_ID);
+        const savedChatMessages = localStorage.getItem(STORAGE_KEYS.CHAT_MESSAGES);
+        const savedChatId = localStorage.getItem(STORAGE_KEYS.CHAT_CONV_ID);
+        const savedAgentMessages = localStorage.getItem(STORAGE_KEYS.AGENT_MESSAGES);
+        const savedAgentId = localStorage.getItem(STORAGE_KEYS.AGENT_CONV_ID);
 
-        if (savedMessages) {
+        if (savedChatMessages) {
             try {
-                setMessages(JSON.parse(savedMessages));
-            } catch (e) {
-                console.error("Failed to parse saved messages", e);
-            }
+                setChatState(prev => ({
+                    ...prev,
+                    messages: JSON.parse(savedChatMessages),
+                    conversationId: savedChatId
+                }));
+            } catch (e) { console.error("Failed to parse chat messages", e); }
+        } else if (savedChatId) {
+            setChatState(prev => ({ ...prev, conversationId: savedChatId }));
         }
-        if (savedId) {
-            setConversationId(savedId);
+
+        if (savedAgentMessages) {
+            try {
+                setAgentState(prev => ({
+                    ...prev,
+                    messages: JSON.parse(savedAgentMessages),
+                    conversationId: savedAgentId
+                }));
+            } catch (e) { console.error("Failed to parse agent messages", e); }
+        } else if (savedAgentId) {
+            setAgentState(prev => ({ ...prev, conversationId: savedAgentId }));
         }
     }, []);
 
-    // Persist on change
+    // Persist Chat State
     useEffect(() => {
-        if (messages.length > 0) {
-            localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(messages));
+        if (chatState.messages.length > 0) {
+            localStorage.setItem(STORAGE_KEYS.CHAT_MESSAGES, JSON.stringify(chatState.messages));
         } else {
-            localStorage.removeItem(STORAGE_KEYS.MESSAGES);
+            localStorage.removeItem(STORAGE_KEYS.CHAT_MESSAGES);
         }
-    }, [messages]);
+        if (chatState.conversationId) {
+            localStorage.setItem(STORAGE_KEYS.CHAT_CONV_ID, chatState.conversationId);
+        } else {
+            localStorage.removeItem(STORAGE_KEYS.CHAT_CONV_ID);
+        }
+    }, [chatState.messages, chatState.conversationId]);
 
+    // Persist Agent State
     useEffect(() => {
-        if (conversationId) {
-            localStorage.setItem(STORAGE_KEYS.CONVERSATION_ID, conversationId);
+        if (agentState.messages.length > 0) {
+            localStorage.setItem(STORAGE_KEYS.AGENT_MESSAGES, JSON.stringify(agentState.messages));
         } else {
-            localStorage.removeItem(STORAGE_KEYS.CONVERSATION_ID);
+            localStorage.removeItem(STORAGE_KEYS.AGENT_MESSAGES);
         }
-    }, [conversationId]);
+        if (agentState.conversationId) {
+            localStorage.setItem(STORAGE_KEYS.AGENT_CONV_ID, agentState.conversationId);
+        } else {
+            localStorage.removeItem(STORAGE_KEYS.AGENT_CONV_ID);
+        }
+    }, [agentState.messages, agentState.conversationId]);
 
-    const clearSession = useCallback(() => {
-        setMessages([]);
-        setConversationId(null);
-        setError(null);
-        localStorage.removeItem(STORAGE_KEYS.MESSAGES);
-        localStorage.removeItem(STORAGE_KEYS.CONVERSATION_ID);
+    const clearChatSession = useCallback(() => {
+        setChatState(DEFAULT_STATE);
+        localStorage.removeItem(STORAGE_KEYS.CHAT_MESSAGES);
+        localStorage.removeItem(STORAGE_KEYS.CHAT_CONV_ID);
+    }, []);
+
+    const clearAgentSession = useCallback(() => {
+        setAgentState(DEFAULT_STATE);
+        localStorage.removeItem(STORAGE_KEYS.AGENT_MESSAGES);
+        localStorage.removeItem(STORAGE_KEYS.AGENT_CONV_ID);
     }, []);
 
     return (
         <ChatContext.Provider value={{
-            messages,
-            setMessages,
-            conversationId,
-            setConversationId,
-            isLoading,
-            setIsLoading,
-            error,
-            setError,
-            clearSession
+            chatState,
+            setChatState,
+            agentState,
+            setAgentState,
+            clearChatSession,
+            clearAgentSession
         }}>
             {children}
         </ChatContext.Provider>

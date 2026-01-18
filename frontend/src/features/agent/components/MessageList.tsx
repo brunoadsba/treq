@@ -70,12 +70,12 @@ export function MessageList({ messages, isLoading }: MessageListProps) {
                 )}
 
                 {/* Messages */}
-                {messages.map((msg) => (
+                {messages.map((msg, idx) => (
                     msg.role === 'user' ? (
-                        <UserBubble key={msg.id} content={msg.content} />
+                        <UserBubble key={msg.id || `user-${idx}`} content={msg.content} />
                     ) : (
                         <AgentBubble
-                            key={msg.id}
+                            key={msg.id || `agent-${idx}`}
                             content={msg.content}
                             toolsUsed={msg.toolsUsed}
                         />
