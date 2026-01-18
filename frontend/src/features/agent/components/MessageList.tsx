@@ -43,9 +43,23 @@ export function MessageList({ messages, isLoading }: MessageListProps) {
             <div className="max-w-5xl mx-auto space-y-6 w-full">
                 {/* Welcome Message if empty */}
                 {messages.length === 0 && !isLoading && (
-                    <div className="text-center py-20 opacity-50">
-                        <h3 className="text-xl font-semibold mb-2">Treq Enterprise Agent</h3>
-                        <p>Como posso ajudar você nas operações hoje?</p>
+                    <div className="flex flex-col items-center justify-center py-24 animate-in fade-in zoom-in duration-1000">
+                        <div className="w-16 h-16 bg-treq-yellow rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-treq-yellow/10 animate-subtle-sway">
+                            <span className="text-treq-black text-3xl font-black">T</span>
+                        </div>
+                        <div className="flex flex-col items-center gap-1">
+                            <span className="text-treq-gray-900 dark:text-white text-2xl font-serif italic tracking-tight">
+                                {new Intl.DateTimeFormat('pt-BR', {
+                                    weekday: 'long',
+                                    day: 'numeric',
+                                    month: 'long',
+                                    year: 'numeric'
+                                }).format(new Date()).replace(/^\w/, (c) => c.toUpperCase())}
+                            </span>
+                            <p className="text-treq-gray-400 dark:text-treq-gray-500 text-sm font-medium uppercase tracking-[0.2em]">
+                                Assistente Operacional Enterprise
+                            </p>
+                        </div>
                     </div>
                 )}
 
