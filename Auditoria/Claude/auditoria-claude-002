@@ -1,0 +1,2579 @@
+# 📋 Plano de Auditoria e Implementação - Treq Enterprise 2.0
+
+**Data:** 18 de Janeiro de 2026  
+**Branch Analisada:** `5S`  
+**Status:** Revisão Técnica Completa
+
+---
+
+## 🔍 RESUMO EXECUTIVO
+
+### Pontuação Geral: 7.5/10
+
+**Pontos Fortes:**
+- Arquitetura agêntica moderna (LangGraph)
+- Metodologia 5S bem implementada
+- Segurança por design (RLS + JWT)
+- Documentação técnica sólida
+
+**Áreas Críticas de Melhoria:**
+- Falta de testes automatizados robustos
+- Ausência de CI/CD configurado
+- Monitoramento e observabilidade limitados
+- Documentação de API incompleta
+- Estratégia de cache não implementada
+
+---
+
+## 🚨 ERROS CRÍTICOS IDENTIFICADOS
+
+### 1. **SEGURANÇA - Nível Alto**
+
+#### 1.1 Exposição de Secrets
+**Problema:** Verificar se há secrets no código ou arquivos `.env.example` com valores reais.
+
+**Impacto:** ⚠️ CRÍTICO - Vazamento de credenciais  
+**Prioridade:** P0 (Imediato)
+
+**Ação:**
+```bash
+# Executar auditoria de secrets
+git secrets --scan
+# Ou usar gitleaks
+gitleaks detect --source . --verbose
+```
+
+**Implementação:**
+- [ ] Instalar git-secrets ou gitleaks no CI/CD
+- [ ] Escanear histórico completo do Git
+- [ ] Rotacionar todas as chaves se houver exposição
+- [ ] Adicionar pre-commit hook para prevenir futuros vazamentos
+- [ ] Implementar vault (HashiCorp Vault, AWS Secrets Manager ou Doppler)
+
+---
+
+#### 1.2 Validação de Input Insuficiente
+**Problema:** Documento menciona validação Zod no frontend, mas não há evidência de validação robusta no backend.
+
+**Impacto:** 🔴 ALTO - SQL Injection, Command Injection  
+**Prioridade:** P0
+
+**Implementação:**
+```python
+# backend/app/core/validators.py
+from pydantic import BaseModel, validator, Field
+from typing import Optional
+import re
+
+class ChatMessageValidator(BaseModel):
+    message: str = Field(..., min_length=1, max_length=10000)
+    user_id: str = Field(..., regex=r'^[a-f0-9-]{36}$')  # UUID format
+    
+    @validator('message')
+    def sanitize_message(cls, v):
+        # Remove caracteres perigosos
+        dangerous_patterns = [
+            r'<script[^>]*>.*?</script>',
+            r'javascript:',
+            r'on\w+\s*=',
+        ]
+        for pattern in dangerous_patterns:
+            v = re.sub(pattern, '', v, flags=re.IGNORECASE)
+        return v.strip()
+
+class FileUploadValidator(BaseModel):
+    filename: str = Field(..., max_length=255)
+    content_type: str
+    size_bytes: int = Field(..., le=10_000_000)  # 10MB limit
+    
+    @validator('filename')
+    def validate_filename(cls, v):
+        # Prevenir path traversal
+        if '..' in v or '/' in v or '\\' in v:
+            raise ValueError('Invalid filename')
+        # Apenas extensões permitidas
+        allowed_extensions = {'.pdf', '.txt', '.md', '.jpg', '.png'}
+        if not any(v.lower().endswith(ext) for ext in allowed_extensions):
+            raise ValueError(f'File type not allowed. Allowed: {allowed_extensions}')
+        return v
+```
+
+**Checklist:**
+- [ ] Implementar validators Pydantic para todos os endpoints
+- [ ] Adicionar rate limiting por endpoint (não apenas global)
+- [ ] Implementar WAF rules no Nginx
+- [ ] Adicionar Content Security Policy headers
+- [ ] Implementar input sanitization para prevenir XSS
+
+---
+
+#### 1.3 Proteção Contra Prompt Injection
+**Problema:** Sistema LLM vulnerável a prompt injection attacks.
+
+**Impacto:** 🔴 ALTO - Bypass de segurança, acesso não autorizado  
+**Prioridade:** P0
+
+**Implementação:**
+```python
+# backend/app/features/security/prompt_guard.py
+from typing import List
+import re
+
+class PromptInjectionGuard:
+    """Protege contra ataques de prompt injection"""
+    
+    DANGEROUS_PATTERNS = [
+        # Tentativas de override de sistema
+        r'ignore\s+(previous|all|above)\s+instructions?',
+        r'disregard\s+(previous|all|above)',
+        r'forget\s+(previous|all|everything)',
+        
+        # Tentativas de exfiltração
+        r'(show|display|print|output)\s+(system|hidden|secret)',
+        r'repeat\s+(your|the)\s+(instructions|prompt)',
+        
+        # Tentativas de role-playing malicioso
+        r'you\s+are\s+now\s+a\s+(hacker|attacker)',
+        r'pretend\s+to\s+be',
+        
+        # Comandos do sistema
+        r'\\x[0-9a-fA-F]{2}',  # Hex encoding
+        r'base64\s*\(',
+    ]
+    
+    def is_suspicious(self, text: str) -> tuple[bool, List[str]]:
+        """Retorna (is_suspicious, matched_patterns)"""
+        matched = []
+        for pattern in self.DANGEROUS_PATTERNS:
+            if re.search(pattern, text, re.IGNORECASE):
+                matched.append(pattern)
+        return (len(matched) > 0, matched)
+    
+    def sanitize(self, text: str) -> str:
+        """Remove ou neutraliza padrões perigosos"""
+        # Implementar lógica de sanitização
+        sanitized = text
+        for pattern in self.DANGEROUS_PATTERNS:
+            sanitized = re.sub(pattern, '[FILTERED]', sanitized, flags=re.IGNORECASE)
+        return sanitized
+
+# Uso no agent
+guard = PromptInjectionGuard()
+is_suspicious, patterns = guard.is_suspicious(user_message)
+if is_suspicious:
+    logger.warning(f"Suspicious prompt detected: {patterns}")
+    # Opção 1: Rejeitar
+    # raise HTTPException(400, "Invalid input")
+    # Opção 2: Sanitizar
+    user_message = guard.sanitize(user_message)
+```
+
+**Checklist:**
+- [ ] Implementar PromptInjectionGuard
+- [ ] Adicionar logging de tentativas suspeitas
+- [ ] Criar sistema de scoring de confiança do usuário
+- [ ] Implementar rate limiting mais agressivo para padrões suspeitos
+- [ ] Adicionar monitoramento de anomalias no uso do LLM
+
+---
+
+### 2. **ARQUITETURA - Nível Médio-Alto**
+
+#### 2.1 Ausência de Estratégia de Cache
+**Problema:** Sem cache implementado, causando latência e custos desnecessários.
+
+**Impacto:** 🟡 MÉDIO - Performance degradada, custos elevados  
+**Prioridade:** P1
+
+**Implementação:**
+```python
+# backend/app/core/cache.py
+from typing import Optional, Any
+from redis import Redis
+import json
+import hashlib
+from functools import wraps
+
+class CacheManager:
+    def __init__(self, redis_client: Redis):
+        self.redis = redis_client
+        
+    def _make_key(self, prefix: str, *args, **kwargs) -> str:
+        """Gera chave de cache determinística"""
+        data = json.dumps({'args': args, 'kwargs': kwargs}, sort_keys=True)
+        hash_key = hashlib.sha256(data.encode()).hexdigest()[:16]
+        return f"{prefix}:{hash_key}"
+    
+    def cache_rag_query(self, ttl: int = 3600):
+        """Decorator para cache de queries RAG"""
+        def decorator(func):
+            @wraps(func)
+            async def wrapper(*args, **kwargs):
+                cache_key = self._make_key('rag', *args, **kwargs)
+                
+                # Tentar buscar do cache
+                cached = self.redis.get(cache_key)
+                if cached:
+                    return json.loads(cached)
+                
+                # Executar função
+                result = await func(*args, **kwargs)
+                
+                # Armazenar no cache
+                self.redis.setex(cache_key, ttl, json.dumps(result))
+                return result
+            return wrapper
+        return decorator
+    
+    def cache_llm_response(self, ttl: int = 7200):
+        """Decorator para cache de respostas LLM"""
+        def decorator(func):
+            @wraps(func)
+            async def wrapper(*args, **kwargs):
+                cache_key = self._make_key('llm', *args, **kwargs)
+                
+                cached = self.redis.get(cache_key)
+                if cached:
+                    return json.loads(cached)
+                
+                result = await func(*args, **kwargs)
+                self.redis.setex(cache_key, ttl, json.dumps(result))
+                return result
+            return wrapper
+        return decorator
+
+# Uso
+cache = CacheManager(redis_client)
+
+@cache.cache_rag_query(ttl=1800)
+async def search_documents(query: str, user_id: str):
+    # Lógica de busca
+    pass
+
+@cache.cache_llm_response(ttl=3600)
+async def generate_response(prompt: str, context: str):
+    # Lógica de geração
+    pass
+```
+
+**Estratégia de Cache Multi-Camadas:**
+```yaml
+# Camadas de Cache
+1. Browser Cache (Frontend):
+   - Static assets: 1 ano
+   - API responses: 5 minutos (com revalidation)
+
+2. CDN Cache (Cloudflare/AWS CloudFront):
+   - Static assets: 1 mês
+   - API responses públicas: 1 hora
+
+3. Application Cache (Redis):
+   - RAG queries: 30 minutos
+   - LLM responses: 1 hora
+   - User sessions: 24 horas
+   - Rate limit counters: 1 minuto
+
+4. Database Query Cache:
+   - Metadados de documentos: 15 minutos
+   - Configurações do sistema: 1 hora
+```
+
+**Checklist:**
+- [ ] Implementar CacheManager
+- [ ] Adicionar cache em todos os endpoints de leitura
+- [ ] Implementar cache warming para queries frequentes
+- [ ] Adicionar métricas de hit/miss ratio
+- [ ] Implementar invalidação inteligente de cache
+- [ ] Documentar estratégia de TTL por recurso
+
+---
+
+#### 2.2 Falta de Circuit Breaker para Serviços Externos
+**Problema:** Sem proteção contra falhas em cascata quando APIs externas falham.
+
+**Impacto:** 🟡 MÉDIO - Degradação do serviço completo  
+**Prioridade:** P1
+
+**Implementação:**
+```python
+# backend/app/core/resilience.py
+from enum import Enum
+from datetime import datetime, timedelta
+import asyncio
+from typing import Callable, Any
+
+class CircuitState(Enum):
+    CLOSED = "closed"      # Normal operation
+    OPEN = "open"          # Failing, reject requests
+    HALF_OPEN = "half_open"  # Testing if recovered
+
+class CircuitBreaker:
+    def __init__(
+        self,
+        failure_threshold: int = 5,
+        recovery_timeout: int = 60,
+        expected_exception: type = Exception
+    ):
+        self.failure_threshold = failure_threshold
+        self.recovery_timeout = recovery_timeout
+        self.expected_exception = expected_exception
+        
+        self.failure_count = 0
+        self.last_failure_time = None
+        self.state = CircuitState.CLOSED
+    
+    def call(self, func: Callable, *args, **kwargs) -> Any:
+        if self.state == CircuitState.OPEN:
+            if self._should_attempt_reset():
+                self.state = CircuitState.HALF_OPEN
+            else:
+                raise Exception("Circuit breaker is OPEN")
+        
+        try:
+            result = func(*args, **kwargs)
+            self._on_success()
+            return result
+        except self.expected_exception as e:
+            self._on_failure()
+            raise e
+    
+    async def async_call(self, func: Callable, *args, **kwargs) -> Any:
+        if self.state == CircuitState.OPEN:
+            if self._should_attempt_reset():
+                self.state = CircuitState.HALF_OPEN
+            else:
+                raise Exception("Circuit breaker is OPEN")
+        
+        try:
+            result = await func(*args, **kwargs)
+            self._on_success()
+            return result
+        except self.expected_exception as e:
+            self._on_failure()
+            raise e
+    
+    def _should_attempt_reset(self) -> bool:
+        return (
+            self.last_failure_time and
+            datetime.now() - self.last_failure_time > timedelta(seconds=self.recovery_timeout)
+        )
+    
+    def _on_success(self):
+        self.failure_count = 0
+        self.state = CircuitState.CLOSED
+    
+    def _on_failure(self):
+        self.failure_count += 1
+        self.last_failure_time = datetime.now()
+        
+        if self.failure_count >= self.failure_threshold:
+            self.state = CircuitState.OPEN
+
+# Uso
+slack_breaker = CircuitBreaker(failure_threshold=3, recovery_timeout=30)
+confluence_breaker = CircuitBreaker(failure_threshold=5, recovery_timeout=60)
+
+# No connector
+async def send_slack_message(message: str):
+    return await slack_breaker.async_call(
+        slack_api.post_message,
+        message
+    )
+```
+
+**Checklist:**
+- [ ] Implementar CircuitBreaker genérico
+- [ ] Aplicar em todas as chamadas de APIs externas (Slack, Confluence, Jira)
+- [ ] Aplicar em chamadas para LLM providers
+- [ ] Adicionar métricas de estado dos circuit breakers
+- [ ] Implementar fallback gracioso quando circuits estão open
+- [ ] Adicionar dashboard de monitoramento
+
+---
+
+#### 2.3 Ausência de Retry com Backoff Exponencial
+**Problema:** Sem estratégia de retry para falhas transientes.
+
+**Impacto:** 🟢 BAIXO-MÉDIO - Perda de requisições que poderiam ter sucesso  
+**Prioridade:** P2
+
+**Implementação:**
+```python
+# backend/app/core/resilience.py
+import asyncio
+from typing import Callable, TypeVar, Optional
+import random
+
+T = TypeVar('T')
+
+async def retry_with_backoff(
+    func: Callable[..., T],
+    max_retries: int = 3,
+    base_delay: float = 1.0,
+    max_delay: float = 60.0,
+    exponential_base: float = 2,
+    jitter: bool = True,
+    exceptions: tuple = (Exception,)
+) -> T:
+    """
+    Retry com exponential backoff e jitter
+    
+    Args:
+        func: Função async para executar
+        max_retries: Número máximo de tentativas
+        base_delay: Delay inicial em segundos
+        max_delay: Delay máximo em segundos
+        exponential_base: Base para o crescimento exponencial
+        jitter: Adicionar jitter aleatório
+        exceptions: Tupla de exceções para retry
+    """
+    last_exception = None
+    
+    for attempt in range(max_retries + 1):
+        try:
+            return await func()
+        except exceptions as e:
+            last_exception = e
+            
+            if attempt == max_retries:
+                raise
+            
+            # Calcular delay
+            delay = min(base_delay * (exponential_base ** attempt), max_delay)
+            
+            # Adicionar jitter
+            if jitter:
+                delay = delay * (0.5 + random.random())
+            
+            logger.warning(
+                f"Attempt {attempt + 1}/{max_retries + 1} failed: {e}. "
+                f"Retrying in {delay:.2f}s..."
+            )
+            
+            await asyncio.sleep(delay)
+    
+    raise last_exception
+
+# Uso
+@retry_with_backoff(max_retries=3, base_delay=1.0, exceptions=(ConnectionError, TimeoutError))
+async def fetch_confluence_page(page_id: str):
+    return await confluence_api.get_page(page_id)
+```
+
+**Checklist:**
+- [ ] Implementar retry_with_backoff
+- [ ] Aplicar em todas as chamadas de rede
+- [ ] Configurar exceções retriable vs non-retriable
+- [ ] Adicionar métricas de retry
+- [ ] Documentar estratégia de retry por serviço
+
+---
+
+### 3. **TESTES - Nível Alto**
+
+#### 3.1 Cobertura de Testes Insuficiente
+**Problema:** Documento menciona testes E2E e scripts, mas sem evidência de cobertura robusta.
+
+**Impacto:** 🔴 ALTO - Bugs em produção, regressões  
+**Prioridade:** P0
+
+**Implementação Completa:**
+
+```python
+# backend/tests/conftest.py
+import pytest
+import pytest_asyncio
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from app.main import app
+from app.core.database import Base, get_db
+
+# Test database
+TEST_DATABASE_URL = "postgresql://test:test@localhost:5433/test_treq"
+test_engine = create_engine(TEST_DATABASE_URL)
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+
+@pytest.fixture(scope="function")
+def db_session():
+    """Cria uma sessão de banco de dados para testes"""
+    Base.metadata.create_all(bind=test_engine)
+    session = TestingSessionLocal()
+    try:
+        yield session
+    finally:
+        session.close()
+        Base.metadata.drop_all(bind=test_engine)
+
+@pytest.fixture(scope="function")
+def client(db_session):
+    """Cliente de teste HTTP"""
+    def override_get_db():
+        try:
+            yield db_session
+        finally:
+            db_session.close()
+    
+    app.dependency_overrides[get_db] = override_get_db
+    with TestClient(app) as c:
+        yield c
+    app.dependency_overrides.clear()
+
+@pytest.fixture
+def mock_llm_response():
+    """Mock para respostas do LLM"""
+    return {
+        "content": "Resposta de teste do LLM",
+        "model": "llama-3-70b",
+        "usage": {"tokens": 100}
+    }
+
+@pytest.fixture
+def authenticated_headers(client):
+    """Headers com token JWT válido"""
+    # Criar usuário de teste e gerar token
+    response = client.post("/auth/register", json={
+        "email": "test@example.com",
+        "password": "Test123!@#"
+    })
+    token = response.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+```
+
+```python
+# backend/tests/test_agent/test_graph.py
+import pytest
+from unittest.mock import Mock, patch
+from app.features.agent.graph import create_agent_graph
+
+@pytest.mark.asyncio
+async def test_agent_greeting_flow(db_session, mock_llm_response):
+    """Testa fluxo de saudação do agente"""
+    graph = create_agent_graph()
+    
+    result = await graph.ainvoke({
+        "messages": [{"role": "user", "content": "Olá!"}],
+        "user_id": "test-user-123"
+    })
+    
+    assert result["intent"] == "greeting"
+    assert "olá" in result["response"].lower()
+
+@pytest.mark.asyncio
+async def test_agent_rag_flow(db_session):
+    """Testa fluxo RAG do agente"""
+    # Preparar documentos de teste
+    # ... (código para inserir docs no DB de teste)
+    
+    graph = create_agent_graph()
+    
+    result = await graph.ainvoke({
+        "messages": [{"role": "user", "content": "Qual é a política de férias?"}],
+        "user_id": "test-user-123"
+    })
+    
+    assert result["intent"] == "rag"
+    assert len(result["retrieved_docs"]) > 0
+    assert "férias" in result["response"].lower()
+
+@pytest.mark.asyncio
+async def test_agent_tool_execution(db_session):
+    """Testa execução de ferramentas pelo agente"""
+    with patch('app.features.connectors.slack.send_message') as mock_slack:
+        mock_slack.return_value = {"ok": True}
+        
+        graph = create_agent_graph()
+        
+        result = await graph.ainvoke({
+            "messages": [{"role": "user", "content": "Envie uma mensagem no Slack: Reunião às 14h"}],
+            "user_id": "test-user-123"
+        })
+        
+        assert result["intent"] == "tool"
+        assert mock_slack.called
+        assert "enviada" in result["response"].lower()
+```
+
+```python
+# backend/tests/test_security/test_rls.py
+import pytest
+from app.core.database import get_db
+
+@pytest.mark.asyncio
+async def test_rls_isolation(client, authenticated_headers, db_session):
+    """Testa isolamento de dados via RLS"""
+    # Criar dois usuários
+    user1_token = authenticated_headers
+    
+    # Usuário 2
+    response = client.post("/auth/register", json={
+        "email": "user2@example.com",
+        "password": "Test123!@#"
+    })
+    user2_token = {"Authorization": f"Bearer {response.json()['access_token']}"}
+    
+    # User 1 cria um documento
+    doc_response = client.post(
+        "/documents/upload",
+        headers=user1_token,
+        files={"file": ("test.txt", b"Conteudo privado", "text/plain")}
+    )
+    doc_id = doc_response.json()["id"]
+    
+    # User 2 tenta acessar documento do User 1
+    response = client.get(f"/documents/{doc_id}", headers=user2_token)
+    
+    # Deve retornar 404 (não 403, para não vazar informação de existência)
+    assert response.status_code == 404
+
+@pytest.mark.asyncio
+async def test_jwt_validation(client):
+    """Testa validação de JWT"""
+    # Token inválido
+    response = client.get(
+        "/chat/history",
+        headers={"Authorization": "Bearer invalid-token"}
+    )
+    assert response.status_code == 401
+    
+    # Sem token
+    response = client.get("/chat/history")
+    assert response.status_code == 401
+    
+    # Token expirado (mock)
+    # ... implementar teste com token expirado
+```
+
+```python
+# backend/tests/test_api/test_endpoints.py
+import pytest
+
+def test_health_endpoint(client):
+    """Testa endpoint de health check"""
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json()["status"] == "healthy"
+
+def test_chat_endpoint_authentication(client):
+    """Testa que chat requer autenticação"""
+    response = client.post("/agent/chat", json={
+        "message": "Olá"
+    })
+    assert response.status_code == 401
+
+def test_chat_endpoint_validation(client, authenticated_headers):
+    """Testa validação de input no chat"""
+    # Mensagem vazia
+    response = client.post(
+        "/agent/chat",
+        headers=authenticated_headers,
+        json={"message": ""}
+    )
+    assert response.status_code == 422
+    
+    # Mensagem muito longa (>10000 chars)
+    response = client.post(
+        "/agent/chat",
+        headers=authenticated_headers,
+        json={"message": "a" * 10001}
+    )
+    assert response.status_code == 422
+
+@pytest.mark.asyncio
+async def test_rate_limiting(client, authenticated_headers):
+    """Testa rate limiting"""
+    # Fazer muitas requisições rapidamente
+    for _ in range(100):
+        response = client.post(
+            "/agent/chat",
+            headers=authenticated_headers,
+            json={"message": "teste"}
+        )
+    
+    # Última requisição deve ser rate limited
+    assert response.status_code == 429
+```
+
+```python
+# backend/tests/test_connectors/test_slack.py
+import pytest
+from unittest.mock import patch, Mock
+from app.features.connectors.slack import SlackConnector
+
+@pytest.mark.asyncio
+async def test_slack_send_message():
+    """Testa envio de mensagem no Slack"""
+    with patch('slack_sdk.WebClient.chat_postMessage') as mock_post:
+        mock_post.return_value = {"ok": True, "ts": "1234567890.123456"}
+        
+        connector = SlackConnector()
+        result = await connector.send_message(
+            channel="#general",
+            text="Mensagem de teste"
+        )
+        
+        assert result["ok"] == True
+        mock_post.assert_called_once()
+
+@pytest.mark.asyncio
+async def test_slack_error_handling():
+    """Testa tratamento de erros do Slack"""
+    with patch('slack_sdk.WebClient.chat_postMessage') as mock_post:
+        mock_post.side_effect = Exception("Slack API error")
+        
+        connector = SlackConnector()
+        
+        with pytest.raises(Exception):
+            await connector.send_message(
+                channel="#general",
+                text="Mensagem de teste"
+            )
+```
+
+**Estrutura de Testes Recomendada:**
+```
+backend/tests/
+├── conftest.py                 # Fixtures globais
+├── test_agent/
+│   ├── test_graph.py          # Testes do grafo agêntico
+│   ├── test_nodes.py          # Testes de nós individuais
+│   └── test_memory.py         # Testes de memória
+├── test_api/
+│   ├── test_endpoints.py      # Testes de endpoints
+│   ├── test_validation.py     # Testes de validação
+│   └── test_errors.py         # Testes de error handling
+├── test_security/
+│   ├── test_rls.py            # Testes de RLS
+│   ├── test_jwt.py            # Testes de autenticação
+│   └── test_sanitization.py  # Testes de sanitização
+├── test_connectors/
+│   ├── test_slack.py
+│   ├── test_confluence.py
+│   └── test_jira.py
+├── test_services/
+│   ├── test_llm.py
+│   ├── test_rag.py
+│   └── test_audio.py
+└── test_utils/
+    └── test_validators.py
+```
+
+**Metas de Cobertura:**
+```yaml
+Cobertura Mínima por Módulo:
+  - core/: 90%
+  - features/: 85%
+  - services/: 80%
+  - utils/: 75%
+  - Global: 80%
+```
+
+**Checklist:**
+- [ ] Implementar estrutura completa de testes
+- [ ] Configurar pytest com coverage
+- [ ] Adicionar testes unitários para todos os módulos críticos
+- [ ] Adicionar testes de integração para fluxos completos
+- [ ] Implementar testes de carga (Locust)
+- [ ] Configurar testes de segurança (OWASP ZAP)
+- [ ] Adicionar testes de regressão visual (Percy/Chromatic)
+- [ ] Configurar CI para rodar testes automaticamente
+- [ ] Gerar relatórios de cobertura
+- [ ] Bloquear merge se cobertura < 80%
+
+---
+
+### 4. **CI/CD - Nível Crítico**
+
+#### 4.1 Ausência de Pipeline CI/CD
+**Problema:** Sem automação de build, test e deploy.
+
+**Impacto:** 🔴 ALTO - Deploys manuais, propensos a erro  
+**Prioridade:** P0
+
+**Implementação:**
+
+```yaml
+# .github/workflows/ci.yml
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop, 5S ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "20"
+
+jobs:
+  # ==================== Backend Jobs ====================
+  backend-lint:
+    name: Backend Linting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install ruff black isort mypy
+      
+      - name: Run ruff
+        run: cd backend && ruff check .
+      
+      - name: Run black
+        run: cd backend && black --check .
+      
+      - name: Run isort
+        run: cd backend && isort --check-only .
+      
+      - name: Run mypy
+        run: cd backend && mypy app/
+
+  backend-security:
+    name: Backend Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run Bandit Security Check
+        run: |
+          pip install bandit
+          cd backend
+          bandit -r app/ -f json -o bandit-report.json
+      
+      - name: Run Safety Check
+        run: |
+          pip install safety
+          cd backend
+          safety check --json
+      
+      - name: Upload Security Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: backend/bandit-report.json
+
+  backend-test:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: ankane/pgvector:latest
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_treq
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout
+
+
+          --function_results>
+<invoke>
+<parameter name="command">create</parameter>
+<parameter name="id">treq_audit_plan</parameter>
+<parameter name="type">text/markdown</parameter>
+<parameter name="title">Plano de Auditoria e Melhorias - Treq Enterprise</parameter>
+<parameter name="language"></parameter>
+<parameter name="content"># 📋 Plano de Auditoria e Implementação - Treq Enterprise 2.0
+Data: 18 de Janeiro de 2026
+Branch Analisada: 5S
+Status: Revisão Técnica Completa
+
+
+--
+
+
+
+<function_results>
+<invoke>
+<parameter name="command">create</parameter>
+<parameter name="id">treq_audit_plan</parameter>
+<parameter name="type">text/markdown</parameter>
+<parameter name="title">Plano de Auditoria e Melhorias - Treq Enterprise</parameter>
+<parameter name="language"></parameter>
+<parameter name="content"># 📋 Plano de Auditoria e Implementação - Treq Enterprise 2.0
+
+**Data:** 18 de Janeiro de 2026  
+**Branch Analisada:** `5S`  
+**Status:** Revisão Técnica Completa
+
+---
+
+## 🔍 RESUMO EXECUTIVO
+
+### Pontuação Geral: 7.5/10
+
+**Pontos Fortes:**
+- Arquitetura agêntica moderna (LangGraph)
+- Metodologia 5S bem implementada
+- Segurança por design (RLS + JWT)
+- Documentação técnica sólida
+
+**Áreas Críticas de Melhoria:**
+- Falta de testes automatizados robustos
+- Ausência de CI/CD configurado
+- Monitoramento e observabilidade limitados
+- Documentação de API incompleta
+- Estratégia de cache não implementada
+
+---
+
+## 🚨 ERROS CRÍTICOS IDENTIFICADOS
+
+### 1. **SEGURANÇA - Nível Alto**
+
+#### 1.1 Exposição de Secrets
+**Problema:** Verificar se há secrets no código ou arquivos `.env.example` com valores reais.
+
+**Impacto:** ⚠️ CRÍTICO - Vazamento de credenciais  
+**Prioridade:** P0 (Imediato)
+
+**Ação:**
+```bash
+# Executar auditoria de secrets
+git secrets --scan
+# Ou usar gitleaks
+gitleaks detect --source . --verbose
+```
+
+**Implementação:**
+- [ ] Instalar git-secrets ou gitleaks no CI/CD
+- [ ] Escanear histórico completo do Git
+- [ ] Rotacionar todas as chaves se houver exposição
+- [ ] Adicionar pre-commit hook para prevenir futuros vazamentos
+- [ ] Implementar vault (HashiCorp Vault, AWS Secrets Manager ou Doppler)
+
+---
+
+#### 1.2 Validação de Input Insuficiente
+**Problema:** Documento menciona validação Zod no frontend, mas não há evidência de validação robusta no backend.
+
+**Impacto:** 🔴 ALTO - SQL Injection, Command Injection  
+**Prioridade:** P0
+
+**Implementação:**
+```python
+# backend/app/core/validators.py
+from pydantic import BaseModel, validator, Field
+from typing import Optional
+import re
+
+class ChatMessageValidator(BaseModel):
+    message: str = Field(..., min_length=1, max_length=10000)
+    user_id: str = Field(..., regex=r'^[a-f0-9-]{36}$')  # UUID format
+    
+    @validator('message')
+    def sanitize_message(cls, v):
+        # Remove caracteres perigosos
+        dangerous_patterns = [
+            r'<script[^>]*>.*?</script>',
+            r'javascript:',
+            r'on\w+\s*=',
+        ]
+        for pattern in dangerous_patterns:
+            v = re.sub(pattern, '', v, flags=re.IGNORECASE)
+        return v.strip()
+
+class FileUploadValidator(BaseModel):
+    filename: str = Field(..., max_length=255)
+    content_type: str
+    size_bytes: int = Field(..., le=10_000_000)  # 10MB limit
+    
+    @validator('filename')
+    def validate_filename(cls, v):
+        # Prevenir path traversal
+        if '..' in v or '/' in v or '\\' in v:
+            raise ValueError('Invalid filename')
+        # Apenas extensões permitidas
+        allowed_extensions = {'.pdf', '.txt', '.md', '.jpg', '.png'}
+        if not any(v.lower().endswith(ext) for ext in allowed_extensions):
+            raise ValueError(f'File type not allowed. Allowed: {allowed_extensions}')
+        return v
+```
+
+**Checklist:**
+- [ ] Implementar validators Pydantic para todos os endpoints
+- [ ] Adicionar rate limiting por endpoint (não apenas global)
+- [ ] Implementar WAF rules no Nginx
+- [ ] Adicionar Content Security Policy headers
+- [ ] Implementar input sanitization para prevenir XSS
+
+---
+
+#### 1.3 Proteção Contra Prompt Injection
+**Problema:** Sistema LLM vulnerável a prompt injection attacks.
+
+**Impacto:** 🔴 ALTO - Bypass de segurança, acesso não autorizado  
+**Prioridade:** P0
+
+**Implementação:**
+```python
+# backend/app/features/security/prompt_guard.py
+from typing import List
+import re
+
+class PromptInjectionGuard:
+    """Protege contra ataques de prompt injection"""
+    
+    DANGEROUS_PATTERNS = [
+        # Tentativas de override de sistema
+        r'ignore\s+(previous|all|above)\s+instructions?',
+        r'disregard\s+(previous|all|above)',
+        r'forget\s+(previous|all|everything)',
+        
+        # Tentativas de exfiltração
+        r'(show|display|print|output)\s+(system|hidden|secret)',
+        r'repeat\s+(your|the)\s+(instructions|prompt)',
+        
+        # Tentativas de role-playing malicioso
+        r'you\s+are\s+now\s+a\s+(hacker|attacker)',
+        r'pretend\s+to\s+be',
+        
+        # Comandos do sistema
+        r'\\x[0-9a-fA-F]{2}',  # Hex encoding
+        r'base64\s*\(',
+    ]
+    
+    def is_suspicious(self, text: str) -> tuple[bool, List[str]]:
+        """Retorna (is_suspicious, matched_patterns)"""
+        matched = []
+        for pattern in self.DANGEROUS_PATTERNS:
+            if re.search(pattern, text, re.IGNORECASE):
+                matched.append(pattern)
+        return (len(matched) > 0, matched)
+    
+    def sanitize(self, text: str) -> str:
+        """Remove ou neutraliza padrões perigosos"""
+        sanitized = text
+        for pattern in self.DANGEROUS_PATTERNS:
+            sanitized = re.sub(pattern, '[FILTERED]', sanitized, flags=re.IGNORECASE)
+        return sanitized
+```
+
+**Checklist:**
+- [ ] Implementar PromptInjectionGuard
+- [ ] Adicionar logging de tentativas suspeitas
+- [ ] Criar sistema de scoring de confiança do usuário
+- [ ] Implementar rate limiting mais agressivo para padrões suspeitos
+- [ ] Adicionar monitoramento de anomalias no uso do LLM
+
+---
+
+### 2. **ARQUITETURA - Nível Médio-Alto**
+
+#### 2.1 Ausência de Estratégia de Cache
+**Problema:** Sem cache implementado, causando latência e custos desnecessários.
+
+**Impacto:** 🟡 MÉDIO - Performance degradada, custos elevados  
+**Prioridade:** P1
+
+**Implementação:**
+```python
+# backend/app/core/cache.py
+from typing import Optional, Any
+from redis import Redis
+import json
+import hashlib
+from functools import wraps
+
+class CacheManager:
+    def __init__(self, redis_client: Redis):
+        self.redis = redis_client
+        
+    def _make_key(self, prefix: str, *args, **kwargs) -> str:
+        """Gera chave de cache determinística"""
+        data = json.dumps({'args': args, 'kwargs': kwargs}, sort_keys=True)
+        hash_key = hashlib.sha256(data.encode()).hexdigest()[:16]
+        return f"{prefix}:{hash_key}"
+    
+    def cache_rag_query(self, ttl: int = 3600):
+        """Decorator para cache de queries RAG"""
+        def decorator(func):
+            @wraps(func)
+            async def wrapper(*args, **kwargs):
+                cache_key = self._make_key('rag', *args, **kwargs)
+                
+                # Tentar buscar do cache
+                cached = self.redis.get(cache_key)
+                if cached:
+                    return json.loads(cached)
+                
+                # Executar função
+                result = await func(*args, **kwargs)
+                
+                # Armazenar no cache
+                self.redis.setex(cache_key, ttl, json.dumps(result))
+                return result
+            return wrapper
+        return decorator
+```
+
+**Estratégia de Cache Multi-Camadas:**
+```yaml
+1. Browser Cache (Frontend):
+   - Static assets: 1 ano
+   - API responses: 5 minutos
+
+2. CDN Cache (Cloudflare):
+   - Static assets: 1 mês
+   - API públicas: 1 hora
+
+3. Application Cache (Redis):
+   - RAG queries: 30 minutos
+   - LLM responses: 1 hora
+   - User sessions: 24 horas
+
+4. Database Query Cache:
+   - Metadados: 15 minutos
+   - Configurações: 1 hora
+```
+
+**Checklist:**
+- [ ] Implementar CacheManager
+- [ ] Adicionar cache em endpoints de leitura
+- [ ] Implementar cache warming
+- [ ] Adicionar métricas de hit/miss
+- [ ] Implementar invalidação inteligente
+- [ ] Documentar estratégia de TTL
+
+---
+
+#### 2.2 Circuit Breaker para Serviços Externos
+**Problema:** Sem proteção contra falhas em cascata.
+
+**Impacto:** 🟡 MÉDIO - Degradação do serviço  
+**Prioridade:** P1
+
+**Implementação:**
+```python
+# backend/app/core/resilience.py
+from enum import Enum
+from datetime import datetime, timedelta
+
+class CircuitState(Enum):
+    CLOSED = "closed"
+    OPEN = "open"
+    HALF_OPEN = "half_open"
+
+class CircuitBreaker:
+    def __init__(self, failure_threshold: int = 5, recovery_timeout: int = 60):
+        self.failure_threshold = failure_threshold
+        self.recovery_timeout = recovery_timeout
+        self.failure_count = 0
+        self.last_failure_time = None
+        self.state = CircuitState.CLOSED
+    
+    async def async_call(self, func, *args, **kwargs):
+        if self.state == CircuitState.OPEN:
+            if self._should_attempt_reset():
+                self.state = CircuitState.HALF_OPEN
+            else:
+                raise Exception("Circuit breaker is OPEN")
+        
+        try:
+            result = await func(*args, **kwargs)
+            self._on_success()
+            return result
+        except Exception as e:
+            self._on_failure()
+            raise e
+```
+
+**Checklist:**
+- [ ] Implementar CircuitBreaker
+- [ ] Aplicar em APIs externas
+- [ ] Aplicar em LLM providers
+- [ ] Adicionar métricas
+- [ ] Implementar fallback gracioso
+- [ ] Dashboard de monitoramento
+
+---
+
+### 3. **TESTES - Nível Alto**
+
+#### 3.1 Cobertura de Testes Insuficiente
+**Problema:** Sem evidência de cobertura robusta.
+
+**Impacto:** 🔴 ALTO - Bugs em produção  
+**Prioridade:** P0
+
+**Estrutura Completa:**
+
+```
+backend/tests/
+├── conftest.py
+├── test_agent/
+│   ├── test_graph.py
+│   ├── test_nodes.py
+│   └── test_memory.py
+├── test_api/
+│   ├── test_endpoints.py
+│   └── test_validation.py
+├── test_security/
+│   ├── test_rls.py
+│   └── test_jwt.py
+├── test_connectors/
+│   ├── test_slack.py
+│   └── test_confluence.py
+└── test_services/
+    ├── test_llm.py
+    └── test_rag.py
+```
+
+**Exemplo de Teste:**
+```python
+# backend/tests/test_security/test_rls.py
+import pytest
+
+@pytest.mark.asyncio
+async def test_rls_isolation(client, authenticated_headers):
+    """Testa isolamento de dados via RLS"""
+    # Criar usuário 2
+    user2_token = create_test_user("user2@test.com")
+    
+    # User 1 cria documento
+    doc = client.post("/documents/upload", headers=user1_token)
+    doc_id = doc.json()["id"]
+    
+    # User 2 tenta acessar
+    response = client.get(f"/documents/{doc_id}", headers=user2_token)
+    
+    assert response.status_code == 404  # Não 403
+```
+
+**Metas de Cobertura:**
+```yaml
+Cobertura Mínima:
+  - core/: 90%
+  - features/: 85%
+  - services/: 80%
+  - Global: 80%
+```
+
+**Checklist:**
+- [ ] Implementar estrutura completa
+- [ ] Configurar pytest com coverage
+- [ ] Testes unitários (críticos)
+- [ ] Testes de integração
+- [ ] Testes de carga (Locust)
+- [ ] Testes de segurança (OWASP ZAP)
+- [ ] CI para rodar automaticamente
+- [ ] Bloquear merge se < 80%
+
+---
+
+### 4. **CI/CD - Nível Crítico**
+
+#### 4.1 Pipeline CI/CD Completo
+**Problema:** Sem automação de build/test/deploy.
+
+**Impacto:** 🔴 ALTO - Deploys manuais  
+**Prioridade:** P0
+
+**Implementação GitHub Actions:**
+
+```yaml
+# .github/workflows/ci.yml
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop, 5S ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      
+      - name: Install linters
+        run: |
+          pip install ruff black isort mypy
+      
+      - name: Run linters
+        run: |
+          cd backend
+          ruff check .
+          black --check .
+          isort --check-only .
+          mypy app/
+
+  backend-security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Security Scan
+        run: |
+          pip install bandit safety
+          cd backend
+          bandit -r app/
+          safety check
+
+  backend-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: ankane/pgvector:latest
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_treq
+        ports:
+          - 5433:5432
+      
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run tests
+        run: |
+          cd backend
+          pip install -r requirements.txt
+          pytest --cov=app --cov-report=xml --cov-report=html
+      
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./backend/coverage.xml
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+      
+      - name: Check coverage threshold
+        run: |
+          cd backend
+          coverage report --fail-under=80
+
+  frontend-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci
+      
+      - name: Lint
+        run: |
+          cd frontend
+          npm run lint
+      
+      - name: Type check
+        run: |
+          cd frontend
+          npm run type-check
+      
+      - name: Run tests
+        run: |
+          cd frontend
+          npm test -- --coverage
+      
+      - name: E2E tests
+        run: |
+          cd frontend
+          npx playwright install --with-deps
+          npx playwright test
+
+  docker-build:
+    needs: [backend-test, frontend-test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Build Docker images
+        run: |
+          docker compose build
+      
+      - name: Test containers
+        run: |
+          docker compose up -d
+          sleep 30
+          curl -f http://localhost:8002/health
+          curl -f http://localhost:3000
+          docker compose down
+
+  deploy-staging:
+    needs: [docker-build]
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to staging
+        run: |
+          # Deploy logic aqui
+          echo "Deploying to staging..."
+```
+
+**Checklist:**
+- [ ] Implementar pipeline completo
+- [ ] Configurar secrets no GitHub
+- [ ] Setup staging environment
+- [ ] Setup production environment
+- [ ] Configurar CD automático
+- [ ] Adicionar smoke tests pós-deploy
+- [ ] Configurar rollback automático
+- [ ] Documentar processo de deploy
+
+---
+
+### 5. **MONITORAMENTO - Nível Médio**
+
+#### 5.1 Observabilidade Limitada
+**Problema:** Sem APM, distributed tracing ou alertas.
+
+**Impacto:** 🟡 MÉDIO - Difícil diagnosticar problemas  
+**Prioridade:** P1
+
+**Implementação OpenTelemetry:**
+
+```python
+# backend/app/core/observability.py
+from opentelemetry import trace, metrics
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+
+def setup_observability(app):
+    """Configura OpenTelemetry"""
+    
+    # Tracer
+    trace.set_tracer_provider(TracerProvider())
+    tracer_provider = trace.get_tracer_provider()
+    
+    # Exporter (Jaeger, Tempo, etc)
+    otlp_exporter = OTLPSpanExporter(
+        endpoint="http://tempo:4317",
+        insecure=True
+    )
+    tracer_provider.add_span_processor(
+        BatchSpanProcessor(otlp_exporter)
+    )
+    
+    # Instrumentação automática
+    FastAPIInstrumentor.instrument_app(app)
+    SQLAlchemyInstrumentor().instrument()
+    
+    return tracer_provider
+
+# Uso em endpoints
+from opentelemetry import trace
+
+tracer = trace.get_tracer(__name__)
+
+@app.post("/agent/chat")
+async def chat(message: str):
+    with tracer.start_as_current_span("agent.chat") as span:
+        span.set_attribute("message.length", len(message))
+        
+        # Lógica do chat
+        response = await process_chat(message)
+        
+        span.set_attribute("response.tokens", response["tokens"])
+        return response
+```
+
+**Stack de Monitoramento:**
+```yaml
+Observability Stack:
+  - Logs: Grafana Loki
+  - Metrics: Prometheus + Grafana
+  - Traces: Tempo (OpenTelemetry)
+  - APM: Grafana (dashboards)
+  - Alerting: AlertManager
+  - Uptime: UptimeRobot
+```
+
+**Métricas Essenciais:**
+```python
+# backend/app/core/metrics.py
+from prometheus_client import Counter, Histogram, Gauge
+
+# Contadores
+chat_messages_total = Counter(
+    'chat_messages_total',
+    'Total de mensagens processadas',
+    ['user_id', 'intent']
+)
+
+llm_requests_total = Counter(
+    'llm_requests_total',
+    'Total de requisições LLM',
+    ['model', 'status']
+)
+
+# Histogramas (latência)
+chat_duration_seconds = Histogram(
+    'chat_duration_seconds',
+    'Duração do processamento de chat',
+    ['intent']
+)
+
+llm_duration_seconds = Histogram(
+    'llm_duration_seconds',
+    'Duração das requisições LLM',
+    ['model']
+)
+
+# Gauges (estado)
+active_users = Gauge(
+    'active_users',
+    'Usuários ativos'
+)
+
+cache_hit_rate = Gauge(
+    'cache_hit_rate',
+    'Taxa de acerto do cache',
+    ['cache_type']
+)
+```
+
+**Alertas Críticos:**
+```yaml
+# alertmanager/alerts.yml
+groups:
+  - name: treq_critical
+    interval: 1m
+    rules:
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.05
+        for: 5m
+        annotations:
+          summary: "Taxa de erro alta"
+      
+      - alert: LLMServiceDown
+        expr: up{job="llm_service"} == 0
+        for: 2m
+        annotations:
+          summary: "Serviço LLM inativo"
+      
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, chat_duration_seconds) > 5
+        for: 10m
+        annotations:
+          summary: "Latência P95 acima de 5s"
+      
+      - alert: DatabaseConnectionPoolExhausted
+        expr: db_connections_active / db_connections_max > 0.9
+        for: 5m
+        annotations:
+          summary: "Pool de conexões quase esgotado"
+```
+
+**Checklist:**
+- [ ] Implementar OpenTelemetry
+- [ ] Setup Prometheus + Grafana
+- [ ] Configurar Loki para logs
+- [ ] Implementar métricas customizadas
+- [ ] Criar dashboards essenciais
+- [ ] Configurar alertas
+- [ ] Setup notificações (Slack/PagerDuty)
+- [ ] Documentar runbooks
+
+---
+
+### 6. **DOCUMENTAÇÃO - Nível Baixo**
+
+#### 6.1 Documentação de API Incompleta
+**Problema:** Falta de exemplos, schemas e guias.
+
+**Impacto:** 🟢 BAIXO-MÉDIO - Dificuldade de integração  
+**Prioridade:** P2
+
+**Implementação:**
+
+```python
+# backend/app/main.py
+from fastapi import FastAPI
+from fastapi.openapi.utils import get_openapi
+
+app = FastAPI(
+    title="Treq Enterprise API",
+    description="API agêntica para operações empresariais",
+    version="2.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc"
+)
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    
+    openapi_schema = get_openapi(
+        title="Treq Enterprise",
+        version="2.0.0",
+        description="""
+        ## Overview
+        API REST para interação com assistente agêntico.
+        
+        ## Authentication
+        Todas as requisições requerem JWT Bearer token.
+        
+        ## Rate Limits
+        - 100 requisições/minuto por usuário
+        - 1000 tokens LLM/hora por usuário
+        
+        ## Examples
+        Ver seção de cada endpoint para exemplos completos.
+        """,
+        routes=app.routes,
+    )
+    
+    # Adicionar exemplos
+    openapi_schema["components"]["examples"] = {
+        "ChatRequest": {
+            "summary": "Chat simples",
+            "value": {
+                "message": "Qual é a política de férias?",
+                "context": {}
+            }
+        },
+        "ChatResponse": {
+            "summary": "Resposta com RAG",
+            "value": {
+                "response": "A política de férias prevê...",
+                "sources": ["doc-123", "doc-456"],
+                "intent": "rag",
+                "tokens_used": 150
+            }
+        }
+    }
+    
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+app.openapi = custom_openapi
+
+# Melhorar descrição de endpoints
+@app.post(
+    "/agent/chat",
+    summary="Enviar mensagem para o agente",
+    description="""
+    Processa uma mensagem do usuário através do sistema agêntico.
+    
+    O agente pode:
+    - Responder perguntas gerais
+    - Buscar informações em documentos (RAG)
+    - Executar ações (Slack, Jira, etc)
+    - Analisar imagens
+    
+    ### Rate Limits
+    - 100 mensagens/minuto
+    - 1000 tokens LLM/hora
+    
+    ### Exemplos
+    ```json
+    {
+      "message": "Qual é a política de férias?",
+      "context": {
+        "department": "Engineering"
+      }
+    }
+    ```
+    """,
+    responses={
+        200: {
+            "description": "Resposta gerada com sucesso",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "response": "A política de férias...",
+                        "intent": "rag",
+                        "sources": ["doc-123"]
+                    }
+                }
+            }
+        },
+        429: {
+            "description": "Rate limit excedido"
+        }
+    }
+)
+async def chat(request: ChatRequest):
+    pass
+```
+
+**Adicionar Postman Collection:**
+```json
+{
+  "info": {
+    "name": "Treq Enterprise API",
+    "description": "Collection completa da API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"user@example.com\",\"password\":\"password\"}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Agent",
+      "item": [
+        {
+          "name": "Chat",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/agent/chat",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"message\":\"Olá!\"}"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Checklist:**
+- [ ] Melhorar descrições OpenAPI
+- [ ] Adicionar exemplos em todos os endpoints
+- [ ] Criar Postman Collection
+- [ ] Escrever guia de início rápido
+- [ ] Documentar fluxos comuns
+- [ ] Adicionar troubleshooting guide
+- [ ] Criar API changelog
+- [ ] Versionar documentação
+
+---
+
+### 7. **PERFORMANCE - Nível Médio**
+
+#### 7.1 Otimizações de Banco de Dados
+**Problema:** Queries não otimizadas, falta de índices.
+
+**Impacto:** 🟡 MÉDIO - Latência elevada  
+**Prioridade:** P1
+
+**Implementação:**
+
+```sql
+-- migrations/add_performance_indexes.sql
+
+-- Índices para queries frequentes
+CREATE INDEX CONCURRENTLY idx_documents_user_id_created_at 
+ON documents(user_id, created_at DESC);
+
+CREATE INDEX CONCURRENTLY idx_documents_embedding 
+ON documents USING ivfflat (embedding vector_cosine_ops)
+WITH (lists = 100);
+
+CREATE INDEX CONCURRENTLY idx_chat_history_user_id_timestamp 
+ON chat_history(user_id, timestamp DESC);
+
+CREATE INDEX CONCURRENTLY idx_audit_log_user_id_action 
+ON audit_log(user_id, action, created_at DESC);
+
+-- Índices compostos para filtros comuns
+CREATE INDEX CONCURRENTLY idx_documents_user_metadata 
+ON documents(user_id, (metadata->>'department'));
+
+-- Particionamento para tabelas grandes
+CREATE TABLE chat_history_partitioned (
+    LIKE chat_history INCLUDING ALL
+) PARTITION BY RANGE (timestamp);
+
+CREATE TABLE chat_history_2026_01 PARTITION OF chat_history_partitioned
+    FOR VALUES FROM ('2026-01-01') TO ('2026-02-01');
+
+-- Materializing common queries
+CREATE MATERIALIZED VIEW mv_user_document_stats AS
+SELECT 
+    user_id,
+    COUNT(*) as total_documents,
+    SUM(file_size) as total_size,
+    MAX(created_at) as last_upload
+FROM documents
+GROUP BY user_id;
+
+CREATE UNIQUE INDEX ON mv_user_document_stats(user_id);
+
+-- Refresh periódico (via cron)
+-- REFRESH MATERIALIZED VIEW CONCURRENTLY mv_user_document_stats;
+```
+
+**Query Optimization:**
+```python
+# backend/app/services/rag/retriever.py
+
+# ❌ Ineficiente
+def search_documents_bad(query: str, user_id: str):
+    docs = db.query(Document).filter(
+        Document.user_id == user_id
+    ).all()  # Carrega TUDO na memória
+    
+    # Filtra em Python
+    return [d for d in docs if query in d.content]
+
+# ✅ Eficiente
+def search_documents_good(query: str, user_id: str, limit: int = 10):
+    # Usa índice vetorial + RLS
+    return db.query(Document).filter(
+        Document.user_id == user_id
+    ).order_by(
+        Document.embedding.cosine_distance(query_embedding)
+    ).limit(limit).all()
+
+# ✅ Ainda melhor - com cache
+@cache.cache_rag_query(ttl=1800)
+async def search_documents_cached(query: str, user_id: str, limit: int = 10):
+    return await search_documents_good(query, user_id, limit)
+```
+
+**Connection Pool Tuning:**
+```python
+# backend/app/core/database.py
+from sqlalchemy.pool import QueuePool
+
+engine = create_engine(
+    DATABASE_URL,
+    poolclass=QueuePool,
+    pool_size=20,          # Conexões ativas
+    max_overflow=10,       # Conexões extras quando pool cheio
+    pool_timeout=30,       # Timeout para obter conexão
+    pool_
+
+
+
+
+
+
+
+recycle=3600,     # Reciclar conexões a cada 1h
+    pool_pre_ping=True,    # Verificar conexão antes de usar
+    echo_pool=True         # Log de pool (dev only)
+)
+```
+
+**Checklist:**
+- [ ] Adicionar índices em colunas frequentemente filtradas
+- [ ] Implementar particionamento para tabelas grandes
+- [ ] Criar materialized views para queries complexas
+- [ ] Otimizar queries N+1
+- [ ] Configurar connection pooling
+- [ ] Implementar query timeout
+- [ ] Adicionar EXPLAIN ANALYZE em CI
+- [ ] Monitorar slow queries
+
+---
+
+## 🎯 OPORTUNIDADES DE MELHORIA
+
+### 1. **Feature Flags**
+**Benefício:** Deploy gradual, A/B testing, kill switch
+
+```python
+# backend/app/core/feature_flags.py
+from typing import Optional
+import redis
+
+class FeatureFlags:
+    def __init__(self, redis_client: redis.Redis):
+        self.redis = redis_client
+    
+    def is_enabled(self, flag_name: str, user_id: Optional[str] = None) -> bool:
+        # Global flag
+        global_status = self.redis.get(f"flag:{flag_name}:global")
+        if global_status == b"false":
+            return False
+        
+        # User-specific override
+        if user_id:
+            user_status = self.redis.get(f"flag:{flag_name}:user:{user_id}")
+            if user_status is not None:
+                return user_status == b"true"
+        
+        # Percentage rollout
+        rollout = self.redis.get(f"flag:{flag_name}:rollout")
+        if rollout:
+            import hashlib
+            user_hash = int(hashlib.sha256((user_id or "").encode()).hexdigest(), 16)
+            return (user_hash % 100) < int(rollout)
+        
+        return global_status == b"true"
+
+# Uso
+flags = FeatureFlags(redis_client)
+
+if flags.is_enabled("new_llm_model", user_id):
+    response = await new_llm_service.generate(prompt)
+else:
+    response = await legacy_llm_service.generate(prompt)
+```
+
+---
+
+### 2. **Webhook System**
+**Benefício:** Integrações assíncronas, extensibilidade
+
+```python
+# backend/app/features/webhooks/manager.py
+from typing import List, Dict
+import httpx
+
+class WebhookManager:
+    async def trigger(self, event: str, data: Dict):
+        """Dispara webhooks registrados para um evento"""
+        webhooks = await self._get_webhooks_for_event(event)
+        
+        tasks = []
+        for webhook in webhooks:
+            task = self._send_webhook(webhook, data)
+            tasks.append(task)
+        
+        await asyncio.gather(*tasks, return_exceptions=True)
+    
+    async def _send_webhook(self, webhook: Dict, data: Dict):
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.post(
+                    webhook["url"],
+                    json=data,
+                    headers={"X-Webhook-Secret": webhook["secret"]},
+                    timeout=10
+                )
+                response.raise_for_status()
+            except Exception as e:
+                logger.error(f"Webhook failed: {e}")
+                # Enfileirar para retry
+                await self._enqueue_retry(webhook, data)
+
+# Uso
+await webhook_manager.trigger("document.uploaded", {
+    "document_id": doc_id,
+    "user_id": user_id,
+    "filename": filename
+})
+```
+
+---
+
+### 3. **Multi-tenancy Avançado**
+**Benefício:** Suporte a organizações, billing por tenant
+
+```python
+# backend/app/core/tenancy.py
+from typing import Optional
+
+class TenantContext:
+    def __init__(self):
+        self._current_tenant: Optional[str] = None
+    
+    def set_tenant(self, tenant_id: str):
+        self._current_tenant = tenant_id
+    
+    def get_tenant(self) -> str:
+        if not self._current_tenant:
+            raise ValueError("No tenant set in context")
+        return self._current_tenant
+
+tenant_context = TenantContext()
+
+# Middleware
+@app.middleware("http")
+async def tenant_middleware(request: Request, call_next):
+    # Extrair tenant do JWT ou subdomain
+    tenant_id = extract_tenant_from_request(request)
+    tenant_context.set_tenant(tenant_id)
+    
+    response = await call_next(request)
+    return response
+
+# RLS aprimorado
+CREATE POLICY tenant_isolation ON documents
+    USING (tenant_id = current_setting('app.current_tenant')::uuid);
+```
+
+---
+
+### 4. **Audit Trail Avançado**
+**Benefício:** Compliance, forensics, debugging
+
+```python
+# backend/app/features/audit/logger.py
+from typing import Any, Dict
+import json
+
+class AuditLogger:
+    async def log(
+        self,
+        action: str,
+        user_id: str,
+        resource_type: str,
+        resource_id: str,
+        changes: Dict[str, Any] = None,
+        metadata: Dict = None
+    ):
+        entry = {
+            "action": action,
+            "user_id": user_id,
+            "resource_type": resource_type,
+            "resource_id": resource_id,
+            "changes": changes,
+            "metadata": metadata,
+            "ip_address": get_client_ip(),
+            "user_agent": get_user_agent(),
+            "timestamp": datetime.utcnow()
+        }
+        
+        await db.execute(
+            audit_log.insert().values(**entry)
+        )
+        
+        # Também enviar para SIEM
+        await siem_client.send(entry)
+
+# Uso
+await audit_logger.log(
+    action="document.delete",
+    user_id=user_id,
+    resource_type="document",
+    resource_id=doc_id,
+    metadata={"filename": filename}
+)
+```
+
+---
+
+## 📅 PLANO DE IMPLEMENTAÇÃO
+
+### **SPRINT 1 (Semana 1-2): Fundação Crítica**
+**Objetivo:** Estabilizar segurança e qualidade
+
+#### Prioridade P0:
+1. **Segurança**
+   - [ ] Auditoria de secrets (2h)
+   - [ ] Implementar input validation (8h)
+   - [ ] Prompt injection guard (4h)
+   - [ ] Rotacionar chaves se necessário (2h)
+
+2. **Testes**
+   - [ ] Setup pytest + coverage (4h)
+   - [ ] Testes de RLS (6h)
+   - [ ] Testes de autenticação (4h)
+   - [ ] Testes de API críticos (8h)
+
+3. **CI/CD**
+   - [ ] Pipeline básico GitHub Actions (8h)
+   - [ ] Integração com testes (4h)
+   - [ ] Configurar secrets (2h)
+
+**Total:** ~52 horas (2 semanas com 1 dev)
+
+---
+
+### **SPRINT 2 (Semana 3-4): Performance e Resiliência**
+**Objetivo:** Otimizar e fortalecer o sistema
+
+#### Prioridade P1:
+1. **Cache**
+   - [ ] Implementar CacheManager (6h)
+   - [ ] Aplicar em endpoints RAG (4h)
+   - [ ] Aplicar em LLM (4h)
+   - [ ] Métricas de cache (2h)
+
+2. **Resiliência**
+   - [ ] Circuit breaker (6h)
+   - [ ] Retry com backoff (4h)
+   - [ ] Aplicar em connectors (4h)
+
+3. **Performance**
+   - [ ] Adicionar índices DB (4h)
+   - [ ] Otimizar queries lentas (8h)
+   - [ ] Configurar connection pooling (2h)
+
+**Total:** ~44 horas
+
+---
+
+### **SPRINT 3 (Semana 5-6): Observabilidade**
+**Objetivo:** Visibilidade e monitoramento
+
+#### Prioridade P1:
+1. **Monitoramento**
+   - [ ] Setup OpenTelemetry (8h)
+   - [ ] Setup Prometheus + Grafana (8h)
+   - [ ] Métricas customizadas (6h)
+   - [ ] Dashboards essenciais (6h)
+   - [ ] Configurar alertas (4h)
+
+2. **Logging**
+   - [ ] Setup Loki (4h)
+   - [ ] Structured logging (4h)
+
+**Total:** ~40 horas
+
+---
+
+### **SPRINT 4 (Semana 7-8): Documentação e Melhorias**
+**Objetivo:** Finalizar e documentar
+
+#### Prioridade P2:
+1. **Documentação**
+   - [ ] Melhorar OpenAPI (6h)
+   - [ ] Postman Collection (4h)
+   - [ ] Guia de início rápido (4h)
+   - [ ] Runbooks (4h)
+
+2. **Features Opcionais**
+   - [ ] Feature flags (6h)
+   - [ ] Webhook system (8h)
+   - [ ] Audit trail avançado (6h)
+
+**Total:** ~38 horas
+
+---
+
+## 🎯 RESUMO DE PRIORIZAÇÃO
+
+### **Crítico (P0) - Implementar Imediatamente:**
+1. Auditoria e rotação de secrets
+2. Input validation robusto
+3. Proteção contra prompt injection
+4. Testes automatizados (80% cobertura)
+5. Pipeline CI/CD completo
+
+### **Alto (P1) - Implementar em 1 mês:**
+1. Sistema de cache multi-camadas
+2. Circuit breakers e retry logic
+3. Otimizações de banco de dados
+4. Observabilidade (OpenTelemetry)
+5. Monitoramento e alertas
+
+### **Médio (P2) - Implementar em 2-3 meses:**
+1. Documentação API completa
+2. Feature flags
+3. Sistema de webhooks
+4. Audit trail avançado
+5. Multi-tenancy
+
+---
+
+## 📊 MÉTRICAS DE SUCESSO
+
+### **Após Sprint 1:**
+- ✅ 0 vulnerabilidades críticas
+- ✅ Cobertura de testes > 80%
+- ✅ CI/CD rodando automaticamente
+- ✅ Tempo de build < 10 minutos
+
+### **Após Sprint 2:**
+- ✅ Cache hit rate > 60%
+- ✅ P95 latência < 2s
+- ✅ 99.9% uptime
+- ✅ Queries DB < 100ms (P95)
+
+### **Após Sprint 3:**
+- ✅ MTTR < 15 minutos
+- ✅ 100% endpoints monitorados
+- ✅ Alertas configurados
+- ✅ Dashboards funcionais
+
+### **Após Sprint 4:**
+- ✅ Documentação completa
+- ✅ API versionada
+- ✅ Onboarding < 1 hora
+
+---
+
+## 🔧 FERRAMENTAS RECOMENDADAS
+
+### **Desenvolvimento:**
+- Pre-commit hooks: `pre-commit`
+- Linting: `ruff`, `black`, `isort`
+- Type checking: `mypy`
+- Security: `bandit`, `safety`
+
+### **Testes:**
+- Unit/Integration: `pytest`, `pytest-asyncio`
+- Coverage: `pytest-cov`, `coverage.py`
+- E2E: `playwright`
+- Load: `locust`, `k6`
+- Security: `OWASP ZAP`
+
+### **Monitoramento:**
+- Traces: `OpenTelemetry` + `Tempo`
+- Metrics: `Prometheus` + `Grafana`
+- Logs: `Loki`
+- APM: `Grafana`
+- Uptime: `UptimeRobot`
+
+### **CI/CD:**
+- Pipeline: `GitHub Actions`
+- Container Registry: `GitHub Container Registry`
+- Secrets: `GitHub Secrets` + `Doppler`
+- Deploy: `Docker Compose` / `Kubernetes`
+
+---
+
+## 📝 PRÓXIMOS PASSOS IMEDIATOS
+
+### **Para o DEV começar AGORA:**
+
+1. **Setup inicial (30 min)**
+   ```bash
+   # Clonar e criar branch
+   git checkout -b feature/security-hardening
+   
+   # Instalar ferramentas
+   pip install bandit safety gitleaks
+   npm install -g @commitlint/cli
+   ```
+
+2. **Auditoria de segurança (1h)**
+   ```bash
+   # Scan de secrets
+   gitleaks detect --source . --verbose --report-path gitleaks-report.json
+   
+   # Security scan
+   cd backend
+   bandit -r app/ -f json -o bandit-report.json
+   safety check --json > safety-report.json
+   ```
+
+3. **Implementar validação (4h)**
+   - Criar `backend/app/core/validators.py`
+   - Aplicar em todos os endpoints
+   - Adicionar testes
+
+4. **Setup CI (3h)**
+   - Criar `.github/workflows/ci.yml`
+   - Configurar secrets
+   - Testar pipeline
+
+5. **Criar PR (30 min)**
+   - Seguir checklist do `CONTRIBUTING.md`
+   - Incluir relatórios de segurança
+   - Solicitar review
+
+---
+
+## ✅ CHECKLIST FINAL DE ENTREGA
+
+### **Segurança:**
+- [ ] Secrets rotacionados
+- [ ] Input validation em 100% dos endpoints
+- [ ] Prompt injection guard implementado
+- [ ] WAF configurado
+- [ ] CSP headers configurados
+
+### **Qualidade:**
+- [ ] Cobertura de testes > 80%
+- [ ] 0 vulnerabilidades críticas
+- [ ] Linting passando
+- [ ] Type checking passando
+
+### **Performance:**
+- [ ] Cache implementado
+- [ ] Índices otimizados
+- [ ] Connection pooling configurado
+- [ ] P95 latência < 2s
+
+### **Observabilidade:**
+- [ ] OpenTelemetry configurado
+- [ ] Dashboards criados
+- [ ] Alertas configurados
+- [ ] Logs centralizados
+
+### **DevOps:**
+- [ ] CI/CD funcional
+- [ ] Staging environment
+- [ ] Production environment
+- [ ] Rollback automático
+
+### **Documentação:**
+- [ ] OpenAPI completo
+- [ ] Postman Collection
+- [ ] Runbooks criados
+- [ ] Changelog mantido
+
+---
+
+**Estimativa Total:** 174 horas (~5 semanas com 1 dev full-time)
+
+**Prioridade de Execução:** P0 → P1 → P2
+
+**Revisão:** Semanal com stakeholders
+
+**Entrega Final:** 8 semanas a partir de hoje</parameter>
+
+
+
+
+
+--
+
+
+
+@project-memory.md 
+
+# Análise de Auditoria Técnica - Treq Enterprise
+
+## 📋 **Visão Geral da Análise**
+Com base no Relatório Mestre de Auditoria e no repositório GitHub, realizei uma análise detalhada identificando pontos críticos, oportunidades de melhoria e um plano de ação estruturado.
+
+---
+
+## 🔍 **Erros e Pontos Críticos Identificados**
+
+### **1. Inconsistências na Arquitetura**
+- **Problema**: Documentação menciona FastAPI para backend, mas estrutura do repositório sugere Next.js como principal framework, gerando ambiguidade na separação de responsabilidades
+- **Impacto**: Risco de acoplamento indevido e dificuldade de manutenção
+
+### **2. Lacunas de Segurança**
+- **Problema**: RLS (Row Level Security) documentado como "isolamento total" mas sem evidência de testes de injeção de SQL ou validação de bypass de autenticação
+- **Impacto**: Vulnerabilidade crítica para vazamento de dados entre tenants
+
+### **3. Qualidade de Código**
+- **Problema**: Regra #5 limita arquivos a 200 linhas, mas módulos críticos como `sanitizers.py` e `security.py` não são verificados quanto à complexidade ciclomática
+- **Impacto**: Risco de bugs em componentes de segurança devido a funções muito complexas
+
+### **4. Observabilidade Incompleta**
+- **Problema**: LangSmith mencionado para tracing, mas sem integração com métricas de infraestrutura (CPU, memória, latência) e alertas proativos
+- **Impacto**: Tempo de resposta aumentado em incidentes críticos
+
+### **5. Testes Insuficientes**
+- **Problema**: "Zero warnings críticos" declarado sem especificar critérios de qualidade e sem cobertura de testes unitários documentada
+- **Impacto**: Risco de regressões não detectadas em produção
+
+---
+
+## 🚀 **Oportunidades de Melhoria**
+
+### **1. Arquitetura de Software**
+- Implementar **CQRS Pattern** para separar operações de leitura e escrita
+- Adicionar **API Gateway** com rate limiting por usuário e endpoint
+- Estruturar **Bounded Contexts** para cada domínio (Agent, Connectors, Security)
+
+### **2. Segurança Aprimorada**
+- Implementar **Validação de Schema** obrigatória para todas as rotas com Zod
+- Adicionar **Content Security Policy (CSP)** para frontend
+- Criar **Security Headers** padrão (HSTS, X-Content-Type-Options, etc.)
+
+### **3. Qualidade e Confiabilidade**
+- Implementar **Testes de Carga** com Locust para validar performance sob estresse
+- Adicionar **Code Coverage** mínimo de 80% para módulos críticos
+- Criar **Contratos de API** com OpenAPI 3.0 para garantir consistência
+
+### **4. Operações e DevOps**
+- Implementar **GitOps** com ArgoCD para deployments automatizados
+- Adicionar **Canary Releases** para reduzir risco de deployments
+- Criar **Health Checks** granulares por serviço
+
+### **5. IA/ML Operations**
+- Implementar **Model Monitoring** para detectar drift de performance
+- Adicionar **Caching Estratégico** para reduzir custos de LLM
+- Criar **Fallback Mechanisms** para quando modelos primários falharem
+
+---
+
+## 📋 **Plano de Implementação Detalhado**
+
+### **Fase 1: Fundamentos (Semanas 1-2)**
+
+#### **Tarefa 1.1: Padronização de Arquitetura**
+```markdown
+**Responsável**: Arquiteto de Software
+**Entregáveis**:
+- [ ] Diagrama de arquitetura atualizado (C4 Model)
+- [ ] Separação clara de responsabilidades:
+  - Backend: FastAPI (apenas para API e agentes)
+  - Frontend: Next.js 15 (apenas para UI)
+- [ ] Documentação de contratos entre serviços
+**Critérios de Aceitação**:
+- Zero chamadas diretas entre frontend e bancos de dados
+- Todos os endpoints documentados em OpenAPI 3.0
+```
+
+#### **Tarefa 1.2: Segurança Básica**
+```markdown
+**Responsável**: Engenheiro de Segurança
+**Entregáveis**:
+- [ ] Implementação de CSP para frontend
+- [ ] Validação de schema obrigatória para todas as rotas FastAPI
+- [ ] Testes de injeção SQL automatizados
+**Critérios de Aceitação**:
+- Nenhum endpoint aceita payloads não validados
+- 100% de cobertura em testes de segurança básica
+```
+
+### **Fase 2: Qualidade e Observabilidade (Semanas 3-4)**
+
+#### **Tarefa 2.1: Sistema de Testes Completo**
+```markdown
+**Responsável**: QA Lead
+**Entregáveis**:
+- [ ] Configuração de Codecov com threshold mínimo de 80%
+- [ ] Testes de carga para endpoints críticos (/agent/chat)
+- [ ] Testes de mutação para módulos de segurança
+**Critérios de Aceitação**:
+- Pipeline de CI falha se cobertura < 80%
+- Sistema suporta 100 requisições/segundo sem degradação
+```
+
+#### **Tarefa 2.2: Observabilidade Unificada**
+```markdown
+**Responsável**: DevOps Engineer
+**Entregáveis**:
+- [ ] Integração LangSmith + Prometheus + Grafana
+- [ ] Alertas proativos para:
+  - Latência > 2s em endpoints críticos
+  - Taxa de erro > 1%
+  - Uso de CPU > 80% por 5 minutos
+- [ ] Dashboard unificado de saúde do sistema
+**Critérios de Aceitação**:
+- Tempo médio de detecção (MTTD) < 1 minuto
+- Todos os serviços têm health checks implementados
+```
+
+### **Fase 3: IA Operations (Semanas 5-6)**
+
+#### **Tarefa 3.1: Monitoramento de Modelos**
+```markdown
+**Responsável**: ML Engineer
+**Entregáveis**:
+- [ ] Pipeline de monitoramento de drift para LLMs
+- [ ] Métricas de qualidade de resposta:
+  - Relevância (avaliação humana amostral)
+  - Tempo de resposta por modelo
+  - Custo por requisição
+- [ ] Sistema de fallback automático para modelos secundários
+**Critérios de Aceitação**:
+- Alerta automático quando drift > 15%
+- Tempo de fallback < 500ms
+```
+
+#### **Tarefa 3.2: Otimização de Performance**
+```markdown
+**Responsável**: Performance Engineer
+**Entregáveis**:
+- [ ] Implementação de caching Redis para:
+  - Respostas de RAG frequentes
+  - Metadados de conectores estáticos
+- [ ] Otimização de queries SQL com índices parciais
+- [ ] Balanceamento de carga inteligente entre provedores de LLM
+**Critérios de Aceitação**:
+- Redução de 40% no tempo médio de resposta
+- Redução de 30% nos custos de LLM
+```
+
+### **Fase 4: Operações Avançadas (Semanas 7-8)**
+
+#### **Tarefa 4.1: GitOps e Canary Releases**
+```markdown
+**Responsável**: DevOps Lead
+**Entregáveis**:
+- [ ] Configuração de ArgoCD para deploy automático
+- [ ] Estratégia de canary releases com:
+  - 5% do tráfego inicialmente
+  - Rollback automático em erros > 2%
+- [ ] Ambiente de staging idêntico à produção
+**Critérios de Aceitação**:
+- Tempo de deploy reduzido para < 5 minutos
+- Rollback automático em < 30 segundos
+```
+
+#### **Tarefa 4.2: Auditoria e Compliance**
+```markdown
+**Responsável**: Compliance Officer
+**Entregáveis**:
+- [ ] Relatório trimestral de auditoria de segurança
+- [ ] Documentação LGPD completa com:
+  - Mapa de dados pessoais
+  - Procedimentos de exclusão
+  - Registro de consentimentos
+- [ ] Treinamento obrigatório para equipe de desenvolvimento
+**Critérios de Aceitação**:
+- 100% de conformidade com LGPD
+- Auditoria externa sem findings críticas
+```
+
+---
+
+## 📊 **KPIs de Sucesso**
+
+| Métrica | Meta Atual | Meta Pós-Implementação | Frequência de Medição |
+|---------|------------|-------------------------|----------------------|
+| Tempo de Resposta Médio | 1.8s | < 1.0s | Diário |
+| Taxa de Erros em Produção | 2.5% | < 0.5% | Horário |
+| Cobertura de Testes | Não medido | > 80% | Por commit |
+| Tempo de Deploy | 15 minutos | < 5 minutos | Por release |
+| Custo por Requisição LLM | $0.002 | < $0.0015 | Semanal |
+| Tempo de Detecção de Falhas | 10 minutos | < 1 minuto | Contínuo |
+
+---
+
+## ⚠️ **Riscos e Mitigações**
+
+### **Risco 1: Impacto no Tempo de Resposta durante Transição**
+**Mitigação**: Implementar feature flags para ativar novas funcionalidades gradualmente, mantendo fallback para versão estável.
+
+### **Risco 2: Complexidade Operacional Aumentada**
+**Mitigação**: Documentação extensiva e treinamento hands-on para toda a equipe antes de cada fase crítica.
+
+### **Risco 3: Custo Adicional de Infraestrutura**
+**Mitigação**: Análise custo-benefício detalhada para cada componente, priorizando melhorias com ROI > 6 meses.
+
+---
+
+## 🎯 **Próximos Passos Imediatos**
+
+1. **Reunião de Kickoff** (Dia 1): Alinhar prioridades e responsabilidades com stakeholders
+2. **Ambiente de Desenvolvimento** (Dia 2-3): Configurar ambientes separados para cada fase
+3. **Primeira Entrega** (Semana 1): Diagrama de arquitetura atualizado e implementação inicial de CSP
+4. **Revisão Semanal** (Todas as sextas): Acompanhamento de progresso e ajustes de prioridades
+
+**Status Atual**: ✅ Pronto para início da Fase 1  
+**Data de Início**: 20 de Janeiro de 2026  
+**Data de Conclusão Prevista**: 15 de Março de 2026
+
+Este plano transformará o Treq Enterprise em uma plataforma robusta, segura e escalável, posicionando-a como referência em sistemas agênticos corporativos com governança de ponta.
+
+
+--
+
+
+
