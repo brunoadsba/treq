@@ -51,50 +51,60 @@ export function LoginForm() {
     };
 
     return (
-        <div className="w-full max-w-md p-8 bg-white rounded-2xl shadow-xl border border-treq-gray-100 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="flex flex-col items-center mb-8">
-                <div className="w-16 h-16 bg-treq-red-600 rounded-xl flex items-center justify-center mb-4 shadow-lg">
-                    <span className="text-white text-3xl font-bold italic">T</span>
+        <div className="w-full max-w-md p-8 bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-treq-gray-100 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <div className="flex flex-col items-center mb-10">
+                <div className="w-20 h-20 bg-treq-yellow rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-treq-yellow/20 rotate-3 hover:rotate-0 transition-transform duration-300">
+                    <span className="text-treq-black text-4xl font-black">T</span>
                 </div>
-                <h1 className="text-2xl font-bold text-treq-gray-900">Treq Enterprise</h1>
-                <p className="text-treq-gray-500">Acesse sua conta para continuar</p>
+                <h1 className="text-3xl font-black text-treq-black tracking-tighter">Treq</h1>
+                <p className="text-treq-gray-500 font-medium">Acesse sua conta para continuar</p>
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                 <div>
-                    <label className="block text-sm font-medium text-treq-gray-700 mb-1">Usuário</label>
+                    <label className="block text-sm font-bold text-treq-gray-700 mb-2 uppercase tracking-widest">Usuário</label>
                     <input
                         {...register("username")}
                         type="text"
-                        className="w-full px-4 py-3 rounded-xl border border-treq-gray-200 focus:ring-2 focus:ring-treq-red-500 focus:border-transparent outline-none transition-all"
-                        placeholder="Ex: admin"
+                        className="w-full px-5 py-4 rounded-2xl border-2 border-treq-gray-100 focus:border-treq-yellow outline-none transition-all bg-treq-gray-50/50 focus:bg-white text-treq-black placeholder:text-treq-gray-400"
+                        placeholder="admin"
                     />
-                    {errors.username && <p className="text-red-500 text-xs mt-1">{errors.username.message}</p>}
+                    {errors.username && <p className="text-treq-error text-xs mt-2 font-semibold">{errors.username.message}</p>}
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-treq-gray-700 mb-1">Senha</label>
+                    <label className="block text-sm font-bold text-treq-gray-700 mb-2 uppercase tracking-widest">Senha</label>
                     <input
                         {...register("password")}
                         type="password"
-                        className="w-full px-4 py-3 rounded-xl border border-treq-gray-200 focus:ring-2 focus:ring-treq-red-500 focus:border-transparent outline-none transition-all"
+                        className="w-full px-5 py-4 rounded-2xl border-2 border-treq-gray-100 focus:border-treq-yellow outline-none transition-all bg-treq-gray-50/50 focus:bg-white text-treq-black placeholder:text-treq-gray-400"
                         placeholder="••••••••"
                     />
-                    {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password.message}</p>}
+                    {errors.password && <p className="text-treq-error text-xs mt-2 font-semibold">{errors.password.message}</p>}
                 </div>
 
                 {error && (
-                    <div className="p-3 bg-red-50 border border-red-100 rounded-lg">
-                        <p className="text-red-600 text-sm text-center">{error}</p>
+                    <div className="p-4 bg-treq-error-light border border-treq-error/20 rounded-2xl flex items-center gap-3">
+                        <div className="w-2 h-2 rounded-full bg-treq-error animate-pulse" />
+                        <p className="text-treq-error-dark text-sm font-bold">{error}</p>
                     </div>
                 )}
 
                 <button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full bg-treq-red-600 hover:bg-treq-red-700 text-white font-semibold py-3 rounded-xl shadow-lg shadow-treq-red-200 transition-all active:scale-[0.98] disabled:opacity-50"
+                    className="w-full bg-treq-black hover:bg-treq-gray-900 text-treq-yellow font-black py-4 rounded-2xl shadow-xl shadow-treq-black/10 transition-all active:scale-[0.97] disabled:opacity-50 flex items-center justify-center gap-2 group"
                 >
-                    {isLoading ? "Entrando..." : "Entrar"}
+                    {isLoading ? (
+                        <div className="w-5 h-5 border-3 border-treq-yellow/30 border-t-treq-yellow rounded-full animate-spin" />
+                    ) : (
+                        <>
+                            <span>Entrar</span>
+                            <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                            </svg>
+                        </>
+                    )}
                 </button>
             </form>
         </div>
