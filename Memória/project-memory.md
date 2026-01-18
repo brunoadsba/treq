@@ -13,27 +13,21 @@
 
 ## Status Atual
 
-### Branch Ativa: `enterprise`
-- Status: 🟢 Estável / Testada (E2E Frontend + Backend Sanity)
+### Branch Ativa: `infra/docker-setup`
+- Status: 🔵 Em Desenvolvimento (Enterprise Hardening & Dockerization)
+- Saúde: 🟢 Saudável (Containers Backend, Frontend, Redis e Nginx operacionais)
 
 ### Progresso das Sprints
 
 | Sprint | Marco | Status | Testes |
 |--------|-------|--------|--------|
-| 1.1 | LangGraph Core | ✅ Completo | 6 |
-| 1.2 | RLS no Supabase | ✅ Completo | 6 |
-| 1.3 | Primeira Ferramenta | ✅ Completo (mock) | - |
-| 2.1 | Conector Confluence | ✅ Completo (mock) | 5 |
-| 2.2 | Conector Slack | ✅ Completo (mock) | 6 |
-| 2.3 | Ferramentas de Ação | ✅ Completo (integrado) | - |
-| 3.1 | LangSmith Tracing | ✅ Completo | 2 |
-| 3.2 | Rate Limiting | ✅ Completo | - |
-| 3.3 | Refatoração SSOT | ✅ Completo | E2E |
-| 4.0 | Segurança & Branding | ✅ Completo | E2E UI |
-| 5.0 | Consolidação de UX | ✅ Completo | Walkthrough S5 |
-| 7.1 | RAG Refinement | ✅ Completo | E2E + Self-Correction |
+| ... | ... | ... | ... |
+| 7.1 | RAG Refinement | ✅ Completo | E2E |
+| 8.1 | Dockerização Total | ✅ Completo | Compose |
+| 8.2 | Auth JWT + RLS | ✅ Completo | E2E Auth |
+| 8.3 | Enterprise Infra | 🏗️ Em Progresso | Health |
 
-**Total de Testes:** 36 de unidade + Script Sanity (`backend/scripts/test_sanity.py`) + Suite Playwright (`frontend/e2e/agent.spec.ts`)
+**Total de Testes:** 42 (Unidade + Integração) + Suite E2E Playwright (Auth inclusive)
 
 ---
 
@@ -66,30 +60,30 @@ backend/app/features/
 
 ---
 
-## Decisões Arquiteturais e de Segurança (Sprint 4)
+## Decisões Arquiteturais e de Segurança (Sprint 8)
 
 | Decisão | Escolha | Motivo de Segurança/Qualidade |
 |---------|---------|--------|
-| **Defensive RAG** | Regex Pós-LLM | O LLM pode falhar em instruções negativas no prompt. Regex garante que nomes de arquivos internos ('.xlsx') nunca vazem. |
-| **Greeting Optimization** | Planner Intercept | Inputs como "oi" não devem acionar embeddings/LLM caro. Roteamento direto melhora latência e UX. |
-| **Contexto Temporal** | Injeção no Prompt (`prompts.py`) | O LLM não sabe "que dia é hoje". Data/Hora injetada on-the-fly resolve alucinações. |
-| **Testes E2E UI** | Playwright | Garantir que o branding "Treq" e a sanitização funcionem visualmente para o usuário final. |
+| **Next.js Standalone** | Docker Multistage | Reduz tamanho da imagem e resolve conflitos de arquivos ausentes (`required-server-files.json`) no runtime Docker. |
+| **JWT Local Mock** | OAuth2 Bearer | Permite desenvolvimento offline sem depender de um provedor externo, injetando `user_id` nativo para RLS. |
+| **Auth Guards** | React useEffect | Bloqueia acesso a rotas privadas antes de qualquer renderização de dados sensíveis. |
+| **Resiliência 401** | Token Clearance | Garante que sessões expiradas não resultem em comportamentos indefinidos, forçando re-auth. |
 
 ---
 
 ## Próximos Passos (Roadmap Atualizado)
 
-### Sprint 5 - Consolidação e UX (Concluída)
-- [x] Refinar UI do Chat (Scroll Lock, Skeletons Adaptativos)
-- [x] Integrar Página `/agent` ao Header (Badge de Estado)
-- [x] Melhorar Feedback Visual de Ferramentas (Cards Interativos/Transacionais)
-- [x] Implementar Resiliência Visual (Streaming Error/Retry)
+### Sprint 8 - Enterprise Hardening (Em Progresso)
+- [x] Dockerização Completa (Compose Finalizado)
+- [x] Autenticação JWT Roundtrip (Frontend <-> Backend)
+- [x] Proteção de Rotas e Persistência de Sessão
+- [ ] Configurar Rate Limiting no Nginx (Fase 4)
+- [ ] Implementar Healthchecks (Fase 4)
 
 ### Pendências Técnicas (Backlog)
-- [x] Criar Suíte de Testes de Fluxo (LangGraph Integration Tests)
-- [x] Dockerização de CI/CD para E2E (Dockerfile.e2e)
-- [ ] Implementar Docker Compose completo para ambiente de produção local
-- [ ] Refinar formulários de ação nos cards do Jira/Slack (Modais reais)
+- [ ] Implementar Auditoria de Log LGPD (Fase 3)
+- [ ] Configurar CI no GitHub Actions com Docker imagens
+- [ ] Refinar UI da página de login (Paleta Treq Yellow/Black)
 
 ---
 
