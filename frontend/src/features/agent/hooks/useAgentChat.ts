@@ -59,12 +59,12 @@ export function useAgentChat(userId: string = "default-user"): UseAgentChatRetur
     useEffect(() => {
         if (messages.length === 0 || !conversationId) return;
 
-        setSavedConversations(prev => {
+        setSavedConversations((prev: SavedConversation[]) => {
             const now = new Date().toISOString();
-            const existingIndex = prev.findIndex(c => c.id === conversationId);
+            const existingIndex = prev.findIndex((c: SavedConversation) => c.id === conversationId);
 
             // Generate title from first user message
-            const firstUserMsg = messages.find(m => m.role === 'user');
+            const firstUserMsg = messages.find((m: any) => m.role === 'user');
             const title = firstUserMsg
                 ? (firstUserMsg.content.length > 30 ? firstUserMsg.content.substring(0, 30) + '...' : firstUserMsg.content)
                 : 'Nova Conversa';
