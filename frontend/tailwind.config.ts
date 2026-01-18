@@ -57,12 +57,12 @@ const config: Config = {
       },
       keyframes: {
         "subtle-sway": {
-          "0%, 100%": { transform: "rotate(4deg)" },
-          "50%": { transform: "rotate(-4deg)" },
+          "0%, 100%": { transform: "rotate(8deg)" },
+          "50%": { transform: "rotate(-8deg)" },
         },
       },
       animation: {
-        "subtle-sway": "subtle-sway 6s linear infinite",
+        "subtle-sway": "subtle-sway 5s cubic-bezier(0.445, 0.05, 0.55, 0.95) infinite",
       },
     },
   },
