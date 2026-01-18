@@ -14,6 +14,7 @@ interface InputAreaProps {
   isLoading: boolean;
   onDocumentUploaded?: (filename: string, chunks: number) => void;
   onDocumentUploadError?: (error: string) => void;
+  onFocusChange?: (focused: boolean) => void;
 }
 
 export function InputArea({
@@ -21,6 +22,7 @@ export function InputArea({
   isLoading,
   onDocumentUploaded,
   onDocumentUploadError,
+  onFocusChange,
 }: InputAreaProps) {
   const [message, setMessage] = useState("");
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
@@ -148,6 +150,7 @@ export function InputArea({
         onStartRecording={startRecording}
         onStopRecording={stopRecording}
         onCameraClick={() => setIsCameraOpen(true)}
+        onFocusChange={onFocusChange}
         placeholder="Como posso ajudar hoje? (Fotos, Arquivos ou Texto)"
       />
     </div>

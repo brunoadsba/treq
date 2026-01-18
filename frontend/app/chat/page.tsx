@@ -10,6 +10,7 @@ import { ConversationHistory } from "@/components/ConversationHistory";
 import { useToast } from "@/hooks/useToast";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
 
 export default function ChatPage() {
   const router = useRouter();
@@ -37,6 +38,7 @@ export default function ChatPage() {
   } = useChat();
   const { toasts, showToast, removeToast } = useToast();
   const [showHistory, setShowHistory] = useState(false);
+  const [isFooterFocused, setIsFooterFocused] = useState(false);
 
   // Mostrar toast de erro
   useEffect(() => {
@@ -171,10 +173,17 @@ export default function ChatPage() {
         />
       </div>
 
-      <div className="flex-shrink-0 w-full bg-white dark:bg-black border-t border-treq-gray-100 dark:border-white/5">
+      <div className={cn(
+        "flex-shrink-0 w-full transition-all duration-500 ease-in-out border-t",
+        "bg-white dark:bg-black",
+        isFooterFocused
+          ? "border-treq-yellow shadow-[0_-4px_20px_rgba(255,221,0,0.08)]"
+          : "border-treq-gray-100 dark:border-white/5 shadow-none"
+      )}>
         <InputArea
           onSend={handleSendMessage}
           isLoading={isLoading}
+          onFocusChange={setIsFooterFocused}
           onDocumentUploaded={(fileName, chunksIndexed) => {
             showToast(
               `Documento "${fileName}" enviado com sucesso! ${chunksIndexed} chunks indexados.`,

@@ -20,6 +20,7 @@ interface ManusInputProps {
     onValueChange?: (value: string) => void;
     file?: File | null;
     onFileChange?: (file: File | null) => void;
+    onFocusChange?: (focused: boolean) => void;
 }
 
 export function ManusInput({
@@ -34,7 +35,8 @@ export function ManusInput({
     value: controlledValue,
     onValueChange,
     file: controlledFile,
-    onFileChange
+    onFileChange,
+    onFocusChange
 }: ManusInputProps) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -174,8 +176,14 @@ export function ManusInput({
                     value={value}
                     onChange={handleChange}
                     onKeyDown={handleKeyDown}
-                    onFocus={() => setIsFocused(true)}
-                    onBlur={() => setIsFocused(false)}
+                    onFocus={() => {
+                        setIsFocused(true);
+                        onFocusChange?.(true);
+                    }}
+                    onBlur={() => {
+                        setIsFocused(false);
+                        onFocusChange?.(false);
+                    }}
                     placeholder={isRecording ? "Ouvindo..." : placeholder}
                     disabled={disabled || isLoading}
                     rows={1}

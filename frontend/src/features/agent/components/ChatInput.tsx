@@ -9,9 +9,10 @@ interface ChatInputProps {
     isLoading?: boolean;
     disabled?: boolean;
     placeholder?: string;
+    onFocusChange?: (focused: boolean) => void;
 }
 
-export function ChatInput({ onSend, isLoading, disabled, placeholder = "Como posso ajudar?" }: ChatInputProps) {
+export function ChatInput({ onSend, isLoading, disabled, placeholder = "Como posso ajudar?", onFocusChange }: ChatInputProps) {
     // Audio hooks
     const { isRecording, audioBlob, startRecording, stopRecording, clearRecording } = useAudioRecorder();
     const { isTranscribing, transcribeAudio } = useAudioTranscription();
@@ -55,6 +56,7 @@ export function ChatInput({ onSend, isLoading, disabled, placeholder = "Como pos
             isRecording={isRecording}
             onStartRecording={startRecording}
             onStopRecording={stopRecording}
+            onFocusChange={onFocusChange}
         />
     );
 }

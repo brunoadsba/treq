@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { cn } from '@/lib/utils';
 import { AgentMessage } from '../types';
 import { MessageList } from './MessageList';
 import { ChatInput } from './ChatInput';
@@ -13,6 +15,8 @@ interface AgentChatProps {
 }
 
 export function AgentChat({ messages, isLoading, error, onSend, onRetry }: AgentChatProps) {
+    const [isFooterFocused, setIsFooterFocused] = useState(false);
+
     return (
         <div className="flex flex-col h-full bg-treq-gray-50 dark:bg-treq-gray-900">
             {/* Messages Area */}
@@ -35,12 +39,19 @@ export function AgentChat({ messages, isLoading, error, onSend, onRetry }: Agent
                 />
             )}
 
-            {/* Input Area - High Contrast Foundation */}
-            <div className="flex-shrink-0 w-full bg-white dark:bg-black border-t border-treq-gray-100 dark:border-white/5">
+            {/* Input Area - High Contrast Foundation with Active State */}
+            <div className={cn(
+                "flex-shrink-0 w-full transition-all duration-500 ease-in-out border-t",
+                "bg-white dark:bg-black",
+                isFooterFocused
+                    ? "border-treq-yellow shadow-[0_-4px_20px_rgba(255,221,0,0.08)]"
+                    : "border-treq-gray-100 dark:border-white/5 shadow-none"
+            )}>
                 <ChatInput
                     onSend={onSend}
                     isLoading={isLoading}
                     disabled={isLoading}
+                    onFocusChange={setIsFooterFocused}
                     placeholder="Pergunte ao Agente Operacional..."
                 />
             </div>
