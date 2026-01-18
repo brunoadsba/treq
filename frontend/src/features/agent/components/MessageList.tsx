@@ -13,6 +13,15 @@ export function MessageList({ messages, isLoading }: MessageListProps) {
     const bottomRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+    const [currentTime, setCurrentTime] = useState(new Date());
+
+    // Tick the clock every minute
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setCurrentTime(new Date());
+        }, 60000); // Update every minute
+        return () => clearInterval(timer);
+    }, []);
 
     // Monitor scroll position to toggle auto-scroll
     const handleScroll = () => {
@@ -48,13 +57,18 @@ export function MessageList({ messages, isLoading }: MessageListProps) {
                             <div className="w-5 h-5 bg-treq-yellow rounded-md flex items-center justify-center shadow-md shadow-treq-yellow/10 animate-subtle-sway">
                                 <span className="text-treq-black text-[10px] font-black">T</span>
                             </div>
-                            <span className="text-treq-gray-900 dark:text-white text-2xl font-serif tracking-tight">
+                            <span className="text-treq-gray-900 dark:text-white text-2xl font-serif tracking-tight flex items-center gap-3">
                                 {new Intl.DateTimeFormat('pt-BR', {
                                     weekday: 'long',
                                     day: 'numeric',
                                     month: 'long',
                                     year: 'numeric'
-                                }).format(new Date()).replace(/^\w/, (c) => c.toUpperCase())}
+                                }).format(currentTime).replace(/^\w/, (c) => c.toUpperCase())}
+                                <span className="w-1 h-1 rounded-full bg-treq-gray-300 dark:bg-treq-gray-600" />
+                                {new Intl.DateTimeFormat('pt-BR', {
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                }).format(currentTime)}
                             </span>
                         </div>
                     </div>
