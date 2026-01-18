@@ -66,11 +66,6 @@ O Treq Enterprise opera 100% conteinerizado para garantir paridade entre desenvo
    - **Interface**: http://localhost:3000
    - **Documentação API**: http://localhost:8002/docs
 
-4. **Autenticação (Desenvolvimento)**:
-   - O sistema iniciará na tela de Login.
-   - **Usuário**: `admin`
-   - **Senha**: `admin123`
-
 ---
 
 ## Desenvolvimento Frontend (Hot-reload)

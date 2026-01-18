@@ -46,9 +46,10 @@ export interface ReasoningPlan {
 }
 
 export interface ChatMessage {
-  role: "user" | "assistant";
+  id?: string;
+  role: "user" | "assistant" | "system";
   content: string;
-  timestamp?: string;
+  timestamp?: string | Date;
   chartData?: ChartData;
   reasoning?: ReasoningPlan;
   runId?: string;
@@ -112,9 +113,7 @@ export function useChat(userId: string = "default-user") {
     setChatState(prev => ({ ...prev, error: err }));
   }, [setChatState]);
 
-  const clearMessages = useCallback(() => {
-    clearChatSession();
-  }, [clearChatSession]);
+  // clearMessages is now handled via clearChatSession from context
 
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
 

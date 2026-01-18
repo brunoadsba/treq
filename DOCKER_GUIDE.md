@@ -70,3 +70,8 @@ docker compose up -d --build
 ---
 
 **Nota:** Garanta que seu arquivo `.env` na raiz esteja sempre atualizado com as chaves reais.
+
+## 7. Autenticação (Desenvolvimento)
+Para acesso local em ambiente de teste:
+- **Usuário**: `admin`
+- **Senha**: `admin123`
