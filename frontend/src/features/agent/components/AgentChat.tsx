@@ -16,7 +16,7 @@ export function AgentChat({ messages, isLoading, error, onSend, onRetry }: Agent
     return (
         <div className="flex flex-col h-full bg-treq-gray-50 dark:bg-treq-gray-900">
             {/* Messages Area */}
-            <div className="flex-1 overflow-hidden relative">
+            <div className="flex-1 overflow-hidden relative flex flex-col">
                 <MessageList messages={messages} isLoading={isLoading} />
 
                 {/* Floating Skeleton during initial load if no messages */}
@@ -35,14 +35,16 @@ export function AgentChat({ messages, isLoading, error, onSend, onRetry }: Agent
                 />
             )}
 
-            {/* Input Area */}
-            <div className="flex-shrink-0 w-full backdrop-blur-sm bg-treq-gray-50/90 dark:bg-treq-gray-900/90">
-                <ChatInput
-                    onSend={onSend}
-                    isLoading={isLoading}
-                    disabled={isLoading}
-                    placeholder="Pergunte ao Agente Operacional..."
-                />
+            {/* Input Area - Floating & Transparent */}
+            <div className="absolute bottom-0 left-0 right-0 z-20 pointer-events-none">
+                <div className="pointer-events-auto">
+                    <ChatInput
+                        onSend={onSend}
+                        isLoading={isLoading}
+                        disabled={isLoading}
+                        placeholder="Pergunte ao Agente Operacional..."
+                    />
+                </div>
             </div>
         </div>
     );

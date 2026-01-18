@@ -49,7 +49,7 @@ export function MessageList({ messages, isLoading }: MessageListProps) {
             onScroll={handleScroll}
             className="flex-1 overflow-y-auto px-4 py-6 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-800"
         >
-            <div className="max-w-5xl mx-auto space-y-6 w-full">
+            <div className="max-w-5xl mx-auto space-y-6 w-full pb-32">
                 {/* Welcome Message if empty */}
                 {messages.length === 0 && !isLoading && (
                     <div className="flex flex-col items-center justify-center h-[60vh] animate-in fade-in zoom-in duration-1000">
