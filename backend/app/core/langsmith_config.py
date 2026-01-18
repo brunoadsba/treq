@@ -98,3 +98,24 @@ def get_run_url(run_id: str) -> Optional[str]:
     
     project = os.getenv("LANGCHAIN_PROJECT", DEFAULT_PROJECT)
     return f"https://smith.langchain.com/o/default/projects/p/{project}/r/{run_id}"
+
+def get_trace_config(user_id: str, tags: Optional[list] = None) -> dict:
+    """
+    Gera a configuração de trace para LangChain com metadados do usuário.
+    
+    Args:
+        user_id: ID do usuário para auditoria
+        tags: Tags adicionais para categorização
+        
+    Returns:
+        Dict compatível com RunnableConfig da LangChain
+    """
+    config = {
+        "metadata": {
+            "user_id": user_id,
+            "environment": os.getenv("ENVIRONMENT", "development")
+        },
+        "tags": tags or ["production"]
+    }
+    
+    return config

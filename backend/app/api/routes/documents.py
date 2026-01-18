@@ -17,6 +17,7 @@ from app.api.routes.documents_helpers import (
     index_document_chunks
 )
 from app.core.dependencies import get_current_user
+from app.core.audit import log_mutation, log_security_event
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -233,6 +234,13 @@ async def upload_document(
         deleted_count = rag.delete_by_source(file.filename)
         if deleted_count > 0:
             logger.info(f"Substituindo versão anterior: {deleted_count} chunks removidos")
+            log_mutation(
+                user_id=current_user_id,
+                action="DELETE_PREVIOUS_VERSION",
+                resource="DOCUMENT_CHUNKS",
+                resource_id=file.filename,
+                metadata={"deleted_chunks": deleted_count}
+            )
         
         # Indexar chunks no RAG
         indexed_count, failed_count = await index_document_chunks(
@@ -255,7 +263,17 @@ async def upload_document(
         if failed_count > 0:
             message += f" ({failed_count} falhas)"
         
-        logger.info(f"✅ Upload concluído: {file.filename} - {indexed_count} chunks indexados")
+        log_mutation(
+            user_id=current_user_id,
+            action="UPLOAD_DOCUMENT",
+            resource="DOCUMENT",
+            resource_id=file.filename,
+            metadata={
+                "chunks": indexed_count,
+                "size": file_size,
+                "type": document_type
+            }
+        )
         
         return DocumentUploadResponse(
             success=True,

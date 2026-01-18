@@ -7,8 +7,8 @@ Invoca ferramentas como Jira, Slack baseado na decisão do Planner.
 from loguru import logger
 from langchain_core.messages import AIMessage
 from ..state import AgentState
-
 from ..tools.registry import ToolRegistry
+from app.core.audit import log_mutation
 
 
 async def executor_node(state: AgentState) -> dict:
@@ -60,6 +60,16 @@ async def executor_node(state: AgentState) -> dict:
     if tool_outputs:
         result_msg = tool_outputs[0]["result"].get("message", "Ação executada")
         logger.info(f"🔧 EXECUTOR: {result_msg}")
+        
+        # Log Auditoria da Mutaçao
+        log_mutation(
+            user_id=state.get('user_id', 'unknown'),
+            action=f"EXECUTE_TOOL_{tool_outputs[0]['tool'].upper()}",
+            resource="AGENT_TOOL",
+            resource_id=tool_outputs[0]['tool'],
+            metadata={"result": result_msg}
+        )
+        
         return {
             "tool_outputs": tool_outputs,
             "messages": [AIMessage(content=result_msg)]

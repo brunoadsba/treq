@@ -40,9 +40,10 @@ class Settings(BaseSettings):
     
     # Supabase (RLS Mandatory)
     supabase_url: HttpUrl = Field(..., env="SUPABASE_URL")
-    supabase_service_role_key: str = Field("", env="SUPABASE_SERVICE_KEY")
-    supabase_anon_key: str = Field("", env="SUPABASE_ANON_KEY")
+    supabase_service_key: str = Field(..., validation_alias=AliasChoices("supabase_service_key", "SUPABASE_SERVICE_KEY"))
+    supabase_anon_key: str = Field(..., validation_alias=AliasChoices("supabase_anon_key", "SUPABASE_ANON_KEY"))
     database_url: str = Field("", env="DATABASE_URL")
+    redis_url: str = Field("redis://redis:6379/0", env="REDIS_URL")
     
     # Rate Limiting
     rate_limit_per_minute: int = 60
@@ -57,7 +58,7 @@ class Settings(BaseSettings):
     # Alias para compatibilidade legada
     @property
     def supabase_key(self) -> str:
-        return self.supabase_service_role_key
+        return self.supabase_service_key
 
     # APIs
     groq_api_key: str = Field("", env="GROQ_API_KEY")

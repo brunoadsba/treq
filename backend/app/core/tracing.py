@@ -32,41 +32,60 @@ def trace_llm_call(
 ):
     """
     Decorator para tracing de chamadas LLM.
-    
-    Args:
-        name: Nome do span
-        run_type: Tipo do run (llm, chain, tool)
-        metadata: Metadados adicionais
-        
-    Example:
-        @trace_llm_call(name="generate_response")
-        def generate_response(prompt: str) -> str:
-            ...
+    Automatiza a captura de user_id se presente nos kwargs.
     """
     def decorator(func: Callable) -> Callable:
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        async def async_wrapper(*args, **kwargs):
             if not is_langsmith_enabled():
-                return func(*args, **kwargs)
+                return await func(*args, **kwargs)
             
+            # Capturar user_id dos argumentos se disponível
+            user_id = kwargs.get("user_id") or kwargs.get("current_user_id")
+            run_metadata = (metadata or {}).copy()
+            if user_id:
+                run_metadata["user_id"] = user_id
+
             try:
                 from langsmith import traceable
-                
-                # Criar função traceable
                 traced_func = traceable(
                     name=name,
                     run_type=run_type,
-                    metadata=metadata or {}
+                    metadata=run_metadata
                 )(func)
-                
-                return traced_func(*args, **kwargs)
-            except ImportError:
-                return func(*args, **kwargs)
+                return await traced_func(*args, **kwargs)
             except Exception as e:
-                logger.debug(f"Erro no tracing: {e}")
+                logger.debug(f"Erro no tracing assíncrono: {e}")
+                return await func(*args, **kwargs)
+
+        @wraps(func)
+        def sync_wrapper(*args, **kwargs):
+            if not is_langsmith_enabled():
+                return func(*args, **kwargs)
+            
+            user_id = kwargs.get("user_id") or kwargs.get("current_user_id")
+            run_metadata = (metadata or {}).copy()
+            if user_id:
+                run_metadata["user_id"] = user_id
+
+            try:
+                from langsmith import traceable
+                traced_func = traceable(
+                    name=name,
+                    run_type=run_type,
+                    metadata=run_metadata
+                )(func)
+                return traced_func(*args, **kwargs)
+            except Exception as e:
+                logger.debug(f"Erro no tracing síncrono: {e}")
                 return func(*args, **kwargs)
         
-        return wrapper
+        # Detectar se a função é assíncrona
+        import inspect
+        if inspect.iscoroutinefunction(func):
+            return async_wrapper
+        return sync_wrapper
+
     return decorator
 
 
@@ -76,40 +95,8 @@ def trace_rag_pipeline(
 ):
     """
     Decorator para tracing de pipeline RAG.
-    
-    Args:
-        name: Nome do span
-        metadata: Metadados adicionais
-        
-    Example:
-        @trace_rag_pipeline(name="search_documents")
-        def search(query: str) -> List[Dict]:
-            ...
     """
-    def decorator(func: Callable) -> Callable:
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            if not is_langsmith_enabled():
-                return func(*args, **kwargs)
-            
-            try:
-                from langsmith import traceable
-                
-                traced_func = traceable(
-                    name=name,
-                    run_type="retriever",
-                    metadata=metadata or {}
-                )(func)
-                
-                return traced_func(*args, **kwargs)
-            except ImportError:
-                return func(*args, **kwargs)
-            except Exception as e:
-                logger.debug(f"Erro no tracing RAG: {e}")
-                return func(*args, **kwargs)
-        
-        return wrapper
-    return decorator
+    return trace_llm_call(name=name, run_type="retriever", metadata=metadata)
 
 
 @contextmanager

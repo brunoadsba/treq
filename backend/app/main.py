@@ -158,10 +158,48 @@ async def validation_exception_handler(request, exc):
     )
 
 
-# Saúde do servidor
+# Saúde do servidor (Deep Healthcheck)
 @app.get("/health")
 async def health_check():
-    return {"status": "ok", "service": "treq-backend", "up": True}
+    import time
+    from app.services.supabase_service import get_supabase_client
+    import redis
+    
+    health_status = {
+        "status": "ok",
+        "service": "treq-backend",
+        "timestamp": time.time(),
+        "dependencies": {
+            "redis": "unknown",
+            "supabase": "unknown"
+        }
+    }
+    
+    # Check Redis
+    try:
+        r = redis.from_url(settings.redis_url)
+        if r.ping():
+            health_status["dependencies"]["redis"] = "connected"
+        else:
+            health_status["dependencies"]["redis"] = "unhealthy"
+            health_status["status"] = "partially_ok"
+    except Exception as e:
+        logger.error(f"Healthcheck Redis error: {e}")
+        health_status["dependencies"]["redis"] = f"disconnected: {str(e)}"
+        health_status["status"] = "partially_ok"
+
+    # Check Supabase
+    try:
+        # Simple query to check connectivity
+        supabase = get_supabase_client()
+        supabase.table('knowledge_base').select('id').limit(1).execute()
+        health_status["dependencies"]["supabase"] = "connected"
+    except Exception as e:
+        logger.error(f"Healthcheck Supabase error: {e}")
+        health_status["dependencies"]["supabase"] = f"disconnected: {str(e)}"
+        health_status["status"] = "unhealthy"
+
+    return health_status
 
 @app.get("/")
 async def root():

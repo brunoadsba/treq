@@ -2,11 +2,13 @@
 Rotas da API para feedback de usuários.
 Usado para coletar dados de qualidade das respostas do assistente.
 """
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from typing import Optional
 from loguru import logger
 from datetime import datetime
+from app.core.dependencies import get_current_user
+from app.core.audit import log_mutation
 
 router = APIRouter(prefix="/feedback", tags=["feedback"])
 
@@ -26,7 +28,10 @@ class FeedbackResponse(BaseModel):
 
 
 @router.post("/", response_model=FeedbackResponse)
-async def submit_feedback(request: FeedbackRequest):
+async def submit_feedback(
+    request: FeedbackRequest,
+    current_user_id: str = Depends(get_current_user)
+):
     """
     Recebe feedback do usuário e integra com LangSmith e Supabase.
     
@@ -82,6 +87,15 @@ async def submit_feedback(request: FeedbackRequest):
                     logger.info(f"🚀 Feedback sincronizado com LangSmith (ID: {request.message_id})")
             except Exception as ls_err:
                 logger.error(f"Erro ao conectar com LangSmith: {ls_err}")
+
+        # 4. Log de Auditoria LGPD
+        log_mutation(
+            user_id=current_user_id,
+            action="SUBMIT_FEEDBACK",
+            resource="CHAT_MESSAGE",
+            resource_id=request.message_id,
+            metadata={"type": request.feedback_type, "has_comment": bool(request.comment)}
+        )
 
         return FeedbackResponse(
             success=True,
