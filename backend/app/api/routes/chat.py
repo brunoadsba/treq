@@ -25,6 +25,7 @@ from .chat_modules.dependencies import get_llm_service, get_rag_service, get_vis
 from .chat_modules.context_handler import prepare_chat_context
 from .chat_modules.stream_handler import generate_stream_response
 from .chat_modules.visualization_handler import handle_visualization
+from app.features.security.prompt_guard import PromptInjectionGuard
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -56,6 +57,18 @@ async def chat(
     # Rate limiting check (internal)
     logger.debug(f"Rate limit check - Limit: {get_rate_limit('chat')}")
     
+    # 0. Prompt Injection Guard (Layer 7 Defense)
+    is_threat, score, matched_patterns = PromptInjectionGuard.analyze_threat(chat_request.message)
+    if is_threat:
+        logger.warning(f"🚨 PROMPT INJECTION DETECTADO: Score={score}, Patterns={matched_patterns}, User={current_user_id}")
+        raise HTTPException(
+            status_code=400,
+            detail="Por motivos de segurança, sua mensagem não pôde ser processada. Por favor, reformule sua solicitação."
+        )
+    
+    # Aplicar XML Wrapping para segregação de Instrução-Dado
+    chat_request.message = PromptInjectionGuard.wrap_data(chat_request.message)
+
     try:
         # 1. Modo visualização
         viz_response = await handle_visualization(chat_request, visualization_service)

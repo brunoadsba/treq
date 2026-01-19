@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from typing import List, Optional, Dict, Any
 from app.utils.input_sanitizer import get_max_input_length
+from app.core.validators import MessageSanitizer
 
 class ChatMessage(BaseModel):
     """Mensagem do chat."""
@@ -19,6 +20,10 @@ class ChatRequest(BaseModel):
     action_id: Optional[str] = Field(None, description="ID da ação rápida (ex: 'alertas', 'status-recife')")
     show_reasoning: Optional[bool] = Field(False, description="Se True, inclui reasoning/CoT na resposta")
     image_url: Optional[str] = Field(None, description="URL da imagem anexada (opcional)")
+
+    @validator('message')
+    def sanitize_message(cls, v):
+        return MessageSanitizer.sanitize(v)
 
 
 class ChatResponse(BaseModel):

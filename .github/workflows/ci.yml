@@ -1,0 +1,52 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main, pos-auditoria ]
+  pull_request:
+    branches: [ main, pos-auditoria ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python_version: '3.10'
+          cache: 'pip'
+          
+      - name: Install dependencies
+        run: |
+          cd backend
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-cov ruff mypy radon
+          
+      - name: Lint with Ruff
+        run: |
+          cd backend
+          ruff check .
+          
+      - name: Static Type Check (MyPy)
+        run: |
+          cd backend
+          mypy . --ignore-missing-imports
+          
+      - name: Complexity Check (Radon)
+        run: |
+          cd backend
+          radon cc app/ -s -a -nb --min B
+          
+      - name: Run Tests with Coverage
+        run: |
+          cd backend
+          pytest
+        env:
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          ENV: testing

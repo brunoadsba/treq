@@ -3,12 +3,13 @@ Rotas da API para feedback de usuários.
 Usado para coletar dados de qualidade das respostas do assistente.
 """
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from typing import Optional
 from loguru import logger
 from datetime import datetime
 from app.core.dependencies import get_current_user
 from app.core.audit import log_mutation
+from app.core.validators import MessageSanitizer
 
 router = APIRouter(prefix="/feedback", tags=["feedback"])
 
@@ -19,6 +20,10 @@ class FeedbackRequest(BaseModel):
     feedback_type: str  # "positive" ou "negative"
     timestamp: Optional[str] = None
     comment: Optional[str] = None
+
+    @validator('comment')
+    def sanitize_comment(cls, v):
+        return MessageSanitizer.sanitize(v) if v else v
 
 
 class FeedbackResponse(BaseModel):

@@ -14,9 +14,13 @@ import os
 
 # Configurar variáveis de ambiente MOCK antes de importar qualquer módulo da aplicação
 os.environ.setdefault("SECRET_KEY", "mock_secret_key_for_testing_only_unsafe")
+os.environ.setdefault("JWT_SECRET_KEY", "mock_jwt_secret_key_for_testing_only_unsafe")
 os.environ.setdefault("SUPABASE_URL", "https://mock.supabase.co")
-os.environ.setdefault("SUPABASE_KEY", "mock_supabase_key")
+os.environ.setdefault("SUPABASE_SERVICE_KEY", "mock_supabase_service_key")
+os.environ.setdefault("SUPABASE_ANON_KEY", "mock_supabase_anon_key")
 os.environ.setdefault("GROQ_API_KEY", "mock_groq_key")
+os.environ["LANGCHAIN_TRACING_V2"] = "false"
+os.environ["LANGSMITH_API_KEY"] = ""
 
 # Adicionar o diretório raiz ao path para imports
 backend_dir = Path(__file__).parent.parent

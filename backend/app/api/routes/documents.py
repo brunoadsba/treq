@@ -18,6 +18,7 @@ from app.api.routes.documents_helpers import (
 )
 from app.core.dependencies import get_current_user
 from app.core.audit import log_mutation, log_security_event
+from app.core.validators import MessageSanitizer, FileUploadRequest
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -122,10 +123,15 @@ async def upload_document(
     """
     try:
         logger.info(f"📄 Upload recebido: {file.filename} (tipo: {document_type or 'unknown'})")
-        if user_message:
-            logger.info(f"💬 Mensagem do usuário: {user_message[:100]}...")
+        # Validar arquivo com Pydantic Validator
+        FileUploadRequest(filename=file.filename or "", content_type=file.content_type or "")
         
-        # Validar arquivo
+        # Sanitizar mensagem do usuário
+        if user_message:
+            user_message = MessageSanitizer.sanitize(user_message)
+            logger.info(f"💬 Mensagem do usuário (sanitizada): {user_message[:100]}...")
+        
+        # Validar arquivo (regras de negócio e tamanho)
         validate_file(file)
         
         # Ler conteúdo do arquivo

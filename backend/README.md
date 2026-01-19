@@ -77,11 +77,12 @@ backend/
 - Chunking semântico preservando hierarquia
 - Hybrid search (semântico + filtros)
 
-### 5. Observabilidade (LangSmith)
-- **Tracing:** Integrado em LLM, RAG e Validadores
-- **Métricas Locais:** Logs detalhados de token e latência (`[LLM_METRICS]`)
-- **Feedback:** Endpoint `/feedback` para coleta de dados de satisfação
-## Endpoints Principais
+### 5. Observabilidade & Segurança (Enterprise Hardening)
+- **Prompt Guard:** Proteção nível 7 contra ataques de injeção usando segregação XML (`<user_input>`) e detecção de padrões críticos.
+- **Validadores Master:** Sistema de whitelisting agressivo baseado em Pydantic para `Chat`, `Upload` e `Feedback`.
+- **Tracing:** Integrado em LLM, RAG e Validadores via LangSmith.
+- **Métricas Locais:** Logs detalhados de token e latência (`[LLM_METRICS]`).
+- **Feedback:** Endpoint `/feedback` para coleta de dados de satisfação e sincronização com LangSmith.## Endpoints Principais
 
 ### Chat
 - `POST /chat/` - Chat principal (suporta `stream: true/false`)

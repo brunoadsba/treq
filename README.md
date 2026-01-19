@@ -79,14 +79,14 @@ docker compose up -d frontend
 ```
 *O container usará o target `development` do Dockerfile, mapeando os volumes do host.*
 
-## Segurança & Compliance
-O sistema utiliza **JWT + RLS (Row Level Security)** nativo. Todas as requisições ao backend são filtradas pelo `user_id` extraído do token, garantindo isolamento total de dados entre diferentes usuários.
-
-## 🔒 Segurança & Hardening
+## 🔒 Segurança & Hardening (Sprint 1 Elite)
+- **Prompt Guard (Layer 7):** Defesa contra Injeção de Prompt e Jailbreak com detecção heurística e segregação XML Instruction-Data.
+- **Whitelisting Agressivo:** Validação rigorosa de inputs com Pydantic e sanitização especializada em todos os endpoints críticos.
+- **Secrets Protection:** Auditoria automática via `gitleaks` integrada aos git hooks para prevenir vazamento de credenciais.
 - **Auth:** OAuth2 + JWT (Gerido em `backend/app/core/security.py`).
 - **SSOT:** Configurações centralizadas em `backend/app/config.py`.
 - **Isolamento:** Native RLS aplicado em todas as camadas (DB + Agente).
-- **Audit:** Tracing automático via LangSmith.
+- **Audit:** Tracing automático via LangSmith e logs de auditoria LGPD.
 
 ---
 
