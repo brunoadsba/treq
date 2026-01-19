@@ -36,14 +36,16 @@ export function Header({
   return (
     <header className="bg-treq-black text-white p-2 sm:p-2.5 md:p-3 lg:p-3.5 shadow-md z-50 relative">
       <div className="flex items-center justify-between gap-2 sm:gap-3">
-        {/* Lado Esquerdo: Marca (Responsiva) */}
+        {/* Lado Esquerdo: Ícone T */}
         <div className="flex items-center min-w-0">
-          <Logo variant="horizontal" size="md" className="text-white" />
+          <Logo variant="icon" size="md" className="text-white" />
         </div>
 
-        {/* Centro: Navegação (Chat vs Agente) */}
+        {/* Centro: Nome Treq Centralizado */}
         <div className="flex-1 flex justify-center">
-          <NavigationTabs />
+          <span className="text-2xl font-bold tracking-tight text-white">
+            Treq
+          </span>
         </div>
 
         {/* Lado Direito: Controles Funcionais */}

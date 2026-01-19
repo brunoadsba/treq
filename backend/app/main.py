@@ -75,7 +75,9 @@ allowed_origins = [o.strip() for o in raw_origins if o.strip()]
 trusted_origins = [
     "https://treq-bay.vercel.app",
     "http://localhost:3000",
-    "http://127.0.0.1:3000"
+    "http://localhost:3001",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001"
 ]
 
 for origin in trusted_origins:

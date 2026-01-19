@@ -274,8 +274,8 @@ def prepare_metadata(
         "chunk_index": chunk_index,
         "total_chunks": total_chunks,
         
-        # NOVOS: Campos para RLS
-        "allowed_users": [user_id] if user_id else ["*"],  # "*" = público
+        # CORRIGIDO: Campos para RLS (SEGURO)
+        "allowed_users": _get_secure_allowed_users(user_id, classification),
         "department": department,
         "classification": classification,
         
@@ -297,7 +297,54 @@ def prepare_metadata(
     if custom_metadata:
         metadata.update(custom_metadata)
     
+    # VALIDAÇÃO FINAL DE SEGURANÇA
+    _validate_security_metadata(metadata)
+    
     return metadata
+
+
+def _get_secure_allowed_users(user_id: Optional[str], classification: str) -> List[str]:
+    """Determina allowed_users de forma segura baseado na classificação."""
+    # REGRA CRÍTICA: Documentos confidenciais NUNCA podem ser públicos
+    if classification in ['confidential', 'restricted']:
+        if not user_id:
+            raise SecurityError(f"Confidential documents require explicit user_id. Classification: {classification}")
+        return [user_id]
+    
+    # Documentos internos: usuário específico ou anonymous se não fornecido
+    if classification == 'internal':
+        return [user_id] if user_id else ["anonymous"]
+    
+    # Apenas documentos públicos podem usar "*"
+    if classification == 'public':
+        return ["*"]
+    
+    # Default: usuário específico ou anonymous
+    return [user_id] if user_id else ["anonymous"]
+
+
+def _validate_security_metadata(metadata: Dict[str, Any]) -> None:
+    """Validação de segurança obrigatória antes da indexação."""
+    classification = metadata.get('classification')
+    allowed_users = metadata.get('allowed_users', [])
+    
+    # REGRA 1: Documentos confidenciais NUNCA podem ser públicos
+    if classification in ['confidential', 'restricted'] and '*' in allowed_users:
+        raise SecurityError(f"SECURITY VIOLATION: Confidential documents cannot have public access (*). Classification: {classification}")
+    
+    # REGRA 2: allowed_users não pode estar vazio
+    if not allowed_users:
+        raise SecurityError("SECURITY VIOLATION: allowed_users cannot be empty - RLS requirement")
+    
+    # REGRA 3: Validar formato de user_id
+    for user in allowed_users:
+        if user not in ['*', 'anonymous'] and not isinstance(user, str):
+            raise SecurityError(f"SECURITY VIOLATION: Invalid user_id format: {user}")
+
+
+class SecurityError(Exception):
+    """Exceção para violações de segurança em metadados."""
+    pass
 
 
 def validate_metadata(metadata: Dict[str, Any]) -> tuple[bool, List[str]]:

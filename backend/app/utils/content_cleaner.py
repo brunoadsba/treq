@@ -170,23 +170,37 @@ def clean_for_embedding(text: str) -> str:
     Limpeza específica para otimizar embeddings vetoriais.
     Remove elementos que não contribuem para similaridade semântica.
     
+    AUDITORIA 2026: Adicionada limpeza de ruído identificado.
+    
     Args:
         text: Texto original
         
     Returns:
         Texto otimizado para embedding
     """
-    # Aplicar limpeza avançada
-    text = clean_content_advanced(text, preserve_tables=False)
+    # CORREÇÃO CRÍTICA: Remover ruído identificado na auditoria
+    noise_patterns = [
+        r'\[Fonte:.*?\|.*?\]',  # Remove "[Fonte: arquivo.md | Seção: ...]"
+        r'^\s*-\s*\[\s*\]\s*',  # Remove checkboxes vazios "- [ ]"
+        r'\*\*([^*]+)\*\*:?\s*$',  # Remove headers isolados "**Header:**"
+        r'\|\s*Parte:\s*\d+/\d+\s*\]',  # Remove "| Parte: 1/4]"
+    ]
+    
+    cleaned = text
+    for pattern in noise_patterns:
+        cleaned = re.sub(pattern, '', cleaned, flags=re.MULTILINE)
+    
+    # Aplicar limpeza avançada original
+    cleaned = clean_content_advanced(cleaned, preserve_tables=False)
     
     # Remover URLs
-    text = re.sub(r'https?://\S+', '', text)
+    cleaned = re.sub(r'https?://\S+', '', cleaned)
     
     # Remover emails
-    text = re.sub(r'\S+@\S+\.\S+', '', text)
+    cleaned = re.sub(r'\S+@\S+\.\S+', '', cleaned)
     
     # Remover números de telefone (formato brasileiro)
-    text = re.sub(r'\(?\d{2}\)?\s?\d{4,5}-?\d{4}', '', text)
+    cleaned = re.sub(r'\(?\d{2}\)?\s?\d{4,5}-?\d{4}', '', cleaned)
     
     # Remover caracteres especiais repetidos
     text = re.sub(r'([^\w\s])\1+', r'\1', text)

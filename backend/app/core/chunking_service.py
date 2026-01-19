@@ -6,19 +6,19 @@ from typing import List, Dict, Any, Optional
 from pathlib import Path
 from loguru import logger
 from langchain.text_splitter import MarkdownHeaderTextSplitter
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from app.utils.content_cleaner import clean_for_embedding
 
 
 class ChunkingService:
     """Serviço para dividir documentos em chunks semânticos."""
     
-    def __init__(self, chunk_size: int = 1500, chunk_overlap: int = 300):
+    def __init__(self, chunk_size: int = 1200, chunk_overlap: int = 400):
         """
         Inicializa o serviço de chunking.
         
         Args:
-            chunk_size: Tamanho máximo do chunk em caracteres
-            chunk_overlap: Sobreposição entre chunks em caracteres
+            chunk_size: Tamanho máximo do chunk em caracteres (OTIMIZADO: 1200)
+            chunk_overlap: Sobreposição entre chunks em caracteres (OTIMIZADO: 400)
         """
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
@@ -71,6 +71,9 @@ class ChunkingService:
             processed_chunks = []
             for i, chunk in enumerate(chunks):
                 chunk_content = chunk.page_content if hasattr(chunk, 'page_content') else str(chunk)
+                
+                # CORREÇÃO AUDITORIA: Aplicar limpeza de ruído
+                chunk_content = clean_for_embedding(chunk_content)
                 
                 # Extrair hierarquia de seções do metadata do chunk
                 section_hierarchy = []

@@ -83,7 +83,7 @@ class Settings(BaseSettings):
     llm_model_complex: str = "llama-3.3-70b-versatile"
     glm_model: str = "glm-4.7"
     llm_temperature: float = 0.4
-    llm_max_tokens: int = 1200
+    llm_max_tokens: int = 500  # REDUZIDO PARA EVITAR LOOPS
     
     # Observabilidade
     langsmith_api_key: str = Field("", env="LANGSMITH_API_KEY")

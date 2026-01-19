@@ -1,13 +1,9 @@
-"use client";
+import { redirect } from 'next/navigation'
 
-import { useEffect, useState } from 'react';
-import { AgentChat } from '@/features/agent/components/AgentChat';
-import { Header } from '@/components/Header';
-import { ConversationHistory } from '@/components/ConversationHistory';
-import { useAgentChat } from '@/features/agent/hooks/useAgentChat';
-import { useToast } from '@/hooks/useToast';
-import { useRouter } from 'next/navigation';
-import { Toast } from '@/components/Toast';
+export default function AgentPage() {
+  // Redirecionar para experiência unificada otimizada
+  redirect('/chat-unified')
+}
 
 export default function AgentPage() {
     const router = useRouter();

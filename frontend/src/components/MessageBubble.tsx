@@ -14,6 +14,7 @@ const ChartMessage = lazy(() => import("./ChartMessage").then(m => ({ default: m
 import { ChartLoadingSkeleton } from "./ChartLoadingSkeleton";
 import { ReasoningDisplay } from "./ReasoningDisplay";
 import { FeedbackButtons } from "./FeedbackButtons";
+import { CopyButton } from "./CopyButton";
 
 // Função para processar conteúdo removendo tags <pensamento> e <resposta>
 // DEVE ser idêntica à função parseChainOfThought do FormattedMessage
@@ -251,6 +252,15 @@ export function MessageBubble({ message, isLoading: isGlobalLoading }: MessageBu
             )}
 
             {/* Divisor entre áudio e feedback */}
+            <div className="w-px h-5 bg-treq-gray-200 mx-1 hidden sm:block" />
+
+            {/* Botão de Copiar */}
+            <CopyButton 
+              text={parseContentForAudio(message.content)} 
+              className="text-xs"
+            />
+
+            {/* Divisor entre copiar e feedback */}
             <div className="w-px h-5 bg-treq-gray-200 mx-1 hidden sm:block" />
 
             {/* Botões de Feedback */}

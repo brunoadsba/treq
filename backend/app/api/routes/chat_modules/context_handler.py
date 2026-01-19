@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from app.services.llm_service import LLMService
 from app.core.social_detector import detect_social_interaction
 from app.core.consultoria_detector import detect_initial_consultoria, get_initial_consultoria_response
+from app.core.fast_consultoria import detect_fast_consultoria_response
 from app.core.follow_up_detector import detect_follow_up, expand_query_with_context
 from app.core.query_router import route_query
 from app.core.dissatisfaction_detector import detect_dissatisfaction
@@ -53,14 +54,21 @@ async def prepare_chat_context(
         logger.info(f"Interação social detectada - resposta direta sem RAG")
         return {"special_response": social_response, "type": "social"}
     
-    # 2. Detectar consultoria inicial ou necessidade de clarificação
+    # 2. Detectar consultoria inicial ou resposta rápida
     # Se houver imagem, ignoramos consultoria inicial para priorizar análise multimodal
     if detect_initial_consultoria(user_message) and not chat_request.image_url:
         logger.info("Consultoria inicial detectada - retornando pergunta interativa")
         initial_response = get_initial_consultoria_response()
         return {"special_response": initial_response, "type": "consultoria"}
     
-    # 2.1. Classificar intenção e verificar se precisa clarificação
+    # 2.1. OTIMIZAÇÃO: Detectar consultas rápidas sobre consultoria
+    if not chat_request.image_url:
+        fast_response = detect_fast_consultoria_response(user_message)
+        if fast_response:
+            logger.info("Consultoria rápida detectada - resposta imediata sem processamento")
+            return {"special_response": fast_response, "type": "consultoria_fast"}
+    
+    # 2.2. Classificar intenção e verificar se precisa clarificação
     if user_message.lower().startswith("consultoria:"):
         intent_result = classify_intent(user_message)
         if intent_result.get("requires_clarification", False):
@@ -171,17 +179,22 @@ async def prepare_chat_context(
             # Se for erro genérico, continuamos sem a imagem mas logamos
     
     
-    # 10. Executar CoT Planner (Fase 3 Feature)
+    # 10. Executar CoT Planner (Fase 3 Feature) - OTIMIZADO
     cot_plan = None
-    # Executar CoT se houver contexto ou se for intenção complexa
-    if (combined_context or query_type not in ["greeting", "social"]) and query_type != "capacidade":
+    # OTIMIZAÇÃO: Pular CoT para consultas simples e sociais
+    skip_cot_types = ["greeting", "social", "capacidade", "consultoria_simple", "consultoria_fast"]
+    
+    # Executar CoT apenas se houver contexto complexo ou intenção que requer raciocínio
+    if (combined_context and query_type not in skip_cot_types):
         llm_service = get_llm_service()
-        # Se show_reasoning for False no request, ainda poderiamos executar o CoT internamente para melhorar a resposta?
-        # Sim, o objetivo é IMPROVE reasoning.
-        cot_plan = await generate_cot_plan(user_message, combined_context, llm_service, query_type)
+        # Reduzir contexto para CoT ser mais rápido
+        limited_context = combined_context[:3]  # Apenas 3 chunks mais relevantes
+        cot_plan = await generate_cot_plan(user_message, limited_context, llm_service, query_type)
         
         if cot_plan.get("context_status") == "INSUFFICIENT" and not tool_result:
              logger.warning("CoT Planner indicou contexto insuficiente.")
+    else:
+        logger.info(f"CoT pulado para query_type: {query_type} (otimização de performance)")
 
     return {
         "context_manager": context_manager,
