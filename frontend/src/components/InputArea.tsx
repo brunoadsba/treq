@@ -5,8 +5,8 @@ import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { useAudioTranscription } from "@/hooks/useAudioTranscription";
 import { useDocumentUpload } from "@/hooks/useDocumentUpload";
 import { useHighContrast } from "@/hooks/useHighContrast";
-import { CameraCapture } from "@/src/features/vision/components/CameraCapture";
-import { base64ToFile, fileToBase64 } from "@/src/features/chat/utils/file-utils";
+import { CameraCapture } from "@/features/vision/components/CameraCapture";
+import { base64ToFile, fileToBase64 } from "@/features/chat/utils/file-utils";
 import { ManusInput } from "@/components/ManusInput";
 
 interface InputAreaProps {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { SavedConversation } from "@/hooks/useChat";
+import type { SavedConversation } from "@/hooks/useChat";
 import { Search, X, MessageSquare, Clock, Trash2 } from "lucide-react";
 import { useHighContrast } from "@/hooks/useHighContrast";
 
@@ -25,7 +25,7 @@ export function ConversationHistory({
 
   const filteredConversations = useMemo(() => {
     if (!searchQuery.trim()) return conversations;
-    
+
     const query = searchQuery.toLowerCase();
     return conversations.filter(
       (conv) =>
@@ -55,7 +55,7 @@ export function ConversationHistory({
     <div className={`fixed inset-0 z-50 flex ${isHighContrast ? 'bg-black' : 'bg-black bg-opacity-50'}`}>
       {/* Overlay para fechar */}
       <div className="absolute inset-0" onClick={onClose} aria-hidden="true" />
-      
+
       {/* Sidebar */}
       <div className={`relative w-full max-w-[90vw] sm:w-96 md:w-[420px] ${isHighContrast ? 'bg-black border-r border-white' : 'bg-white'} shadow-xl flex flex-col`}>
         {/* Header */}
@@ -81,11 +81,10 @@ export function ConversationHistory({
               placeholder="Buscar conversas..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-full pl-10 pr-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-treq-yellow ${
-                isHighContrast
+              className={`w-full pl-10 pr-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-treq-yellow ${isHighContrast
                   ? 'bg-black border-white text-white placeholder:text-treq-gray-400'
                   : 'bg-white border-treq-gray-300 text-treq-gray-900 placeholder:text-treq-gray-400'
-              }`}
+                }`}
               aria-label="Buscar conversas"
             />
           </div>
@@ -105,22 +104,20 @@ export function ConversationHistory({
               {filteredConversations.map((conversation) => {
                 const isActive = conversation.id === currentConversationId;
                 const messageCount = conversation.messages.length;
-                
+
                 return (
                   <div
                     key={conversation.id}
-                    className={`p-4 hover:bg-treq-gray-50 transition-colors cursor-pointer group ${
-                      isActive ? (isHighContrast ? 'bg-treq-gray-800 border-l-4 border-treq-yellow' : 'bg-treq-yellow-light border-l-4 border-treq-yellow') : ''
-                    } ${isHighContrast ? 'hover:bg-treq-gray-800' : ''}`}
+                    className={`p-4 hover:bg-treq-gray-50 transition-colors cursor-pointer group ${isActive ? (isHighContrast ? 'bg-treq-gray-800 border-l-4 border-treq-yellow' : 'bg-treq-yellow-light border-l-4 border-treq-yellow') : ''
+                      } ${isHighContrast ? 'hover:bg-treq-gray-800' : ''}`}
                     onClick={() => onSelectConversation(conversation.id)}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
-                        <h3 className={`text-sm font-medium mb-1 truncate ${
-                          isActive 
+                        <h3 className={`text-sm font-medium mb-1 truncate ${isActive
                             ? (isHighContrast ? 'text-treq-yellow' : 'text-treq-gray-900')
                             : (isHighContrast ? 'text-white' : 'text-treq-gray-900')
-                        }`}>
+                          }`}>
                           {conversation.title}
                         </h3>
                         <div className="flex items-center gap-3 text-xs text-treq-gray-500 mb-2">
@@ -134,9 +131,8 @@ export function ConversationHistory({
                           </span>
                         </div>
                         {conversation.messages.length > 0 && (
-                          <p className={`text-xs truncate ${
-                            isHighContrast ? 'text-treq-gray-400' : 'text-treq-gray-600'
-                          }`}>
+                          <p className={`text-xs truncate ${isHighContrast ? 'text-treq-gray-400' : 'text-treq-gray-600'
+                            }`}>
                             {conversation.messages[0].content.substring(0, 60)}...
                           </p>
                         )}
@@ -148,9 +144,8 @@ export function ConversationHistory({
                             onDeleteConversation(conversation.id);
                           }
                         }}
-                        className={`opacity-0 group-hover:opacity-100 p-1.5 rounded hover:bg-treq-error-light transition-all ${
-                          isHighContrast ? 'hover:bg-treq-gray-700' : ''
-                        }`}
+                        className={`opacity-0 group-hover:opacity-100 p-1.5 rounded hover:bg-treq-error-light transition-all ${isHighContrast ? 'hover:bg-treq-gray-700' : ''
+                          }`}
                         aria-label={`Excluir conversa: ${conversation.title}`}
                         title="Excluir conversa"
                       >

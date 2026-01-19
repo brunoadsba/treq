@@ -157,7 +157,7 @@ No `.env` ou no Render Dashboard:
 
 ```bash
 LANGCHAIN_TRACING_V2=true
-LANGSMITH_API_KEY=ls-...
+LANGSMITH_API_KEY=${LANGSMITH_API_KEY}
 LANGCHAIN_PROJECT=treq-assistente
 ```
 

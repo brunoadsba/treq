@@ -33,10 +33,10 @@ export function useAgentChat(userId: string = "default-user"): UseAgentChatRetur
     const { messages, conversationId, isLoading, error } = agentState;
 
     // Helper setters for compatibility
-    const setMessages = useCallback((updater: any) => {
+    const setMessages = useCallback((updater: AgentMessage[] | ((prev: AgentMessage[]) => AgentMessage[])) => {
         setAgentState(prev => ({
             ...prev,
-            messages: typeof updater === 'function' ? updater(prev.messages) : updater
+            messages: (typeof updater === 'function' ? updater(prev.messages as any) : updater) as any
         }));
     }, [setAgentState]);
 

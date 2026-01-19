@@ -7,6 +7,14 @@ import {
   ReasoningPlan,
   ChartData
 } from "@/features/chat/types";
+
+export type {
+  ChatMessage,
+  ChatResponse,
+  SavedConversation,
+  ReasoningPlan,
+  ChartData
+};
 import { useSSE } from "@/features/chat/hooks/useSSE";
 import { useConversationManagement } from "@/features/chat/hooks/useConversationManagement";
 

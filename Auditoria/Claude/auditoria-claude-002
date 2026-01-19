@@ -490,7 +490,7 @@ from app.main import app
 from app.core.database import Base, get_db
 
 # Test database
-TEST_DATABASE_URL = "postgresql://test:test@localhost:5433/test_treq"
+TEST_DATABASE_URL = "postgresql://${DB_USER}:${DB_PASSWORD}@localhost:5433/${DB_NAME}"
 test_engine = create_engine(TEST_DATABASE_URL)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
 
@@ -534,7 +534,7 @@ def authenticated_headers(client):
     # Criar usuário de teste e gerar token
     response = client.post("/auth/register", json={
         "email": "test@example.com",
-        "password": "Test123!@#"
+        "password": "${USER_PASSWORD}"
     })
     token = response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
@@ -608,7 +608,7 @@ async def test_rls_isolation(client, authenticated_headers, db_session):
     # Usuário 2
     response = client.post("/auth/register", json={
         "email": "user2@example.com",
-        "password": "Test123!@#"
+        "password": "${USER_PASSWORD}"
     })
     user2_token = {"Authorization": f"Bearer {response.json()['access_token']}"}
     

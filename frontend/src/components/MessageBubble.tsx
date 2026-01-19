@@ -4,10 +4,10 @@ import { useState, lazy, Suspense, useMemo } from "react";
 import { ChatMessage } from "@/hooks/useChat";
 import { Volume2, Loader2, Pause, Play, Gauge } from "lucide-react";
 import { useTTS, PLAYBACK_RATES } from "@/hooks/useTTS";
-import { parseChainOfThought } from "@/src/features/chat/utils/message-parser";
+import { parseChainOfThought } from "@/features/chat/utils/message-parser";
 
 // Lazy loading para FormattedMessage (componente pesado com markdown)
-const FormattedMessage = lazy(() => import("@/src/features/chat/components/FormattedMessage").then(m => ({ default: m.FormattedMessage })));
+const FormattedMessage = lazy(() => import("@/features/chat/components/FormattedMessage").then(m => ({ default: m.FormattedMessage })));
 // Lazy loading para ChartMessage (componente pesado com Recharts)
 const ChartMessage = lazy(() => import("./ChartMessage").then(m => ({ default: m.ChartMessage })));
 // Import direto para ChartLoadingSkeleton (componente leve)
@@ -255,7 +255,7 @@ export function MessageBubble({ message, isLoading: isGlobalLoading }: MessageBu
 
             {/* Botões de Feedback */}
             <FeedbackButtons
-              messageId={message.runId || message.timestamp}
+              messageId={message.runId || (message.timestamp instanceof Date ? message.timestamp.toISOString() : message.timestamp)}
               className="ml-auto sm:ml-0"
             />
           </div>

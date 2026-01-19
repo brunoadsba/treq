@@ -8,27 +8,37 @@ import { QuickActions } from "@/components/QuickActions";
 import { Toast } from "@/components/Toast";
 import { ConversationHistory } from "@/components/ConversationHistory";
 import { useToast } from "@/hooks/useToast";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 export default function ChatPage() {
   const router = useRouter();
+  const [isAuthChecked, setIsAuthChecked] = useState(false);
 
   // Guard de Autenticação
   useEffect(() => {
     const token = localStorage.getItem("treq_token");
     if (!token) {
       router.push("/login");
+    } else {
+      setIsAuthChecked(true);
     }
   }, [router]);
 
+  if (!isAuthChecked) {
+    return null;
+  }
+
+  return <ChatContent />;
+}
+
+function ChatContent() {
   const {
     messages,
     isLoading,
     error,
     sendMessage,
-    conversationId,
     currentConversationId,
     startNewConversation,
     loadConversation,
@@ -47,14 +57,8 @@ export default function ChatPage() {
     }
   }, [error, showToast]);
 
-  // Removido: Eventos de fallback não são mais exibidos ao usuário
-  // O fallback acontece silenciosamente em background sem notificar o usuário
-
-  const handleSendMessage = async (message: string, actionId?: string, imageUrl?: string) => {
+  const handleSendMessage = useCallback(async (message: string, actionId?: string, imageUrl?: string) => {
     try {
-      // Detectar se é uma ação rápida que suporta visualização
-      // QuickActions com supportsVisualization: true são: alertas, status-recife, status-salvador
-      // Também detectar query de dashboard que deve gerar gráficos
       const isDashboardQuery = message.toLowerCase().includes("status detalhado de todas as unidades") ||
         message.toLowerCase().includes("status de todas as unidades");
 
@@ -62,28 +66,24 @@ export default function ChatPage() {
         (actionId === "alertas" || actionId === "status-recife" || actionId === "status-salvador") :
         false;
 
-      // Se for query de dashboard, tratar como visualização de alertas (gráfico geral)
       const visualization = supportsVisualization || isDashboardQuery;
       const finalActionId = isDashboardQuery ? "alertas" : actionId;
 
       await sendMessage(
         message,
-        undefined,  // context
-        true,  // useStream
-        visualization,  // visualization
-        finalActionId,  // actionId
-        imageUrl // NOVO: Passar URL da imagem para o hook
+        undefined,
+        true,
+        visualization,
+        finalActionId,
+        imageUrl
       );
     } catch (err) {
-      // Toast já é mostrado pelo useEffect acima
       console.error("Erro ao enviar mensagem:", err);
     }
-  };
+  }, [sendMessage]);
 
-  // Listener para evento de navegação ao dashboard (deve vir depois da definição de handleSendMessage)
   useEffect(() => {
     const handleNavigateDashboard = () => {
-      // Enviar query automática para status detalhado
       handleSendMessage("Status detalhado de todas as unidades");
     };
 
@@ -113,7 +113,6 @@ export default function ChatPage() {
   const handleDeleteConversation = (id: string) => {
     deleteConversation(id);
     showToast("Conversa excluída", "success");
-    // Se não houver mais conversas, fechar histórico
     const conversations = getSavedConversations();
     if (conversations.length === 0) {
       setShowHistory(false);
@@ -128,7 +127,6 @@ export default function ChatPage() {
         return;
       }
 
-      // Criar blob e fazer download
       const blob = new Blob([exportData], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -196,7 +194,6 @@ export default function ChatPage() {
         />
       </div>
 
-      {/* Histórico de Conversas */}
       {showHistory && (
         <ConversationHistory
           conversations={getSavedConversations()}
@@ -207,9 +204,8 @@ export default function ChatPage() {
         />
       )}
 
-      {/* Toasts - Stack com espaçamento */}
       <div className="fixed bottom-2 right-2 sm:bottom-4 sm:right-4 md:bottom-6 md:right-6 z-50 flex flex-col gap-1.5 sm:gap-2 items-end max-w-[calc(100vw-1rem)]" aria-live="polite" aria-atomic="false">
-        {toasts.map((toast, index) => (
+        {toasts.map((toast) => (
           <Toast
             key={toast.id}
             message={toast.message}
